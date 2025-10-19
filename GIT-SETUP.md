@@ -17,7 +17,11 @@ nano .env  # or use your preferred editor
 ```
 
 **Required Environment Variables:**
-- `JWT_SECRET` - Generate a secure random string for production
+- `JWT_SECRET` - **CRITICAL**: Generate a secure random string for production
+  ```bash
+  # Generate a secure JWT secret:
+  openssl rand -base64 32
+  ```
 - `PORT` - Server port (default: 5000)
 - `DATABASE_URL` - Database file path (default: ./users.db)
 - `PATREON_ACCESS_TOKEN` - Your Patreon Creator Access Token (optional)
@@ -73,6 +77,7 @@ git commit -m "Initial commit: User management app with Patreon integration"
 - ✅ Use `.env.example` as a template
 - ✅ Never commit `.env` to Git
 - ✅ Use different secrets for production
+- ✅ **JWT_SECRET must be cryptographically secure** (use `openssl rand -base64 32`)
 
 ### **Database:**
 - ✅ Database file (`users.db`) is ignored by Git

@@ -25,6 +25,21 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 // Initialize Patreon service
 const patreonService = new PatreonService();
 
+// Auto-load Patreon token from environment if available
+if (process.env.PATREON_ACCESS_TOKEN) {
+  patreonService.setAccessToken(process.env.PATREON_ACCESS_TOKEN);
+  console.log('✅ Patreon access token loaded from environment variables');
+  
+  // Test connection to get campaign ID
+  patreonService.testConnection()
+    .then(() => {
+      console.log('✅ Patreon connection tested and campaign ID set');
+    })
+    .catch((error) => {
+      console.log('⚠️ Patreon connection test failed:', error.message);
+    });
+}
+
 // Middleware
 app.use(cors({
   origin: CORS_ORIGIN,
@@ -289,6 +304,36 @@ app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) =
 
 // Patreon API endpoints (admin only)
 
+// Check if Patreon is already configured
+app.get('/api/patreon/status', authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    if (patreonService.accessToken) {
+      const result = await patreonService.testConnection();
+      if (result.success) {
+        res.json({
+          configured: true,
+          message: 'Patreon is already configured and connected',
+          campaign: result.campaign
+        });
+      } else {
+        res.json({
+          configured: false,
+          message: 'Patreon token is set but connection failed',
+          error: result.error
+        });
+      }
+    } else {
+      res.json({
+        configured: false,
+        message: 'Patreon access token not configured'
+      });
+    }
+  } catch (error) {
+    console.error('Patreon status check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Test Patreon connection
 app.post('/api/patreon/test', authenticateToken, requireAdmin, async (req, res) => {
   try {
@@ -379,7 +424,8 @@ app.get('/api/patreon/tiers', authenticateToken, requireAdmin, async (req, res) 
 // Sync Patreon patrons with local users (enhanced with subscription tracking)
 app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) => {
   try {
-    const { accessToken } = req.body;
+    // Use token from environment or request body
+    const accessToken = process.env.PATREON_ACCESS_TOKEN || req.body.accessToken;
     
     if (!accessToken) {
       return res.status(400).json({ error: 'Access token is required' });

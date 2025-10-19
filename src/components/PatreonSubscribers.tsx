@@ -4,21 +4,21 @@ import './PatreonSubscribers.css';
 
 interface Patron {
   id: string;
-  patron_status: string;
-  pledge_relationship_start: string;
-  pledge_amount_cents: number;
-  pledge_created_at: string;
+  patron_status?: string;
+  pledge_relationship_start?: string;
+  pledge_amount_cents?: number;
+  pledge_created_at?: string;
   pledge_declined_since?: string;
-  will_pay_amount_cents: number;
+  will_pay_amount_cents?: number;
   user: {
     id: string;
-    email: string;
+    email?: string;
     first_name: string;
     last_name: string;
     full_name: string;
     vanity?: string;
     image_url?: string;
-    created: string;
+    created?: string;
     url: string;
   } | null;
   tier: Array<{
@@ -26,16 +26,12 @@ interface Patron {
     title: string;
     description: string;
     amount_cents: number;
-    created_at: string;
-    url: string;
+    created_at?: string;
+    url?: string;
   }> | null;
 }
 
-interface PatreonSubscribersProps {
-  accessToken: string;
-}
-
-const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) => {
+const PatreonSubscribers: React.FC = () => {
   const [patrons, setPatrons] = useState<Patron[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,9 +60,7 @@ const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) 
     setError('');
 
     try {
-      const response = await axios.post('/patreon/sync', {
-        accessToken: accessToken
-      });
+      const response = await axios.post('/patreon/sync');
       
       const { synced, errors, subscriptionAlerts } = response.data;
       
@@ -87,10 +81,8 @@ const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) 
   };
 
   useEffect(() => {
-    if (accessToken) {
-      fetchPatrons();
-    }
-  }, [accessToken, activeOnly]);
+    fetchPatrons();
+  }, [activeOnly]);
 
   const formatCurrency = (cents: number) => {
     return `$${(cents / 100).toFixed(2)}`;
@@ -167,7 +159,15 @@ const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) 
         <div className="stat-item">
           <span className="stat-label">Monthly Revenue:</span>
           <span className="stat-value">
-            {formatCurrency(patrons.reduce((sum, patron) => sum + patron.will_pay_amount_cents, 0))}
+            {formatCurrency(patrons.reduce((sum, patron) => {
+              // Use will_pay_amount_cents if available, otherwise sum tier amounts
+              if (patron.will_pay_amount_cents) {
+                return sum + patron.will_pay_amount_cents;
+              } else if (patron.tier && patron.tier.length > 0) {
+                return sum + patron.tier.reduce((tierSum, tier) => tierSum + tier.amount_cents, 0);
+              }
+              return sum;
+            }, 0))}
           </span>
         </div>
       </div>
@@ -204,8 +204,15 @@ const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) 
                     </div>
                   </td>
                   <td>{patron.user?.email || 'N/A'}</td>
-                  <td>{getStatusBadge(patron.patron_status)}</td>
-                  <td>{formatCurrency(patron.will_pay_amount_cents)}</td>
+                  <td>{getStatusBadge(patron.patron_status || 'active_patron')}</td>
+                  <td>
+                    {patron.will_pay_amount_cents 
+                      ? formatCurrency(patron.will_pay_amount_cents)
+                      : patron.tier && patron.tier.length > 0
+                        ? formatCurrency(patron.tier[0].amount_cents)
+                        : 'N/A'
+                    }
+                  </td>
                   <td>
                     {patron.tier && patron.tier.length > 0 ? (
                       <div className="tier-info">
@@ -219,7 +226,14 @@ const PatreonSubscribers: React.FC<PatreonSubscribersProps> = ({ accessToken }) 
                       'No Tier'
                     )}
                   </td>
-                  <td>{formatDate(patron.pledge_relationship_start)}</td>
+                  <td>
+                    {patron.pledge_relationship_start 
+                      ? formatDate(patron.pledge_relationship_start)
+                      : patron.pledge_created_at
+                        ? formatDate(patron.pledge_created_at)
+                        : 'N/A'
+                    }
+                  </td>
                   <td>
                     <div className="action-buttons">
                       {patron.user?.url && (

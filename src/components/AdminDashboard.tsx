@@ -4,6 +4,7 @@ import axios from 'axios';
 import PatreonConfig from './PatreonConfig';
 import PatreonSubscribers from './PatreonSubscribers';
 import SubscriptionAlerts from './SubscriptionAlerts';
+import ThemeToggle from './ThemeToggle';
 import './Dashboard.css';
 
 interface User {
@@ -119,6 +120,7 @@ const AdminDashboard: React.FC = () => {
           <h1>Admin Dashboard</h1>
           <div className="header-actions">
             <span className="welcome-text">Welcome, {user?.username}</span>
+            <ThemeToggle />
             <button onClick={logout} className="logout-btn">
               Logout
             </button>
@@ -234,7 +236,7 @@ const AdminDashboard: React.FC = () => {
               <SubscriptionAlerts />
               <PatreonConfig onConfigSuccess={handlePatreonConfigSuccess} />
               {patreonConnected && (
-                <PatreonSubscribers accessToken={patreonAccessToken} />
+                <PatreonSubscribers />
               )}
             </>
           )}

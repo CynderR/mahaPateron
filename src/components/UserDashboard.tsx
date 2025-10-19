@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
+import ThemeToggle from './ThemeToggle';
 import './Dashboard.css';
 
 const UserDashboard: React.FC = () => {
@@ -90,6 +91,7 @@ const UserDashboard: React.FC = () => {
           <h1>My Dashboard</h1>
           <div className="header-actions">
             <span className="welcome-text">Welcome, {profile?.username}</span>
+            <ThemeToggle />
             <button onClick={logout} className="logout-btn">
               Logout
             </button>

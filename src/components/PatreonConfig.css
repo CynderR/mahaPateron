@@ -1,10 +1,11 @@
 /* Patreon Configuration Styles */
 .patreon-config {
-  background: white;
+  background: var(--bg-card);
   border-radius: 0.75rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  border: 1px solid #e2e8f0;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-primary);
   margin-bottom: 2rem;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 .config-header {
@@ -160,8 +161,20 @@
 
 .config-help {
   padding: 1.5rem;
-  border-top: 1px solid #e2e8f0;
-  background: #f7fafc;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.loading-status {
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.loading-status p {
+  margin: 0;
+  font-size: 1rem;
 }
 
 .config-help h4 {

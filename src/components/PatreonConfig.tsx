@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './PatreonConfig.css';
 
@@ -20,6 +20,7 @@ const PatreonConfig: React.FC<PatreonConfigProps> = ({ onConfigSuccess }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [checkingStatus, setCheckingStatus] = useState(true);
 
   const handleTestConnection = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,12 +43,33 @@ const PatreonConfig: React.FC<PatreonConfigProps> = ({ onConfigSuccess }) => {
     }
   };
 
+  const checkPatreonStatus = async () => {
+    setCheckingStatus(true);
+    try {
+      const response = await axios.get('/patreon/status');
+      if (response.data.configured) {
+        setCampaign(response.data.campaign);
+        setSuccess('Patreon is already configured and connected!');
+        onConfigSuccess(response.data.campaign);
+      }
+    } catch (err: any) {
+      // If status check fails, it's not configured - that's fine
+      console.log('Patreon not configured yet');
+    } finally {
+      setCheckingStatus(false);
+    }
+  };
+
   const handleClearConfig = () => {
     setAccessToken('');
     setCampaign(null);
     setError('');
     setSuccess('');
   };
+
+  useEffect(() => {
+    checkPatreonStatus();
+  }, []);
 
   return (
     <div className="patreon-config">
@@ -70,7 +92,11 @@ const PatreonConfig: React.FC<PatreonConfigProps> = ({ onConfigSuccess }) => {
         </div>
       )}
 
-      {!campaign ? (
+      {checkingStatus ? (
+        <div className="loading-status">
+          <p>🔍 Checking Patreon configuration...</p>
+        </div>
+      ) : !campaign ? (
         <form onSubmit={handleTestConnection} className="config-form">
           <div className="form-group">
             <label htmlFor="accessToken">Patreon Creator Access Token</label>

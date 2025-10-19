@@ -65,17 +65,22 @@ class PatreonService {
 
   // Get active patrons/subscribers
   async getActivePatrons() {
+    if (!this.accessToken) {
+      throw new Error('Access token not set');
+    }
     if (!this.campaignId) {
       throw new Error('Campaign ID not set. Please test connection first.');
     }
+    const url = `https://www.patreon.com/api/oauth2/v2/campaigns/${this.campaignId}/members?include=user,currently_entitled_tiers&fields[user]=email,first_name,last_name,full_name,vanity,url&fields[tier]=title,amount_cents,description`;
 
     try {
       const response = await axios.get(
-        `${this.baseURL}/campaigns/${this.campaignId}/members?filter[patron_status]=active_patron&include=user,currently_entitled_tiers`,
+        url,
         {
           headers: this.getHeaders()
         }
       );
+
 
       const patrons = [];
       
