@@ -11,13 +11,36 @@
 # production
 /build
 
-# misc
-.DS_Store
+# Database files (contains user data and sensitive information)
+*.db
+*.sqlite
+*.sqlite3
+/backend/users.db
+
+# Environment variables (contains secrets and API keys)
+.env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
+# Logs
+*.log
+logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Temporary files
+*.tmp
+*.temp

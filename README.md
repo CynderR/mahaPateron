@@ -1,46 +1,217 @@
-# Getting Started with Create React App
+# User Management App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern React TypeScript application with a Node.js backend for user management, featuring separate admin and user dashboards.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- **Landing Page**: Beautiful, responsive landing page with hero section and feature highlights
+- **Authentication**: Secure JWT-based authentication with sign-in and sign-up
+- **Admin Dashboard**: Complete user management system for administrators
+- **User Dashboard**: Personal profile management for regular users
+- **Responsive Design**: Modern UI that works on all devices
+- **Type Safety**: Full TypeScript implementation
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+### Frontend
+- React 19.1.1
+- TypeScript
+- React Router DOM
+- Axios for API calls
+- Modern CSS with responsive design
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+### Backend
+- Node.js with Express
+- SQLite database
+- JWT authentication
+- bcryptjs for password hashing
+- CORS enabled
 
-### `npm test`
+## Getting Started
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn
 
-### `npm run build`
+### Quick Start (Recommended)
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+Use the automated setup script:
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+```bash
+# Make the script executable (Linux/Mac)
+chmod +x start-dev.sh
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Run the setup script
+./start-dev.sh
+```
 
-### `npm run eject`
+Or use npm scripts:
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+```bash
+# Install all dependencies
+npm run setup
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+# Start both backend and frontend
+npm run dev
+```
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+### Manual Installation
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+1. **Install frontend dependencies:**
+   ```bash
+   npm install
+   ```
 
-## Learn More
+2. **Install backend dependencies:**
+   ```bash
+   cd backend
+   npm install
+   ```
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+3. **Start the backend server:**
+   ```bash
+   cd backend
+   npm start
+   ```
+   The backend will run on `http://localhost:5000`
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+4. **Start the frontend development server:**
+   ```bash
+   npm start
+   ```
+   The frontend will run on `http://localhost:3000`
+
+## Usage
+
+### Landing Page
+- Visit `http://localhost:3000` to see the landing page
+- Navigate to sign-in or sign-up from the navigation
+
+### User Registration
+- Click "Get Started" or "Sign Up" to create a new account
+- Fill in the required fields (username, email, password)
+- Optional fields include WhatsApp number, Patreon ID, and Mixcloud ID
+- Choose between free or premium account
+
+### User Sign-In
+- Use your email and password to sign in
+- You'll be redirected to your personal dashboard
+
+### User Dashboard
+- View and edit your profile information
+- Update your account details
+- See your account statistics
+
+### Admin Dashboard
+- Admin users (username: "admin" or email: "admin@example.com") get access to the admin dashboard
+- View all registered users
+- Edit user information
+- Delete users
+- See user statistics
+
+## API Endpoints
+
+The backend provides the following endpoints:
+
+- `POST /api/register` - Register a new user
+- `POST /api/login` - User login
+- `GET /api/profile` - Get current user profile
+- `PUT /api/profile` - Update current user profile
+- `GET /api/users` - Get all users (authenticated)
+- `PUT /api/users/:id` - Update user by ID (authenticated)
+- `DELETE /api/users/:id` - Delete user by ID (authenticated)
+
+## Admin Access
+
+To create an admin user, you can either:
+1. Register with username "admin" or email "admin@example.com"
+2. Or modify the admin check logic in `src/contexts/AuthContext.tsx`
+
+## Project Structure
+
+```
+src/
+├── components/
+│   ├── LandingPage.tsx      # Landing page component
+│   ├── SignIn.tsx           # Sign-in form
+│   ├── SignUp.tsx           # Sign-up form
+│   ├── AdminDashboard.tsx   # Admin dashboard
+│   ├── UserDashboard.tsx    # User dashboard
+│   ├── ProtectedRoute.tsx   # Route protection
+│   ├── LandingPage.css      # Landing page styles
+│   ├── Auth.css            # Authentication styles
+│   └── Dashboard.css       # Dashboard styles
+├── contexts/
+│   └── AuthContext.tsx     # Authentication context
+├── App.tsx                 # Main app component
+└── index.tsx              # App entry point
+
+backend/
+├── server.js              # Express server
+├── database.js            # Database operations
+└── package.json          # Backend dependencies
+```
+
+## Customization
+
+### Styling
+- Modify CSS files in the `components/` directory to customize the appearance
+- The design uses a modern color scheme with blue and yellow accents
+- All components are fully responsive
+
+### Admin Logic
+- Update the `isAdmin` logic in `AuthContext.tsx` to change admin detection
+- Modify the admin dashboard to add or remove features
+
+### User Fields
+- Add new user fields by updating the database schema in `backend/database.js`
+- Update the sign-up form and dashboards to include new fields
+
+## Security Notes
+
+- Passwords are hashed using bcryptjs
+- JWT tokens expire after 24 hours
+- CORS is configured for development
+- Input validation is implemented on both frontend and backend
+- **Environment variables** protect sensitive data (see [GIT-SETUP.md](./GIT-SETUP.md))
+- **Database files** are excluded from Git to protect user data
+
+## Development
+
+To run in development mode:
+```bash
+# Backend with auto-reload
+cd backend
+npm run dev
+
+# Frontend with hot reload
+npm start
+```
+
+## Git Setup & Security
+
+**🔒 Important:** Before committing to Git, read the [GIT-SETUP.md](./GIT-SETUP.md) guide to protect sensitive data.
+
+Key points:
+- Environment variables protect secrets and API keys
+- Database files are excluded from Git
+- Use `.env.example` as a template for other developers
+
+## Production Deployment
+
+1. Build the frontend:
+   ```bash
+   npm run build
+   ```
+
+2. Set environment variables for production:
+   - `JWT_SECRET` - A secure secret key for JWT signing
+   - `PORT` - Server port (default: 5000)
+   - `CORS_ORIGIN` - Your production domain
+   - `NODE_ENV=production`
+
+3. Deploy the backend and serve the built frontend files
+
+## License
+
+This project is open source and available under the MIT License.
