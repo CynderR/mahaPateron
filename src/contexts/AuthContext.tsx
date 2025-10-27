@@ -40,7 +40,7 @@ interface RegisterData {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Configure axios defaults
-axios.defaults.baseURL = 'http://localhost:5000/api';
+axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
