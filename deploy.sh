@@ -223,3 +223,5 @@ echo "- Change the JWT_SECRET in .env"
 echo "- Add your Patreon access token"
 echo "- Update CORS_ORIGIN with your domain"
 echo "- Configure your domain DNS to point to this server"
+
+
