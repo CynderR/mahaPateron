@@ -188,6 +188,155 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// Patreon OAuth - Initiate OAuth flow
+app.get('/api/auth/patreon', (req, res) => {
+  const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
+  const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
+  
+  if (!PATREON_CLIENT_ID) {
+    return res.status(500).json({ error: 'Patreon OAuth not configured' });
+  }
+
+  // Generate state for CSRF protection
+  const state = jwt.sign({ timestamp: Date.now() }, JWT_SECRET, { expiresIn: '10m' });
+  
+  const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
+    `response_type=code&` +
+    `client_id=${PATREON_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
+    `scope=identity&` +
+    `state=${state}`;
+
+  res.redirect(patreonAuthUrl);
+});
+
+// Patreon OAuth - Handle callback
+app.get('/api/auth/patreon/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
+    const PATREON_CLIENT_SECRET = process.env.PATREON_CLIENT_SECRET;
+    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
+
+    if (!code || !state) {
+      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      return res.redirect(`${frontendOrigin}/signin?error=oauth_failed`);
+    }
+
+    // Verify state token
+    try {
+      jwt.verify(state, JWT_SECRET);
+    } catch (err) {
+      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
+    }
+
+    if (!PATREON_CLIENT_ID || !PATREON_CLIENT_SECRET) {
+      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      return res.redirect(`${frontendOrigin}/signin?error=oauth_not_configured`);
+    }
+
+    // Exchange code for access token
+    const tokenResponse = await axios.post('https://www.patreon.com/api/oauth2/token', 
+      new URLSearchParams({
+        code: code as string,
+        grant_type: 'authorization_code',
+        client_id: PATREON_CLIENT_ID,
+        client_secret: PATREON_CLIENT_SECRET,
+        redirect_uri: PATREON_REDIRECT_URI
+      }),
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      }
+    );
+
+    const { access_token } = tokenResponse.data;
+
+    // Get user identity from Patreon
+    const userResponse = await axios.get('https://www.patreon.com/api/oauth2/v2/identity', {
+      headers: {
+        'Authorization': `Bearer ${access_token}`
+      },
+      params: {
+        'fields[user]': 'email,first_name,last_name,full_name,vanity,url,image_url'
+      }
+    });
+
+    const patreonUser = userResponse.data.data;
+    const patreonId = patreonUser.id;
+    const patreonEmail = patreonUser.attributes.email;
+    const patreonName = patreonUser.attributes.full_name || patreonUser.attributes.first_name || 'Patreon User';
+
+    // Check if user exists by Patreon ID or email
+    let user = await getUserByPatreonId(patreonId);
+    if (!user && patreonEmail) {
+      user = await getUserByEmail(patreonEmail);
+    }
+
+    if (user) {
+      // Update user with Patreon ID if not set
+      if (!user.patreon_id) {
+        await updateUser(user.id, {
+          username: user.username,
+          email: user.email,
+          whatsapp_number: user.whatsapp_number,
+          patreon_id: patreonId,
+          mixcloud_id: user.mixcloud_id,
+          is_free: user.is_free,
+          is_admin: user.is_admin
+        });
+        user = await getUserById(user.id);
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Redirect to frontend with token
+      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
+    } else {
+      // Create new user from Patreon data
+      const username = patreonUser.attributes.vanity || patreonEmail.split('@')[0] || `patreon_${patreonId}`;
+      const tempPassword = Math.random().toString(36).slice(-12);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+      const newUser = await createUser({
+        username,
+        email: patreonEmail || `patreon_${patreonId}@example.com`,
+        password: hashedPassword,
+        whatsapp_number: null,
+        patreon_id: patreonId,
+        mixcloud_id: null,
+        is_free: false, // New accounts default to premium
+        is_admin: false
+      });
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      // Redirect to frontend with token
+      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
+    }
+  } catch (error) {
+    console.error('Patreon OAuth callback error:', error);
+    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+    return res.redirect(`${frontendOrigin}/signin?error=oauth_error`);
+  }
+});
+
 // Get current user profile
 app.get('/api/profile', authenticateToken, async (req, res) => {
   try {
