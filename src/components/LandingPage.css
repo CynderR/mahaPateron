@@ -3,22 +3,62 @@
   margin: 0;
   padding: 0;
   overflow: hidden;
+  width: 100vw;
+  height: 100vh;
 }
 
 .sky {
+  position: fixed;
+  top: -5%;
+  left: -5%;
+  width: 110vw;
+  height: 110vh;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+}
+
+/* Overlay for better text readability */
+.background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.1) 0%,
+    rgba(0, 0, 0, 0.2) 50%,
+    rgba(0, 0, 0, 0.3) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Content layer - fixed, doesn't move with parallax */
+.content-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
   width: 100vw;
   height: 100vh;
-  background: linear-gradient(to bottom, #87CEEB 0%, #98D8E8 50%, #B0E0E6 100%);
-  position: relative;
-  overflow: hidden;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.content-layer > * {
+  pointer-events: auto;
 }
 
 /* Sign In Button */
 .sign-in-button {
   position: absolute;
-  top: 2rem;
-  right: 2rem;
-  z-index: 20;
+  top: 1.5rem;
+  right: 1.5rem;
+  z-index: 11;
   padding: 0.75rem 2rem;
   background: rgba(255, 255, 255, 0.9);
   color: #2563eb;
@@ -47,7 +87,7 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  z-index: 10;
+  z-index: 11;
   text-align: center;
 }
 
@@ -64,99 +104,7 @@
   animation: fadeIn 1.5s ease-in;
 }
 
-/* Cloud Styles */
-.cloud {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 50px;
-  opacity: 0.9;
-}
-
-.cloud:before,
-.cloud:after {
-  content: '';
-  position: absolute;
-  background: rgba(255, 255, 255, 0.8);
-  border-radius: 50px;
-}
-
-.cloud:before {
-  width: 50px;
-  height: 50px;
-  top: -25px;
-  left: 10px;
-}
-
-.cloud:after {
-  width: 60px;
-  height: 60px;
-  top: -35px;
-  right: 10px;
-}
-
-/* Individual Cloud Configurations */
-.cloud-1 {
-  width: 100px;
-  height: 40px;
-  top: 20%;
-  left: -120px;
-  animation: moveCloud 60s linear infinite;
-}
-
-.cloud-2 {
-  width: 120px;
-  height: 45px;
-  top: 35%;
-  left: -140px;
-  animation: moveCloud 70s linear infinite;
-  animation-delay: -10s;
-}
-
-.cloud-3 {
-  width: 90px;
-  height: 35px;
-  top: 50%;
-  left: -110px;
-  animation: moveCloud 55s linear infinite;
-  animation-delay: -20s;
-}
-
-.cloud-4 {
-  width: 110px;
-  height: 42px;
-  top: 65%;
-  left: -130px;
-  animation: moveCloud 65s linear infinite;
-  animation-delay: -5s;
-}
-
-.cloud-5 {
-  width: 130px;
-  height: 48px;
-  top: 15%;
-  left: -150px;
-  animation: moveCloud 75s linear infinite;
-  animation-delay: -30s;
-}
-
-.cloud-6 {
-  width: 95px;
-  height: 38px;
-  top: 80%;
-  left: -115px;
-  animation: moveCloud 58s linear infinite;
-  animation-delay: -15s;
-}
-
-/* Cloud Animation */
-@keyframes moveCloud {
-  0% {
-    transform: translateX(0);
-  }
-  100% {
-    transform: translateX(calc(100vw + 200px));
-  }
-}
+/* Removed cloud styles - using background images instead */
 
 /* Fade In Animation */
 @keyframes fadeIn {
@@ -171,33 +119,14 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .sign-in-button {
-    top: 1.5rem;
-    right: 1.5rem;
+    top: 1rem;
+    right: 1rem;
     padding: 0.6rem 1.5rem;
     font-size: 0.9rem;
   }
   
   .main-title {
     font-size: 2.5rem;
-  }
-  
-  .cloud-1, .cloud-2, .cloud-3, .cloud-4, .cloud-5, .cloud-6 {
-    width: 80px;
-    height: 30px;
-  }
-  
-  .cloud-1:before, .cloud-2:before, .cloud-3:before,
-  .cloud-4:before, .cloud-5:before, .cloud-6:before {
-    width: 40px;
-    height: 40px;
-    top: -20px;
-  }
-  
-  .cloud-1:after, .cloud-2:after, .cloud-3:after,
-  .cloud-4:after, .cloud-5:after, .cloud-6:after {
-    width: 50px;
-    height: 50px;
-    top: -30px;
   }
 }
 

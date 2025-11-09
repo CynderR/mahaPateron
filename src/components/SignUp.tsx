@@ -10,9 +10,7 @@ const SignUp: React.FC = () => {
     password: '',
     confirmPassword: '',
     whatsapp_number: '',
-    patreon_id: '',
-    mixcloud_id: '',
-    is_free: true
+    patreon_id: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -145,31 +143,6 @@ const SignUp: React.FC = () => {
             />
           </div>
 
-          <div className="form-group">
-            <label htmlFor="mixcloud_id">Mixcloud ID</label>
-            <input
-              type="text"
-              id="mixcloud_id"
-              name="mixcloud_id"
-              value={formData.mixcloud_id}
-              onChange={handleChange}
-              placeholder="Your Mixcloud ID (optional)"
-            />
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label className="checkbox-label">
-              <input
-                type="checkbox"
-                name="is_free"
-                checked={formData.is_free}
-                onChange={handleChange}
-              />
-              <span className="checkmark"></span>
-              Free Account
-            </label>
-          </div>
-
           <button
             type="submit"
             disabled={loading}
@@ -198,6 +171,8 @@ const SignUp: React.FC = () => {
 };
 
 export default SignUp;
+
+
 
 
 

@@ -1,9 +1,48 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 const SignIn: React.FC = () => {
+  // Array of background images (same as landing page)
+  const backgroundImages = [
+    '/signal-2025-11-09-113257.jpeg',
+    '/signal-2025-11-09-113257_002.jpeg',
+    '/signal-2025-11-09-113257_003.jpeg',
+    '/signal-2025-11-09-113257_004.jpeg'
+  ];
+
+  // Randomly select an image on component mount
+  const [selectedImage, setSelectedImage] = useState<string>('');
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * backgroundImages.length);
+    setSelectedImage(backgroundImages[randomIndex]);
+  }, []);
+
+  // Parallax effect on mouse move
+  const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      const { clientX, clientY } = e;
+      const { innerWidth, innerHeight } = window;
+      
+      // Calculate offset as percentage (-50% to 50%)
+      const xOffset = ((clientX / innerWidth) - 0.5) * 2;
+      const yOffset = ((clientY / innerHeight) - 0.5) * 2;
+      
+      // Apply subtle parallax (max 2% movement)
+      setParallaxOffset({
+        x: xOffset * 2,
+        y: yOffset * 2
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -28,7 +67,20 @@ const SignIn: React.FC = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
+      {/* Background with parallax effect */}
+      <div 
+        className="auth-background"
+        style={{
+          backgroundImage: selectedImage ? `url(${selectedImage})` : undefined,
+          transform: `translate(${parallaxOffset.x}%, ${parallaxOffset.y}%)`
+        }}
+      >
+        <div className="background-overlay"></div>
+      </div>
+      
+      {/* Fixed content layer */}
+      <div className="auth-content-layer">
+        <div className="auth-card">
         <div className="auth-header">
           <h1>Welcome Back</h1>
           <p>Sign in to your account</p>
@@ -88,11 +140,14 @@ const SignIn: React.FC = () => {
           </p>
         </div>
       </div>
+      </div>
     </div>
   );
 };
 
 export default SignIn;
+
+
 
 
 

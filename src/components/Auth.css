@@ -1,20 +1,64 @@
 /* Authentication Styles */
 .auth-container {
   min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 2rem 1rem;
 }
 
-.auth-card {
-  background: white;
-  border-radius: 1rem;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-  padding: 2.5rem;
+/* Background with parallax effect */
+.auth-background {
+  position: fixed;
+  top: -5%;
+  left: -5%;
+  width: 110vw;
+  height: 110vh;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  transition: transform 0.1s ease-out;
+  will-change: transform;
+  z-index: 0;
+}
+
+/* Overlay for better text readability */
+.auth-container .background-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.3) 0%,
+    rgba(0, 0, 0, 0.4) 50%,
+    rgba(0, 0, 0, 0.5) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Fixed content layer - doesn't move with parallax */
+.auth-content-layer {
+  position: relative;
+  z-index: 10;
   width: 100%;
   max-width: 500px;
+}
+
+.auth-card {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  padding: 2.5rem;
+  width: 100%;
   animation: slideUp 0.5s ease-out;
 }
 
@@ -183,6 +227,8 @@
     font-size: 1.75rem;
   }
 }
+
+
 
 
 
