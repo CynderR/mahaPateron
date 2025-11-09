@@ -241,7 +241,7 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     // Exchange code for access token
     const tokenResponse = await axios.post('https://www.patreon.com/api/oauth2/token', 
       new URLSearchParams({
-        code: code as string,
+        code: String(code),
         grant_type: 'authorization_code',
         client_id: PATREON_CLIENT_ID,
         client_secret: PATREON_CLIENT_SECRET,
