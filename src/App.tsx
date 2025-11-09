@@ -8,6 +8,7 @@ import SignUp from './components/SignUp';
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
+import PatreonOAuthCallback from './components/PatreonOAuthCallback';
 import './App.css';
 import './styles/themes.css';
 
@@ -19,6 +20,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/" element={<LandingPage />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
+      <Route path="/auth/patreon/success" element={<PatreonOAuthCallback />} />
       <Route
         path="/dashboard"
         element={

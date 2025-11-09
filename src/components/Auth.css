@@ -201,6 +201,55 @@
   text-decoration: underline;
 }
 
+/* OAuth Divider */
+.oauth-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.oauth-divider::before,
+.oauth-divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.oauth-divider span {
+  padding: 0 1rem;
+}
+
+/* Patreon OAuth Button */
+.patreon-oauth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.875rem 1.5rem;
+  background: #FF424D;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  margin-top: 0.5rem;
+}
+
+.patreon-oauth-button:hover {
+  background: #E63946;
+  transform: translateY(-1px);
+}
+
+.patreon-oauth-button svg {
+  flex-shrink: 0;
+}
+
 /* Animations */
 @keyframes slideUp {
   from {
