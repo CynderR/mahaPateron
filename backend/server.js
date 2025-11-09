@@ -3,7 +3,8 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const PatreonService = require('./patreonService');
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 const {
   initDatabase,
@@ -26,8 +27,13 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 const patreonService = new PatreonService();
 
 // Middleware
-app.use(cors({
-  origin: CORS_ORIGIN,
+
+const corsOrigins = CORS_ORIGIN.includes(",")
+  ? CORS_ORIGIN.split(",").map(origin => origin.trim())
+  : CORS_ORIGIN
+
+  app.use(cors({
+  origin: corsOrigins,
   credentials: true
 }));
 app.use(express.json());
