@@ -31,10 +31,10 @@ const LandingPage: React.FC = () => {
       const xOffset = ((clientX / innerWidth) - 0.5) * 2;
       const yOffset = ((clientY / innerHeight) - 0.5) * 2;
       
-      // Apply subtle parallax (max 2% movement)
+      // Apply subtle parallax (max 0.5% movement - very subtle)
       setParallaxOffset({
-        x: xOffset * 2,
-        y: yOffset * 2
+        x: xOffset * 0.5,
+        y: yOffset * 0.5
       });
     };
 
