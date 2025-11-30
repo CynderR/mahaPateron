@@ -189,10 +189,7 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
-// Patreon OAuth - Initiate OAuth flow
-// This endpoint can be called with or without authentication
-// If authenticated (for account linking), userId comes from JWT token
-// If not authenticated (for sign-in), userId will be null
+// Patreon OAuth - Initiate OAuth flow (for sign-in, no auth required)
 app.get('/api/auth/patreon', (req, res) => {
   const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
   const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
@@ -237,6 +234,34 @@ app.get('/api/auth/patreon', (req, res) => {
   // Generate state for CSRF protection, include user ID if linking account
   const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
   console.log('OAuth initiation: State created with userId:', userId);
+  
+  const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
+    `response_type=code&` +
+    `client_id=${PATREON_CLIENT_ID}&` +
+    `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
+    `scope=identity&` +
+    `state=${state}`;
+
+  res.redirect(patreonAuthUrl);
+});
+
+// Patreon OAuth - Initiate OAuth flow for account linking (requires authentication)
+app.get('/api/auth/patreon/link', authenticateToken, (req, res) => {
+  const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
+  const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
+  
+  if (!PATREON_CLIENT_ID) {
+    return res.status(500).json({ error: 'Patreon OAuth not configured' });
+  }
+
+  // Get userId from authenticated JWT token
+  const userId = req.user.id;
+  console.log('OAuth link initiation: User authenticated, linking account for userId:', userId);
+
+  // Generate state for CSRF protection, include user ID for account linking
+  const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
+  console.log('OAuth link initiation: State created with userId:', userId);
   
   const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
     `response_type=code&` +

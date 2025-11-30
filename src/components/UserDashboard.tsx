@@ -231,46 +231,34 @@ const UserDashboard: React.FC = () => {
                         <p style={{ margin: 0 }}>Not linked</p>
                         <button
                           type="button"
-                          onClick={() => {
-                            // Get userId from profile (which is fetched from /api/profile and should have id)
-                            // Fallback to user from AuthContext
-                            // Also try to decode from JWT token as last resort
-                            let userId = profile?.id || user?.id;
-                            
-                            // If still no userId, try to decode from JWT token
-                            if (!userId) {
-                              try {
-                                const token = localStorage.getItem('token');
-                                if (token) {
-                                  // Decode JWT token (without verification, just to get the payload)
-                                  const base64Url = token.split('.')[1];
-                                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                                  const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
-                                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                                  }).join(''));
-                                  const decoded = JSON.parse(jsonPayload);
-                                  userId = decoded.id;
-                                  console.log('Got userId from JWT token:', userId);
-                                }
-                              } catch (err) {
-                                console.error('Error decoding JWT token:', err);
+                          onClick={async () => {
+                            try {
+                              // Use the authenticated linking endpoint which gets userId from JWT token
+                              const backendUrl = process.env.NODE_ENV === 'production' 
+                                ? '/api/auth/patreon/link' 
+                                : 'http://localhost:5000/api/auth/patreon/link';
+                              
+                              // Make request with auth header - axios will include the Authorization header
+                              // The backend will redirect, so we need to follow the redirect
+                              const response = await axios.get(backendUrl, {
+                                maxRedirects: 0,
+                                validateStatus: (status) => status === 302
+                              });
+                              
+                              // Follow the redirect to Patreon
+                              if (response.status === 302 && response.headers.location) {
+                                window.location.href = response.headers.location;
+                              } else {
+                                throw new Error('Unexpected response from server');
+                              }
+                            } catch (error: any) {
+                              console.error('Error initiating Patreon link:', error);
+                              if (error.response?.status === 401) {
+                                setError('Please log in again to link your Patreon account.');
+                              } else {
+                                setError('Failed to initiate Patreon linking. Please try again.');
                               }
                             }
-                            
-                            console.log('Link Patreon - profile?.id:', profile?.id, 'user?.id:', user?.id, 'final userId:', userId);
-                            
-                            if (!userId) {
-                              console.error('Cannot link Patreon: User ID not available');
-                              setError('Unable to link account. Please refresh the page and try again.');
-                              return;
-                            }
-                            
-                            const backendUrl = process.env.NODE_ENV === 'production' 
-                              ? '/api/auth/patreon' 
-                              : 'http://localhost:5000/api/auth/patreon';
-                            const url = `${backendUrl}?link=true&userId=${userId}`;
-                            console.log('Linking Patreon account - redirecting to:', url);
-                            window.location.href = url;
                           }}
                           className="btn-link-patreon"
                         >
