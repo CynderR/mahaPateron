@@ -232,7 +232,7 @@ const UserDashboard: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const userId = profile?.id;
+                            const userId = user?.id || profile?.id;
                             const backendUrl = process.env.NODE_ENV === 'production' 
                               ? '/api/auth/patreon' 
                               : 'http://localhost:5000/api/auth/patreon';

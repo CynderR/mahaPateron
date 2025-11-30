@@ -200,7 +200,14 @@ app.get('/api/auth/patreon', (req, res) => {
   }
 
   // Get userId from query parameter if linking account
-  const userId = req.query.link === 'true' && req.query.userId ? parseInt(req.query.userId) : null;
+  let userId = null;
+  if (req.query.link === 'true' && req.query.userId) {
+    userId = parseInt(req.query.userId);
+    if (isNaN(userId)) {
+      userId = null;
+    }
+    console.log('OAuth initiation: Linking account for userId:', userId);
+  }
 
   // Generate state for CSRF protection, include user ID if linking account
   const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
@@ -233,6 +240,7 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     let stateData;
     try {
       stateData = jwt.verify(state, JWT_SECRET);
+      console.log('OAuth callback: State data:', stateData);
     } catch (err) {
       const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
       return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
@@ -284,12 +292,19 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     
     // If linking account and user not found by Patreon ID/email, try to get by userId from state
     if (!user && stateData.userId) {
+      console.log('Linking account: Looking up user by userId from state:', stateData.userId);
       user = await getUserById(stateData.userId);
+      if (user) {
+        console.log('Found user for linking:', user.id, user.username, user.email);
+      } else {
+        console.log('User not found by userId:', stateData.userId);
+      }
     }
 
     if (user) {
       // Update user with Patreon ID (link account or update if different)
-      if (user.patreon_id !== patreonId) {
+      if (!user.patreon_id || user.patreon_id !== patreonId) {
+        console.log('Updating user Patreon ID:', user.id, 'from', user.patreon_id, 'to', patreonId);
         await updateUser(user.id, {
           username: user.username,
           email: user.email,
