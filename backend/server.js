@@ -474,23 +474,32 @@ app.get('/api/patreon/rss-url', authenticateToken, async (req, res) => {
 app.get('/api/patreon/posts', authenticateToken, async (req, res) => {
   try {
     if (!patreonService.accessToken || !patreonService.campaignId) {
+      console.log('Get posts: Patreon not configured - accessToken:', !!patreonService.accessToken, 'campaignId:', patreonService.campaignId);
       return res.status(404).json({ error: 'Patreon not configured' });
     }
 
+    console.log('Get posts: Fetching RSS URL...');
     const rssUrl = await patreonService.getRSSUrl();
+    console.log('Get posts: RSS URL:', rssUrl);
+    
     if (!rssUrl) {
       return res.status(404).json({ error: 'RSS URL not available' });
     }
 
+    console.log('Get posts: Fetching posts from RSS...');
     const result = await patreonService.getPostsFromRSS(rssUrl);
+    console.log('Get posts: Result success:', result.success, 'posts count:', result.posts?.length || 0);
+    
     if (result.success) {
       res.json({ posts: result.posts });
     } else {
+      console.error('Get posts: Failed to fetch posts:', result.error);
       res.status(500).json({ error: result.error || 'Failed to fetch posts' });
     }
   } catch (error) {
     console.error('Get posts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('Get posts error stack:', error.stack);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
   }
 });
 
