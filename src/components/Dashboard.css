@@ -428,6 +428,29 @@
   background: #cbd5e0;
 }
 
+.btn-link-patreon {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.5rem 1rem;
+  background: #FF424D;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.btn-link-patreon:hover {
+  background: #E63946;
+  transform: translateY(-1px);
+}
+
+.btn-link-patreon svg {
+  flex-shrink: 0;
+}
+
 .profile-info {
   padding: 1.5rem;
 }

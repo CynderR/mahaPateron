@@ -22,7 +22,7 @@ const PatreonOAuthCallback: React.FC = () => {
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      // Reload the page to trigger AuthContext to pick up the token
+      // Reload the page to trigger AuthContext to pick up the token and refresh profile
       window.location.href = '/dashboard';
     } else {
       navigate('/signin?error=no_token');

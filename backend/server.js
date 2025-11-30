@@ -278,8 +278,8 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     }
 
     if (user) {
-      // Update user with Patreon ID if not set
-      if (!user.patreon_id) {
+      // Update user with Patreon ID (link account or update if different)
+      if (user.patreon_id !== patreonId) {
         await updateUser(user.id, {
           username: user.username,
           email: user.email,

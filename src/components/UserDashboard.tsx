@@ -224,7 +224,28 @@ const UserDashboard: React.FC = () => {
                   </div>
                   <div className="info-item">
                     <label>Patreon ID</label>
-                    <p>{profile?.patreon_id || 'Not provided'}</p>
+                    {profile?.patreon_id ? (
+                      <p>{profile.patreon_id}</p>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                        <p style={{ margin: 0 }}>Not linked</p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const backendUrl = process.env.NODE_ENV === 'production' 
+                              ? '/api/auth/patreon' 
+                              : 'http://localhost:5000/api/auth/patreon';
+                            window.location.href = backendUrl;
+                          }}
+                          className="btn-link-patreon"
+                        >
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '0.5rem' }}>
+                            <path d="M0 .48v23.04h4.32V.48zm7.405 0C11.135.48 13.2 2.16 13.2 5.04c0 2.88-2.065 4.56-5.795 4.56H4.32v8.4H0V.48zm0 7.68h2.64c1.92 0 2.88-.96 2.88-2.4 0-1.44-.96-2.4-2.88-2.4H7.405z"/>
+                          </svg>
+                          Link Patreon Account
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <div className="info-item">
                     <label>Mixcloud ID</label>
