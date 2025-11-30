@@ -311,24 +311,35 @@ class PatreonService {
         const url = campaign.attributes?.url;
         const creationName = campaign.attributes?.creation_name;
         
-        // Construct RSS URL from vanity, URL, or creation_name
+        // Try multiple RSS URL formats
+        const possibleUrls = [];
+        
         if (vanity) {
-          const rssUrl = `https://www.patreon.com/rss/${vanity}`;
-          console.log('getRSSUrl: Using vanity, RSS URL:', rssUrl);
-          return rssUrl;
-        } else if (url) {
-          // Extract vanity from URL if available
+          // Standard RSS format
+          possibleUrls.push(`https://www.patreon.com/rss/${vanity}`);
+          // Alternative format
+          possibleUrls.push(`https://www.patreon.com/${vanity}/rss`);
+        }
+        
+        if (url) {
+          // Extract username/vanity from URL
           const urlMatch = url.match(/patreon\.com\/([^\/\?]+)/);
           if (urlMatch && urlMatch[1]) {
-            const rssUrl = `https://www.patreon.com/rss/${urlMatch[1]}`;
-            console.log('getRSSUrl: Using URL match, RSS URL:', rssUrl);
-            return rssUrl;
+            const extracted = urlMatch[1];
+            possibleUrls.push(`https://www.patreon.com/rss/${extracted}`);
+            possibleUrls.push(`https://www.patreon.com/${extracted}/rss`);
           }
-        } else if (creationName) {
-          // Fallback to creation_name
-          const rssUrl = `https://www.patreon.com/rss/${creationName}`;
-          console.log('getRSSUrl: Using creation_name, RSS URL:', rssUrl);
-          return rssUrl;
+        }
+        
+        if (creationName) {
+          possibleUrls.push(`https://www.patreon.com/rss/${creationName}`);
+          possibleUrls.push(`https://www.patreon.com/${creationName}/rss`);
+        }
+        
+        // Return the first URL (we'll test it when fetching)
+        if (possibleUrls.length > 0) {
+          console.log('getRSSUrl: Possible RSS URLs:', possibleUrls);
+          return possibleUrls[0]; // Return first option, we'll try alternatives if it fails
         }
       }
 
@@ -347,15 +358,24 @@ class PatreonService {
       return { success: false, error: 'RSS URL not provided' };
     }
 
-    try {
-      console.log('getPostsFromRSS: Fetching RSS from:', rssUrl);
-      const response = await axios.get(rssUrl, {
-        headers: {
-          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
-          'User-Agent': 'Mozilla/5.0 (compatible; PatreonRSS/1.0)'
-        },
-        timeout: 10000
-      });
+    // Try alternative URL formats if the first one fails
+    const alternativeUrls = [
+      rssUrl,
+      rssUrl.replace('/rss/', '/').replace(/\/$/, '') + '/rss',
+      rssUrl.replace(/\/rss\/(.+)$/, '/$1/rss')
+    ];
+
+    for (const url of alternativeUrls) {
+      try {
+        console.log('getPostsFromRSS: Trying RSS URL:', url);
+        const response = await axios.get(url, {
+          headers: {
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            'User-Agent': 'Mozilla/5.0 (compatible; PatreonRSS/1.0)'
+          },
+          timeout: 10000,
+          validateStatus: (status) => status === 200
+        });
 
       console.log('getPostsFromRSS: Response status:', response.status);
       console.log('getPostsFromRSS: Response content type:', response.headers['content-type']);
@@ -389,24 +409,37 @@ class PatreonService {
         }
       }
 
-      console.log('getPostsFromRSS: Parsed', posts.length, 'posts');
+        console.log('getPostsFromRSS: Parsed', posts.length, 'posts from', url);
 
-      return {
-        success: true,
-        posts: posts
-      };
-    } catch (error) {
-      console.error('Error fetching RSS feed:', error.message);
-      console.error('Error details:', {
-        response: error.response?.status,
-        data: error.response?.data?.substring(0, 200),
-        url: rssUrl
-      });
-      return {
-        success: false,
-        error: error.message || 'Failed to fetch RSS feed'
-      };
+        return {
+          success: true,
+          posts: posts
+        };
+      } catch (error) {
+        // If this isn't the last URL, try the next one
+        if (url !== alternativeUrls[alternativeUrls.length - 1]) {
+          console.log('getPostsFromRSS: URL failed, trying next:', error.response?.status || error.message);
+          continue;
+        }
+        
+        // Last URL failed, return error
+        console.error('Error fetching RSS feed from all URLs:', error.message);
+        console.error('Error details:', {
+          response: error.response?.status,
+          data: error.response?.data?.substring(0, 200),
+          url: url
+        });
+        return {
+          success: false,
+          error: `RSS feed not available (${error.response?.status || 'unknown error'}). Patreon RSS feeds may not be enabled for this creator.`
+        };
+      }
     }
+    
+    return {
+      success: false,
+      error: 'RSS feed not available'
+    };
   }
 }
 

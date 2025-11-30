@@ -687,6 +687,18 @@
   line-height: 1.5;
 }
 
+.posts-unavailable {
+  margin: 0;
+  padding: 1rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.375rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .header-content {

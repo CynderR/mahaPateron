@@ -53,6 +53,8 @@ const UserDashboard: React.FC = () => {
       setPosts(response.data.posts || []);
     } catch (err: any) {
       console.error('Failed to fetch Patreon posts:', err);
+      // If RSS feed is not available, that's okay - just don't show posts
+      // The RSS link will still be available for users to subscribe
       setPosts([]);
     } finally {
       setLoadingPosts(false);
@@ -401,7 +403,9 @@ const UserDashboard: React.FC = () => {
                     ))}
                   </div>
                 ) : (
-                  <p>No posts available</p>
+                  <p className="posts-unavailable">
+                    Posts are not available via RSS feed. You can subscribe to the RSS feed above to get updates in your RSS reader.
+                  </p>
                 )}
               </div>
             </div>
