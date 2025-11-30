@@ -270,7 +270,9 @@ app.get('/api/auth/patreon/link', authenticateToken, (req, res) => {
     `scope=identity&` +
     `state=${state}`;
 
-  res.redirect(patreonAuthUrl);
+  // Return the URL in JSON instead of redirecting (frontend will handle the redirect)
+  // This avoids CORS issues when axios tries to follow the redirect
+  res.json({ redirectUrl: patreonAuthUrl });
 });
 
 // Patreon OAuth - Handle callback

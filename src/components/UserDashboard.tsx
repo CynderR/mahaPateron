@@ -239,18 +239,14 @@ const UserDashboard: React.FC = () => {
                                 ? '/auth/patreon/link' 
                                 : 'http://localhost:5000/api/auth/patreon/link';
                               
-                              // Make request with auth header - axios will include the Authorization header
-                              // The backend will redirect, so we need to follow the redirect
-                              const response = await axios.get(backendUrl, {
-                                maxRedirects: 0,
-                                validateStatus: (status) => status === 302
-                              });
+                              // Make request with auth header - backend returns the Patreon URL in JSON
+                              const response = await axios.get(backendUrl);
                               
-                              // Follow the redirect to Patreon
-                              if (response.status === 302 && response.headers.location) {
-                                window.location.href = response.headers.location;
+                              // Redirect to Patreon using the URL from the response
+                              if (response.data.redirectUrl) {
+                                window.location.href = response.data.redirectUrl;
                               } else {
-                                throw new Error('Unexpected response from server');
+                                throw new Error('No redirect URL in response');
                               }
                             } catch (error: any) {
                               console.error('Error initiating Patreon link:', error);
