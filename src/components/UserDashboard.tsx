@@ -234,8 +234,9 @@ const UserDashboard: React.FC = () => {
                           onClick={async () => {
                             try {
                               // Use the authenticated linking endpoint which gets userId from JWT token
+                              // Note: axios baseURL is already set to '/api' in production, so we just need '/auth/patreon/link'
                               const backendUrl = process.env.NODE_ENV === 'production' 
-                                ? '/api/auth/patreon/link' 
+                                ? '/auth/patreon/link' 
                                 : 'http://localhost:5000/api/auth/patreon/link';
                               
                               // Make request with auth header - axios will include the Authorization header
