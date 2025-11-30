@@ -11,6 +11,9 @@ const UserDashboard: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [rssUrl, setRssUrl] = useState<string | null>(null);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
   const [editForm, setEditForm] = useState({
     username: user?.username || '',
     email: user?.email || '',
@@ -24,6 +27,37 @@ const UserDashboard: React.FC = () => {
   useEffect(() => {
     fetchProfile();
   }, []);
+
+  useEffect(() => {
+    // Fetch RSS URL and posts if Patreon is linked
+    if (profile?.patreon_id) {
+      fetchPatreonRSS();
+      fetchPatreonPosts();
+    }
+  }, [profile?.patreon_id]);
+
+  const fetchPatreonRSS = async () => {
+    try {
+      const response = await axios.get('/patreon/rss-url');
+      setRssUrl(response.data.rssUrl);
+    } catch (err: any) {
+      // RSS URL not available or Patreon not configured - that's okay
+      console.log('RSS URL not available:', err.response?.data?.error);
+    }
+  };
+
+  const fetchPatreonPosts = async () => {
+    setLoadingPosts(true);
+    try {
+      const response = await axios.get('/patreon/posts');
+      setPosts(response.data.posts || []);
+    } catch (err: any) {
+      console.error('Failed to fetch Patreon posts:', err);
+      setPosts([]);
+    } finally {
+      setLoadingPosts(false);
+    }
+  };
 
   const fetchProfile = async () => {
     try {
@@ -317,6 +351,61 @@ const UserDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {profile?.patreon_id && (
+            <div className="patreon-section">
+              <h3>Patreon</h3>
+              {rssUrl && (
+                <div className="rss-link-container">
+                  <a 
+                    href={rssUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="rss-link"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '0.5rem' }}>
+                      <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-3.368c10.58.046 19.152 8.594 19.183 19.188h4.817c-.03-13.231-10.755-23.954-24-24v4.812z"/>
+                    </svg>
+                    RSS Feed
+                  </a>
+                </div>
+              )}
+              
+              <div className="patreon-posts">
+                <h4>Recent Posts</h4>
+                {loadingPosts ? (
+                  <p>Loading posts...</p>
+                ) : posts.length > 0 ? (
+                  <div className="posts-list">
+                    {posts.map((post, index) => (
+                      <div key={index} className="post-item">
+                        <h5>
+                          <a 
+                            href={post.link} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="post-link"
+                          >
+                            {post.title}
+                          </a>
+                        </h5>
+                        {post.pubDate && (
+                          <p className="post-date">
+                            {new Date(post.pubDate).toLocaleDateString()}
+                          </p>
+                        )}
+                        {post.description && (
+                          <p className="post-description">{post.description}...</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No posts available</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

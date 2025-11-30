@@ -285,6 +285,101 @@ class PatreonService {
       };
     }
   }
+
+  // Get RSS feed URL for the campaign
+  async getRSSUrl() {
+    if (!this.campaignId) {
+      throw new Error('Campaign ID not set. Please test connection first.');
+    }
+
+    try {
+      const response = await axios.get(
+        `${this.baseURL}/campaigns/${this.campaignId}`,
+        {
+          headers: this.getHeaders(),
+          params: {
+            'fields[campaign]': 'vanity,url'
+          }
+        }
+      );
+
+      if (response.data && response.data.data) {
+        const campaign = response.data.data;
+        const vanity = campaign.attributes?.vanity;
+        const url = campaign.attributes?.url;
+        
+        // Construct RSS URL from vanity or URL
+        if (vanity) {
+          return `https://www.patreon.com/rss/${vanity}`;
+        } else if (url) {
+          // Extract vanity from URL if available
+          const urlMatch = url.match(/patreon\.com\/([^\/]+)/);
+          if (urlMatch && urlMatch[1]) {
+            return `https://www.patreon.com/rss/${urlMatch[1]}`;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error('Patreon API get RSS URL error:', error.response?.data || error.message);
+      return null;
+    }
+  }
+
+  // Get posts from RSS feed (parse RSS)
+  async getPostsFromRSS(rssUrl) {
+    if (!rssUrl) {
+      return { success: false, error: 'RSS URL not provided' };
+    }
+
+    try {
+      const response = await axios.get(rssUrl, {
+        headers: {
+          'Accept': 'application/rss+xml, application/xml, text/xml'
+        }
+      });
+
+      // Parse RSS XML (simple parsing)
+      const xmlText = response.data;
+      const posts = [];
+      
+      // Extract items from RSS
+      const itemRegex = /<item>([\s\S]*?)<\/item>/g;
+      let match;
+      let count = 0;
+      
+      while ((match = itemRegex.exec(xmlText)) !== null && count < 10) {
+        const itemContent = match[1];
+        
+        const titleMatch = itemContent.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/);
+        const linkMatch = itemContent.match(/<link>(.*?)<\/link>/);
+        const pubDateMatch = itemContent.match(/<pubDate>(.*?)<\/pubDate>/);
+        const descriptionMatch = itemContent.match(/<description><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description>(.*?)<\/description>/);
+        
+        if (titleMatch || linkMatch) {
+          posts.push({
+            title: titleMatch ? (titleMatch[1] || titleMatch[2] || '').trim() : 'Untitled',
+            link: linkMatch ? linkMatch[1].trim() : '',
+            pubDate: pubDateMatch ? pubDateMatch[1].trim() : '',
+            description: descriptionMatch ? (descriptionMatch[1] || descriptionMatch[2] || '').trim().substring(0, 200) : ''
+          });
+          count++;
+        }
+      }
+
+      return {
+        success: true,
+        posts: posts
+      };
+    } catch (error) {
+      console.error('Error fetching RSS feed:', error.message);
+      return {
+        success: false,
+        error: error.message
+      };
+    }
+  }
 }
 
 module.exports = PatreonService;

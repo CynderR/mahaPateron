@@ -451,6 +451,49 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Get Patreon RSS URL (for users with linked Patreon accounts)
+app.get('/api/patreon/rss-url', authenticateToken, async (req, res) => {
+  try {
+    if (!patreonService.accessToken || !patreonService.campaignId) {
+      return res.status(404).json({ error: 'Patreon not configured' });
+    }
+
+    const rssUrl = await patreonService.getRSSUrl();
+    if (rssUrl) {
+      res.json({ rssUrl });
+    } else {
+      res.status(404).json({ error: 'RSS URL not available' });
+    }
+  } catch (error) {
+    console.error('Get RSS URL error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get Patreon posts (for users with linked Patreon accounts)
+app.get('/api/patreon/posts', authenticateToken, async (req, res) => {
+  try {
+    if (!patreonService.accessToken || !patreonService.campaignId) {
+      return res.status(404).json({ error: 'Patreon not configured' });
+    }
+
+    const rssUrl = await patreonService.getRSSUrl();
+    if (!rssUrl) {
+      return res.status(404).json({ error: 'RSS URL not available' });
+    }
+
+    const result = await patreonService.getPostsFromRSS(rssUrl);
+    if (result.success) {
+      res.json({ posts: result.posts });
+    } else {
+      res.status(500).json({ error: result.error || 'Failed to fetch posts' });
+    }
+  } catch (error) {
+    console.error('Get posts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get all users (admin only)
 app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
   try {
