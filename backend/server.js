@@ -337,21 +337,35 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     const patreonEmail = patreonUser.attributes?.email || null;
     const patreonName = patreonUser.attributes?.full_name || patreonUser.attributes?.first_name || 'Patreon User';
 
-    // Check if user exists by Patreon ID or email
-    let user = await getUserByPatreonId(patreonId);
-    if (!user && patreonEmail) {
-      user = await getUserByEmail(patreonEmail);
-    }
-    
-    // If linking account and user not found by Patreon ID/email, try to get by userId from state
-    if (!user && stateData.userId) {
-      console.log('Linking account: Looking up user by userId from state:', stateData.userId);
+    // If linking account (userId in state), prioritize finding user by userId first
+    let user = null;
+    if (stateData.userId) {
+      console.log('OAuth callback: Linking account - Looking up user by userId from state:', stateData.userId);
       user = await getUserById(stateData.userId);
       if (user) {
-        console.log('Found user for linking:', user.id, user.username, user.email);
+        console.log('OAuth callback: Found user for linking:', user.id, user.username, user.email);
       } else {
-        console.log('User not found by userId:', stateData.userId);
+        console.log('OAuth callback: User not found by userId:', stateData.userId);
       }
+    }
+    
+    // If not linking or user not found by userId, check by Patreon ID or email
+    if (!user) {
+      console.log('OAuth callback: Looking up user by Patreon ID:', patreonId);
+      user = await getUserByPatreonId(patreonId);
+      if (user) {
+        console.log('OAuth callback: Found user by Patreon ID:', user.id, user.username);
+      } else if (patreonEmail) {
+        console.log('OAuth callback: Looking up user by email:', patreonEmail);
+        user = await getUserByEmail(patreonEmail);
+        if (user) {
+          console.log('OAuth callback: Found user by email:', user.id, user.username);
+        }
+      }
+    }
+    
+    if (!user) {
+      console.log('OAuth callback: No user found - will create new user');
     }
 
     if (user) {
