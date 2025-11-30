@@ -232,11 +232,21 @@ const UserDashboard: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
-                            const userId = user?.id || profile?.id;
+                            // Get userId from profile (which is fetched from /api/profile and should have id)
+                            // Fallback to user from AuthContext
+                            const userId = profile?.id || user?.id;
+                            
+                            if (!userId) {
+                              console.error('Cannot link Patreon: User ID not available');
+                              setError('Unable to link account. Please refresh the page and try again.');
+                              return;
+                            }
+                            
                             const backendUrl = process.env.NODE_ENV === 'production' 
                               ? '/api/auth/patreon' 
                               : 'http://localhost:5000/api/auth/patreon';
-                            const url = userId ? `${backendUrl}?link=true&userId=${userId}` : backendUrl;
+                            const url = `${backendUrl}?link=true&userId=${userId}`;
+                            console.log('Linking Patreon account for userId:', userId);
                             window.location.href = url;
                           }}
                           className="btn-link-patreon"

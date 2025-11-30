@@ -190,6 +190,9 @@ app.post('/api/login', async (req, res) => {
 });
 
 // Patreon OAuth - Initiate OAuth flow
+// This endpoint can be called with or without authentication
+// If authenticated (for account linking), userId comes from JWT token
+// If not authenticated (for sign-in), userId will be null
 app.get('/api/auth/patreon', (req, res) => {
   const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
   const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
@@ -199,18 +202,34 @@ app.get('/api/auth/patreon', (req, res) => {
     return res.status(500).json({ error: 'Patreon OAuth not configured' });
   }
 
-  // Get userId from query parameter if linking account
+  // Try to get userId from JWT token (for account linking)
   let userId = null;
-  if (req.query.link === 'true' && req.query.userId) {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const decoded = jwt.verify(token, JWT_SECRET);
+      userId = decoded.id;
+      console.log('OAuth initiation: User authenticated, linking account for userId:', userId);
+    }
+  } catch (err) {
+    // Not authenticated, that's fine - this is for sign-in
+    console.log('OAuth initiation: User not authenticated, this is for sign-in');
+  }
+
+  // Fallback: Get userId from query parameter if provided (for cases where auth header isn't sent)
+  if (!userId && req.query.link === 'true' && req.query.userId) {
     userId = parseInt(req.query.userId);
     if (isNaN(userId)) {
       userId = null;
+    } else {
+      console.log('OAuth initiation: Using userId from query parameter:', userId);
     }
-    console.log('OAuth initiation: Linking account for userId:', userId);
   }
 
   // Generate state for CSRF protection, include user ID if linking account
   const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
+  console.log('OAuth initiation: State created with userId:', userId);
   
   const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
     `response_type=code&` +
