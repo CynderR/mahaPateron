@@ -234,7 +234,30 @@ const UserDashboard: React.FC = () => {
                           onClick={() => {
                             // Get userId from profile (which is fetched from /api/profile and should have id)
                             // Fallback to user from AuthContext
-                            const userId = profile?.id || user?.id;
+                            // Also try to decode from JWT token as last resort
+                            let userId = profile?.id || user?.id;
+                            
+                            // If still no userId, try to decode from JWT token
+                            if (!userId) {
+                              try {
+                                const token = localStorage.getItem('token');
+                                if (token) {
+                                  // Decode JWT token (without verification, just to get the payload)
+                                  const base64Url = token.split('.')[1];
+                                  const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                                  const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => {
+                                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                                  }).join(''));
+                                  const decoded = JSON.parse(jsonPayload);
+                                  userId = decoded.id;
+                                  console.log('Got userId from JWT token:', userId);
+                                }
+                              } catch (err) {
+                                console.error('Error decoding JWT token:', err);
+                              }
+                            }
+                            
+                            console.log('Link Patreon - profile?.id:', profile?.id, 'user?.id:', user?.id, 'final userId:', userId);
                             
                             if (!userId) {
                               console.error('Cannot link Patreon: User ID not available');
@@ -246,7 +269,7 @@ const UserDashboard: React.FC = () => {
                               ? '/api/auth/patreon' 
                               : 'http://localhost:5000/api/auth/patreon';
                             const url = `${backendUrl}?link=true&userId=${userId}`;
-                            console.log('Linking Patreon account for userId:', userId);
+                            console.log('Linking Patreon account - redirecting to:', url);
                             window.location.href = url;
                           }}
                           className="btn-link-patreon"

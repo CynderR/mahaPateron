@@ -202,6 +202,10 @@ app.get('/api/auth/patreon', (req, res) => {
     return res.status(500).json({ error: 'Patreon OAuth not configured' });
   }
 
+  // Log all query parameters for debugging
+  console.log('OAuth initiation: Query params:', JSON.stringify(req.query));
+  console.log('OAuth initiation: Headers authorization:', req.headers.authorization ? 'present' : 'missing');
+  
   // Try to get userId from JWT token (for account linking)
   let userId = null;
   try {
@@ -214,7 +218,7 @@ app.get('/api/auth/patreon', (req, res) => {
     }
   } catch (err) {
     // Not authenticated, that's fine - this is for sign-in
-    console.log('OAuth initiation: User not authenticated, this is for sign-in');
+    console.log('OAuth initiation: User not authenticated (no valid JWT token)');
   }
 
   // Fallback: Get userId from query parameter if provided (for cases where auth header isn't sent)
@@ -222,9 +226,12 @@ app.get('/api/auth/patreon', (req, res) => {
     userId = parseInt(req.query.userId);
     if (isNaN(userId)) {
       userId = null;
+      console.log('OAuth initiation: Invalid userId in query parameter:', req.query.userId);
     } else {
       console.log('OAuth initiation: Using userId from query parameter:', userId);
     }
+  } else if (!userId && req.query.link === 'true') {
+    console.log('OAuth initiation: link=true but no userId in query params');
   }
 
   // Generate state for CSRF protection, include user ID if linking account
