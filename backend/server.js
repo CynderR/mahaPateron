@@ -199,8 +199,11 @@ app.get('/api/auth/patreon', (req, res) => {
     return res.status(500).json({ error: 'Patreon OAuth not configured' });
   }
 
-  // Generate state for CSRF protection
-  const state = jwt.sign({ timestamp: Date.now() }, JWT_SECRET, { expiresIn: '10m' });
+  // Get userId from query parameter if linking account
+  const userId = req.query.link === 'true' && req.query.userId ? parseInt(req.query.userId) : null;
+
+  // Generate state for CSRF protection, include user ID if linking account
+  const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
   
   const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
     `response_type=code&` +
@@ -226,9 +229,10 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
       return res.redirect(`${frontendOrigin}/signin?error=oauth_failed`);
     }
 
-    // Verify state token
+    // Verify state token and extract userId if present (for account linking)
+    let stateData;
     try {
-      jwt.verify(state, JWT_SECRET);
+      stateData = jwt.verify(state, JWT_SECRET);
     } catch (err) {
       const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
       return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
@@ -269,13 +273,18 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
 
     const patreonUser = userResponse.data.data;
     const patreonId = patreonUser.id;
-    const patreonEmail = patreonUser.attributes.email;
-    const patreonName = patreonUser.attributes.full_name || patreonUser.attributes.first_name || 'Patreon User';
+    const patreonEmail = patreonUser.attributes?.email || null;
+    const patreonName = patreonUser.attributes?.full_name || patreonUser.attributes?.first_name || 'Patreon User';
 
     // Check if user exists by Patreon ID or email
     let user = await getUserByPatreonId(patreonId);
     if (!user && patreonEmail) {
       user = await getUserByEmail(patreonEmail);
+    }
+    
+    // If linking account and user not found by Patreon ID/email, try to get by userId from state
+    if (!user && stateData.userId) {
+      user = await getUserById(stateData.userId);
     }
 
     if (user) {
@@ -305,7 +314,7 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
       return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
     } else {
       // Create new user from Patreon data
-      const username = patreonUser.attributes.vanity || patreonEmail.split('@')[0] || `patreon_${patreonId}`;
+      const username = patreonUser.attributes.vanity || (patreonEmail ? patreonEmail.split('@')[0] : null) || `patreon_${patreonId}`;
       const tempPassword = Math.random().toString(36).slice(-12);
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
 

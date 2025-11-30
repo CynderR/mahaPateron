@@ -232,10 +232,12 @@ const UserDashboard: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => {
+                            const userId = profile?.id;
                             const backendUrl = process.env.NODE_ENV === 'production' 
                               ? '/api/auth/patreon' 
                               : 'http://localhost:5000/api/auth/patreon';
-                            window.location.href = backendUrl;
+                            const url = userId ? `${backendUrl}?link=true&userId=${userId}` : backendUrl;
+                            window.location.href = url;
                           }}
                           className="btn-link-patreon"
                         >
