@@ -6,10 +6,10 @@ import './Auth.css';
 const SignIn: React.FC = () => {
   // Array of background images (same as landing page)
   const backgroundImages = [
-    '/signal-2025-11-09-113257.jpeg',
-    '/signal-2025-11-09-113257_002.jpeg',
-    '/signal-2025-11-09-113257_003.jpeg',
-    '/signal-2025-11-09-113257_004.jpeg'
+
+    '/signal-2.jpeg',
+    '/signal-3.jpeg',
+    '/signal-4.jpeg'
   ];
 
   // Randomly select an image on component mount
@@ -20,28 +20,7 @@ const SignIn: React.FC = () => {
     setSelectedImage(backgroundImages[randomIndex]);
   }, []);
 
-  // Parallax effect on mouse move
-  const [parallaxOffset, setParallaxOffset] = useState({ x: 0, y: 0 });
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const { clientX, clientY } = e;
-      const { innerWidth, innerHeight } = window;
-      
-      // Calculate offset as percentage (-50% to 50%)
-      const xOffset = ((clientX / innerWidth) - 0.5) * 2;
-      const yOffset = ((clientY / innerHeight) - 0.5) * 2;
-      
-      // Apply subtle parallax (max 0.5% movement - very subtle)
-      setParallaxOffset({
-        x: xOffset * 0.5,
-        y: yOffset * 0.5
-      });
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -71,8 +50,7 @@ const SignIn: React.FC = () => {
       <div 
         className="auth-background"
         style={{
-          backgroundImage: selectedImage ? `url(${selectedImage})` : undefined,
-          transform: `translate(${parallaxOffset.x}%, ${parallaxOffset.y}%)`
+          backgroundImage: selectedImage ? `url(${selectedImage})` : undefined
         }}
       >
         <div className="background-overlay"></div>

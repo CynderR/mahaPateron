@@ -5,7 +5,7 @@ import './LandingPage.css';
 const LandingPage: React.FC = () => {
   // Array of background images
   const backgroundImages = [
-    '/signal-1.jpeg',
+
     '/signal-2.jpeg',
     '/signal-3.jpeg',
     '/signal-4.jpeg'

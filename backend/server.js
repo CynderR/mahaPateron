@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const axios = require('axios');
 const PatreonService = require('./patreonService');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -332,6 +333,12 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     }
   } catch (error) {
     console.error('Patreon OAuth callback error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      code: error.code
+    });
     const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
     return res.redirect(`${frontendOrigin}/signin?error=oauth_error`);
   }
