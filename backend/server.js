@@ -16,8 +16,13 @@ const {
   getUserByPatreonId,
   getAllUsers,
   updateUser,
+  updatePassword,
+  setPasswordResetToken,
+  getUserByResetToken,
+  clearPasswordResetToken,
   deleteUser
 } = require('./database');
+const { sendPasswordResetEmail } = require('./emailService');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -90,7 +95,7 @@ app.get('/api/health', (req, res) => {
 // Register new user
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, email, password, whatsapp_number, patreon_id, mixcloud_id, is_free, is_admin } = req.body;
+    const { username, email, password, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
 
     // Validate required fields
     if (!username || !email || !password) {
@@ -121,7 +126,7 @@ app.post('/api/register', async (req, res) => {
       password: hashedPassword,
       whatsapp_number: whatsapp_number || null,
       patreon_id: patreon_id || null,
-      mixcloud_id: mixcloud_id || null,
+      is_mixcloud: is_mixcloud || false,
       is_free: false, // New accounts default to premium (not free)
       is_admin: is_admin !== undefined ? is_admin : false
     };
@@ -377,7 +382,7 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
           email: user.email,
           whatsapp_number: user.whatsapp_number,
           patreon_id: patreonId,
-          mixcloud_id: user.mixcloud_id,
+          is_mixcloud: user.is_mixcloud || false,
           is_free: user.is_free,
           is_admin: user.is_admin
         });
@@ -406,7 +411,7 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
         password: hashedPassword,
         whatsapp_number: null,
         patreon_id: patreonId,
-        mixcloud_id: null,
+        is_mixcloud: false,
         is_free: false, // New accounts default to premium
         is_admin: false
       });
@@ -517,7 +522,7 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
 // Update user profile
 app.put('/api/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, email, whatsapp_number, patreon_id, mixcloud_id, is_free, is_admin } = req.body;
+    const { username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
     const userId = req.user.id;
 
     // Check if username or email is being changed and if they're already taken
@@ -540,7 +545,7 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
       email: email || req.user.email,
       whatsapp_number,
       patreon_id,
-      mixcloud_id,
+      is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
       is_free,
       is_admin
     };
@@ -553,11 +558,153 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
   }
 });
 
+// Change user password
+app.post('/api/profile/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: 'Current password, new password, and confirmation are required' });
+    }
+
+    // Check if new password matches confirmation
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'New password and confirmation do not match' });
+    }
+
+    // Check password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    // Get user to verify current password
+    const user = await getUserById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!isValidPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await updatePassword(userId, hashedPassword);
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Change password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Forgot password - request password reset
+app.post('/api/auth/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user by email
+    const user = await getUserByEmail(email);
+    
+    // Always return success to prevent email enumeration
+    // But only send email if user exists
+    if (user) {
+      // Don't allow password reset for Patreon-linked accounts
+      if (user.patreon_id) {
+        return res.json({ 
+          message: 'If an account exists with this email, a password reset link has been sent.' 
+        });
+      }
+
+      // Generate reset token
+      const crypto = require('crypto');
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      
+      // Set expiration to 1 hour from now
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 1);
+
+      // Save reset token to database
+      await setPasswordResetToken(email, resetToken, expiresAt.toISOString());
+
+      // Send reset email
+      const emailResult = await sendPasswordResetEmail(email, resetToken);
+      
+      if (!emailResult.success) {
+        console.error('Failed to send password reset email:', emailResult.error);
+        // Still return success to user to prevent email enumeration
+      }
+    }
+
+    // Always return the same message regardless of whether user exists
+    res.json({ 
+      message: 'If an account exists with this email, a password reset link has been sent.' 
+    });
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    // Still return success to prevent email enumeration
+    res.json({ 
+      message: 'If an account exists with this email, a password reset link has been sent.' 
+    });
+  }
+});
+
+// Reset password - use reset token to set new password
+app.post('/api/auth/reset-password', async (req, res) => {
+  try {
+    const { token, newPassword, confirmPassword } = req.body;
+
+    if (!token || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: 'Token, new password, and confirmation are required' });
+    }
+
+    // Check if passwords match
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'New password and confirmation do not match' });
+    }
+
+    // Check password length
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    }
+
+    // Find user by reset token
+    const user = await getUserByResetToken(token);
+    if (!user) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await updatePassword(user.id, hashedPassword);
+
+    // Clear reset token
+    await clearPasswordResetToken(user.id);
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Update user by ID (admin functionality)
 app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, whatsapp_number, patreon_id, mixcloud_id, is_free, is_admin } = req.body;
+    const { username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
 
     // Check if username or email is being changed and if they're already taken
     if (username) {
@@ -579,7 +726,7 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
       email,
       whatsapp_number,
       patreon_id,
-      mixcloud_id,
+      is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
       is_free,
       is_admin
     };
@@ -792,7 +939,7 @@ app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) 
               email: existingUser.email,
               whatsapp_number: existingUser.whatsapp_number,
               patreon_id: patron.user.id,
-              mixcloud_id: existingUser.mixcloud_id,
+              is_mixcloud: existingUser.is_mixcloud || false,
               is_free: !isActivePatron ? true : false, // Set to free if not active patron
               is_admin: existingUser.is_admin,
               patreon_subscription_status: subscriptionStatus,
@@ -815,7 +962,7 @@ app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) 
               password: null, // Will need to set password later
               whatsapp_number: null,
               patreon_id: patron.user.id,
-              mixcloud_id: null,
+              is_mixcloud: false,
               is_free: !isActivePatron, // Set to free if not active patron
               is_admin: false,
               patreon_subscription_status: subscriptionStatus,
@@ -907,7 +1054,7 @@ app.post('/api/patreon/alerts/:userId/clear', authenticateToken, requireAdmin, a
       email: user.email,
       whatsapp_number: user.whatsapp_number,
       patreon_id: user.patreon_id,
-      mixcloud_id: user.mixcloud_id,
+      is_mixcloud: user.is_mixcloud || false,
       is_free: user.is_free,
       is_admin: user.is_admin,
       patreon_subscription_status: user.patreon_subscription_status,

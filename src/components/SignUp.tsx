@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 const SignUp: React.FC = () => {
+  const location = useLocation();
+  const isMixcloudSignup = location.pathname.includes('/mixcloud');
+  
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -43,7 +46,12 @@ const SignUp: React.FC = () => {
 
     try {
       const { confirmPassword, ...registerData } = formData;
-      await register(registerData);
+      // Add is_mixcloud flag if this is a Mixcloud signup
+      const finalRegisterData = {
+        ...registerData,
+        is_mixcloud: isMixcloudSignup
+      };
+      await register(finalRegisterData);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -54,11 +62,13 @@ const SignUp: React.FC = () => {
 
   return (
     <div className="auth-container">
-      <div className="auth-card">
-        <div className="auth-header">
-          <h1>Create Account</h1>
-          <p>Join our community today</p>
-        </div>
+      {/* Fixed content layer */}
+      <div className="auth-content-layer">
+        <div className="auth-card">
+          <div className="auth-header">
+            <h1>Create Account</h1>
+            <p>Join our community today</p>
+          </div>
 
         {error && (
           <div className="error-message">
@@ -165,6 +175,7 @@ const SignUp: React.FC = () => {
             </Link>
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

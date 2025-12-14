@@ -12,10 +12,15 @@ interface SubscriptionAlert {
   alert_sent: boolean;
 }
 
+type AlertSortColumn = 'user' | 'email' | 'patreon' | 'status' | 'lastSync' | null;
+type AlertSortDirection = 'asc' | 'desc';
+
 const SubscriptionAlerts: React.FC = () => {
   const [alerts, setAlerts] = useState<SubscriptionAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [sortColumn, setSortColumn] = useState<AlertSortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<AlertSortDirection>('asc');
 
   const fetchAlerts = async () => {
     setLoading(true);
@@ -59,6 +64,73 @@ const SubscriptionAlerts: React.FC = () => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Never';
     return new Date(dateString).toLocaleDateString();
+  };
+
+  const handleSort = (column: AlertSortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedAlerts = () => {
+    if (!sortColumn) return alerts;
+
+    const sorted = [...alerts].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'user':
+          aValue = a.username || '';
+          bValue = b.username || '';
+          break;
+        case 'email':
+          aValue = a.email || '';
+          bValue = b.email || '';
+          break;
+        case 'patreon':
+          aValue = a.patreon_id || 'N/A';
+          bValue = b.patreon_id || 'N/A';
+          break;
+        case 'status':
+          aValue = a.subscription_status || '';
+          bValue = b.subscription_status || '';
+          break;
+        case 'lastSync':
+          aValue = a.last_sync ? new Date(a.last_sync).getTime() : 0;
+          bValue = b.last_sync ? new Date(b.last_sync).getTime() : 0;
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === 'asc' 
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+
+    return sorted;
+  };
+
+  const getSortIcon = (column: AlertSortColumn) => {
+    if (sortColumn !== column) {
+      return <span className="sort-icon">↕</span>;
+    }
+    return sortDirection === 'asc' 
+      ? <span className="sort-icon">↑</span>
+      : <span className="sort-icon">↓</span>;
   };
 
   useEffect(() => {
@@ -116,16 +188,46 @@ const SubscriptionAlerts: React.FC = () => {
             <table className="alerts-table">
               <thead>
                 <tr>
-                  <th>User</th>
-                  <th>Email</th>
-                  <th>Patreon ID</th>
-                  <th>Status</th>
-                  <th>Last Sync</th>
+                  <th 
+                    className="sortable" 
+                    onClick={() => handleSort('user')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    User {getSortIcon('user')}
+                  </th>
+                  <th 
+                    className="sortable" 
+                    onClick={() => handleSort('email')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Email {getSortIcon('email')}
+                  </th>
+                  <th 
+                    className="sortable" 
+                    onClick={() => handleSort('patreon')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Patreon ID {getSortIcon('patreon')}
+                  </th>
+                  <th 
+                    className="sortable" 
+                    onClick={() => handleSort('status')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Status {getSortIcon('status')}
+                  </th>
+                  <th 
+                    className="sortable" 
+                    onClick={() => handleSort('lastSync')}
+                    style={{ cursor: 'pointer', userSelect: 'none' }}
+                  >
+                    Last Sync {getSortIcon('lastSync')}
+                  </th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {alerts.map((alert) => (
+                {getSortedAlerts().map((alert) => (
                   <tr key={alert.id}>
                     <td>
                       <div className="user-info">

@@ -223,6 +223,27 @@
   letter-spacing: 0.05em;
 }
 
+.users-table th.sortable {
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.users-table th.sortable:hover {
+  background: #edf2f7;
+}
+
+.users-table th .sort-icon {
+  display: inline-block;
+  margin-left: 0.5rem;
+  font-size: 0.875rem;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.users-table th.sortable:hover .sort-icon {
+  opacity: 1;
+}
+
 .users-table td {
   color: #2d3748;
 }

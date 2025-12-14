@@ -31,12 +31,17 @@ interface Patron {
   }> | null;
 }
 
+type SortColumn = 'name' | 'email' | 'status' | 'pledge' | 'tier' | 'memberSince' | null;
+type SortDirection = 'asc' | 'desc';
+
 const PatreonSubscribers: React.FC = () => {
   const [patrons, setPatrons] = useState<Patron[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [activeOnly, setActiveOnly] = useState(true);
   const [total, setTotal] = useState(0);
+  const [sortColumn, setSortColumn] = useState<SortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const fetchPatrons = async () => {
     setLoading(true);
@@ -109,6 +114,82 @@ const PatreonSubscribers: React.FC = () => {
     );
   };
 
+  const handleSort = (column: SortColumn) => {
+    if (sortColumn === column) {
+      // Toggle direction if clicking the same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new column and default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedPatrons = () => {
+    if (!sortColumn) return patrons;
+
+    const sorted = [...patrons].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'name':
+          aValue = a.user?.full_name || 'Unknown';
+          bValue = b.user?.full_name || 'Unknown';
+          break;
+        case 'email':
+          aValue = a.user?.email || 'N/A';
+          bValue = b.user?.email || 'N/A';
+          break;
+        case 'status':
+          aValue = a.patron_status || 'unknown';
+          bValue = b.patron_status || 'unknown';
+          break;
+        case 'pledge':
+          aValue = a.will_pay_amount_cents || (a.tier && a.tier.length > 0 ? a.tier[0].amount_cents : 0);
+          bValue = b.will_pay_amount_cents || (b.tier && b.tier.length > 0 ? b.tier[0].amount_cents : 0);
+          break;
+        case 'tier':
+          aValue = a.tier && a.tier.length > 0 ? a.tier[0].title : 'No Tier';
+          bValue = b.tier && b.tier.length > 0 ? b.tier[0].title : 'No Tier';
+          break;
+        case 'memberSince':
+          aValue = a.pledge_relationship_start || a.pledge_created_at || '';
+          bValue = b.pledge_relationship_start || b.pledge_created_at || '';
+          break;
+        default:
+          return 0;
+      }
+
+      // Handle null/undefined values
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      // Compare values
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        // Numeric comparison
+        return sortDirection === 'asc' 
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+
+    return sorted;
+  };
+
+  const getSortIcon = (column: SortColumn) => {
+    if (sortColumn !== column) {
+      return <span className="sort-icon">↕</span>;
+    }
+    return sortDirection === 'asc' 
+      ? <span className="sort-icon">↑</span>
+      : <span className="sort-icon">↓</span>;
+  };
+
   return (
     <div className="patreon-subscribers">
       <div className="subscribers-header">
@@ -179,17 +260,53 @@ const PatreonSubscribers: React.FC = () => {
           <table className="patrons-table">
             <thead>
               <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Status</th>
-                <th>Pledge Amount</th>
-                <th>Tier</th>
-                <th>Member Since</th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('name')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Name {getSortIcon('name')}
+                </th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('email')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Email {getSortIcon('email')}
+                </th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('status')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Status {getSortIcon('status')}
+                </th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('pledge')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Pledge Amount {getSortIcon('pledge')}
+                </th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('tier')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Tier {getSortIcon('tier')}
+                </th>
+                <th 
+                  className="sortable" 
+                  onClick={() => handleSort('memberSince')}
+                  style={{ cursor: 'pointer', userSelect: 'none' }}
+                >
+                  Member Since {getSortIcon('memberSince')}
+                </th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {patrons.map((patron) => (
+              {getSortedPatrons().map((patron) => (
                 <tr key={patron.id}>
                   <td>
                     <div className="patron-name">

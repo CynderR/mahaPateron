@@ -7,7 +7,7 @@ interface User {
   email: string;
   whatsapp_number?: string;
   patreon_id?: string;
-  mixcloud_id?: string;
+  is_mixcloud?: boolean;
   is_free: boolean;
   is_admin: boolean;
   patreon_subscription_status?: string;
@@ -32,7 +32,7 @@ interface RegisterData {
   password: string;
   whatsapp_number?: string;
   patreon_id?: string;
-  mixcloud_id?: string;
+  is_mixcloud?: boolean;
   is_free?: boolean;
   is_admin?: boolean;
 }

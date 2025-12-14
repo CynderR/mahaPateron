@@ -14,12 +14,19 @@ const UserDashboard: React.FC = () => {
   const [rssUrl, setRssUrl] = useState<string | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSuccess, setPasswordSuccess] = useState('');
   const [editForm, setEditForm] = useState({
     username: user?.username || '',
     email: user?.email || '',
     whatsapp_number: user?.whatsapp_number || '',
     patreon_id: user?.patreon_id || '',
-    mixcloud_id: user?.mixcloud_id || '',
     is_free: user?.is_free || true,
     is_admin: user?.is_admin || false
   });
@@ -70,7 +77,6 @@ const UserDashboard: React.FC = () => {
         email: response.data.email,
         whatsapp_number: response.data.whatsapp_number || '',
         patreon_id: response.data.patreon_id || '',
-        mixcloud_id: response.data.mixcloud_id || '',
         is_free: response.data.is_free,
         is_admin: response.data.is_admin
       });
@@ -112,12 +118,69 @@ const UserDashboard: React.FC = () => {
       email: profile?.email || '',
       whatsapp_number: profile?.whatsapp_number || '',
       patreon_id: profile?.patreon_id || '',
-      mixcloud_id: profile?.mixcloud_id || '',
       is_free: profile?.is_free || true,
       is_admin: profile?.is_admin || false
     });
     setIsEditing(false);
     setError('');
+  };
+
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+    // Clear errors when user starts typing
+    if (passwordError) setPasswordError('');
+    if (passwordSuccess) setPasswordSuccess('');
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    setLoading(true);
+
+    // Validate passwords match
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('New password and confirmation do not match');
+      setLoading(false);
+      return;
+    }
+
+    // Validate password length
+    if (passwordForm.newPassword.length < 6) {
+      setPasswordError('New password must be at least 6 characters long');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await axios.post('/profile/change-password', passwordForm);
+      setPasswordSuccess('Password changed successfully!');
+      setPasswordForm({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setIsChangingPassword(false);
+    } catch (err: any) {
+      setPasswordError(err.response?.data?.error || 'Failed to change password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordCancel = () => {
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: ''
+    });
+    setIsChangingPassword(false);
+    setPasswordError('');
+    setPasswordSuccess('');
   };
 
   return (
@@ -212,20 +275,6 @@ const UserDashboard: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label>Mixcloud ID</label>
-                    <input
-                      type="text"
-                      name="mixcloud_id"
-                      value={editForm.mixcloud_id}
-                      onChange={handleInputChange}
-                      placeholder="Optional"
-                    />
-                  </div>
-            
-                </div>
-
                 <div className="form-actions">
                   <button
                     type="button"
@@ -311,10 +360,12 @@ const UserDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {profile?.mixcloud_id && (
+                  {profile?.is_mixcloud && (
                     <div className="info-item">
-                      <label>Mixcloud ID</label>
-                      <p>{profile.mixcloud_id}</p>
+                      <label>Mixcloud Account</label>
+                      <p>
+                        <span className="user-type premium">Yes</span>
+                      </p>
                     </div>
                   )}
                   <div className="info-item">
@@ -337,6 +388,100 @@ const UserDashboard: React.FC = () => {
               </div>
             )}
           </div>
+
+          {!profile?.patreon_id && (
+            <div className="password-section">
+              <div className="password-header">
+                <h2>Change Password</h2>
+                {!isChangingPassword && (
+                  <button
+                    onClick={() => setIsChangingPassword(true)}
+                    className="btn-edit"
+                  >
+                    Change Password
+                  </button>
+                )}
+              </div>
+
+              {isChangingPassword ? (
+                <form onSubmit={handlePasswordSubmit} className="password-form">
+                  {passwordError && (
+                    <div className="error-banner">
+                      {passwordError}
+                      <button onClick={() => setPasswordError('')} className="close-btn">×</button>
+                    </div>
+                  )}
+
+                  {passwordSuccess && (
+                    <div className="success-banner">
+                      {passwordSuccess}
+                      <button onClick={() => setPasswordSuccess('')} className="close-btn">×</button>
+                    </div>
+                  )}
+
+                  <div className="form-group">
+                    <label>Current Password</label>
+                    <input
+                      type="password"
+                      name="currentPassword"
+                      value={passwordForm.currentPassword}
+                      onChange={handlePasswordInputChange}
+                      required
+                      autoComplete="current-password"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label>New Password</label>
+                    <input
+                      type="password"
+                      name="newPassword"
+                      value={passwordForm.newPassword}
+                      onChange={handlePasswordInputChange}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                    <small>Password must be at least 6 characters long</small>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Confirm New Password</label>
+                    <input
+                      type="password"
+                      name="confirmPassword"
+                      value={passwordForm.confirmPassword}
+                      onChange={handlePasswordInputChange}
+                      required
+                      minLength={6}
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div className="form-actions">
+                    <button
+                      type="button"
+                      onClick={handlePasswordCancel}
+                      className="btn-secondary"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={loading}
+                      className="btn-primary"
+                    >
+                      {loading ? 'Changing...' : 'Change Password'}
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                <div className="password-info">
+                  <p>Keep your account secure by changing your password regularly.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="account-stats">
             <h3>Account Statistics</h3>

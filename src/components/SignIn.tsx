@@ -95,6 +95,12 @@ const SignIn: React.FC = () => {
             />
           </div>
 
+          <div style={{ textAlign: 'right', marginBottom: '1rem' }}>
+            <Link to="/forgot-password" className="auth-link" style={{ fontSize: '0.875rem' }}>
+              Forgot password?
+            </Link>
+          </div>
+
           <button
             type="submit"
             disabled={loading}

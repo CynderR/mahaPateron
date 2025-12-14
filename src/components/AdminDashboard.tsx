@@ -13,7 +13,7 @@ interface User {
   email: string;
   whatsapp_number?: string;
   patreon_id?: string;
-  mixcloud_id?: string;
+  is_mixcloud?: boolean;
   is_free: boolean;
   is_admin: boolean;
   patreon_subscription_status?: string;
@@ -21,6 +21,9 @@ interface User {
   subscription_alert_sent?: boolean;
   created_at: string;
 }
+
+type UserSortColumn = 'id' | 'username' | 'email' | 'whatsapp' | 'patreon' | 'mixcloud' | 'type' | 'admin' | 'created' | null;
+type UserSortDirection = 'asc' | 'desc';
 
 const AdminDashboard: React.FC = () => {
   const { user, logout } = useAuth();
@@ -32,6 +35,8 @@ const AdminDashboard: React.FC = () => {
   const [patreonAccessToken, setPatreonAccessToken] = useState<string>('');
   const [patreonConnected, setPatreonConnected] = useState(false);
   const [activeTab, setActiveTab] = useState<'users' | 'patreon'>('users');
+  const [sortColumn, setSortColumn] = useState<UserSortColumn>(null);
+  const [sortDirection, setSortDirection] = useState<UserSortDirection>('asc');
 
   useEffect(() => {
     fetchUsers();
@@ -56,7 +61,7 @@ const AdminDashboard: React.FC = () => {
       email: user.email,
       whatsapp_number: user.whatsapp_number || '',
       patreon_id: user.patreon_id || '',
-      mixcloud_id: user.mixcloud_id || '',
+      is_mixcloud: user.is_mixcloud || false,
       is_free: user.is_free,
       is_admin: user.is_admin
     });
@@ -103,6 +108,89 @@ const AdminDashboard: React.FC = () => {
     setPatreonConnected(true);
     // Store the access token in state (in a real app, you'd want to store this more securely)
     setPatreonAccessToken('configured'); // We'll need to handle this differently
+  };
+
+  const handleSort = (column: UserSortColumn) => {
+    if (sortColumn === column) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortColumn(column);
+      setSortDirection('asc');
+    }
+  };
+
+  const getSortedUsers = () => {
+    if (!sortColumn) return users;
+
+    const sorted = [...users].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+
+      switch (sortColumn) {
+        case 'id':
+          aValue = a.id;
+          bValue = b.id;
+          break;
+        case 'username':
+          aValue = a.username || '';
+          bValue = b.username || '';
+          break;
+        case 'email':
+          aValue = a.email || '';
+          bValue = b.email || '';
+          break;
+        case 'whatsapp':
+          aValue = a.whatsapp_number || '';
+          bValue = b.whatsapp_number || '';
+          break;
+        case 'patreon':
+          aValue = a.patreon_id || '';
+          bValue = b.patreon_id || '';
+          break;
+        case 'mixcloud':
+          aValue = a.is_mixcloud ? 'Yes' : 'No';
+          bValue = b.is_mixcloud ? 'Yes' : 'No';
+          break;
+        case 'type':
+          aValue = a.is_free ? 'Free' : 'Premium';
+          bValue = b.is_free ? 'Free' : 'Premium';
+          break;
+        case 'admin':
+          aValue = a.is_admin ? 'Admin' : 'User';
+          bValue = b.is_admin ? 'Admin' : 'User';
+          break;
+        case 'created':
+          aValue = new Date(a.created_at).getTime();
+          bValue = new Date(b.created_at).getTime();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aValue === null || aValue === undefined) aValue = '';
+      if (bValue === null || bValue === undefined) bValue = '';
+
+      if (typeof aValue === 'string' && typeof bValue === 'string') {
+        return sortDirection === 'asc' 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === 'asc' 
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+
+    return sorted;
+  };
+
+  const getSortIcon = (column: UserSortColumn) => {
+    if (sortColumn !== column) {
+      return <span className="sort-icon">↕</span>;
+    }
+    return sortDirection === 'asc' 
+      ? <span className="sort-icon">↑</span>
+      : <span className="sort-icon">↓</span>;
   };
 
   if (loading) {
@@ -174,27 +262,85 @@ const AdminDashboard: React.FC = () => {
                   <table className="users-table">
                     <thead>
                       <tr>
-                        <th>ID</th>
-                        <th>Username</th>
-                        <th>Email</th>
-                        <th>WhatsApp</th>
-                        <th>Patreon ID</th>
-                        <th>Mixcloud ID</th>
-                        <th>Type</th>
-                        <th>Admin</th>
-                        <th>Created</th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('id')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          ID {getSortIcon('id')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('username')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Username {getSortIcon('username')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('email')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Email {getSortIcon('email')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('whatsapp')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          WhatsApp {getSortIcon('whatsapp')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('patreon')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Patreon ID {getSortIcon('patreon')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('mixcloud')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Mixcloud {getSortIcon('mixcloud')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('type')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Type {getSortIcon('type')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('admin')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Admin {getSortIcon('admin')}
+                        </th>
+                        <th 
+                          className="sortable" 
+                          onClick={() => handleSort('created')}
+                          style={{ cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          Created {getSortIcon('created')}
+                        </th>
                         <th>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {users.map((user) => (
+                      {getSortedUsers().map((user) => (
                         <tr key={user.id}>
                           <td>{user.id}</td>
                           <td>{user.username}</td>
                           <td>{user.email}</td>
                           <td>{user.whatsapp_number || '-'}</td>
                           <td>{user.patreon_id || '-'}</td>
-                          <td>{user.mixcloud_id || '-'}</td>
+                          <td>
+                            <span className={`user-type ${user.is_mixcloud ? 'premium' : 'free'}`}>
+                              {user.is_mixcloud ? 'Yes' : 'No'}
+                            </span>
+                          </td>
                           <td>
                             <span className={`user-type ${user.is_free ? 'free' : 'premium'}`}>
                               {user.is_free ? 'Free' : 'Premium'}
@@ -295,14 +441,16 @@ const AdminDashboard: React.FC = () => {
                   onChange={handleInputChange}
                 />
               </div>
-              <div className="form-group">
-                <label>Mixcloud ID</label>
-                <input
-                  type="text"
-                  name="mixcloud_id"
-                  value={editForm.mixcloud_id || ''}
-                  onChange={handleInputChange}
-                />
+              <div className="form-group checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    name="is_mixcloud"
+                    checked={editForm.is_mixcloud || false}
+                    onChange={handleInputChange}
+                  />
+                  Mixcloud Account
+                </label>
               </div>
               <div className="form-group checkbox-group">
                 <label className="checkbox-label">

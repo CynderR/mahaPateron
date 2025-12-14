@@ -6,6 +6,7 @@ A modern React TypeScript application with a Node.js backend for user management
 
 - **Landing Page**: Beautiful, responsive landing page with hero section and feature highlights
 - **Authentication**: Secure JWT-based authentication with sign-in and sign-up
+- **Forgot Password**: Email-based password reset functionality
 - **Admin Dashboard**: Complete user management system for administrators
 - **User Dashboard**: Personal profile management for regular users
 - **Responsive Design**: Modern UI that works on all devices
@@ -25,6 +26,7 @@ A modern React TypeScript application with a Node.js backend for user management
 - SQLite database
 - JWT authentication
 - bcryptjs for password hashing
+- nodemailer for email sending
 - CORS enabled
 
 ## Getting Started
@@ -95,6 +97,7 @@ npm run dev
 
 ### User Sign-In
 - Use your email and password to sign in
+- Click "Forgot password?" to reset your password via email
 - You'll be redirected to your personal dashboard
 
 ### User Dashboard
@@ -115,8 +118,11 @@ The backend provides the following endpoints:
 
 - `POST /api/register` - Register a new user
 - `POST /api/login` - User login
+- `POST /api/auth/forgot-password` - Request password reset email
+- `POST /api/auth/reset-password` - Reset password with token
 - `GET /api/profile` - Get current user profile
 - `PUT /api/profile` - Update current user profile
+- `POST /api/profile/change-password` - Change password (authenticated)
 - `GET /api/users` - Get all users (authenticated)
 - `PUT /api/users/:id` - Update user by ID (authenticated)
 - `DELETE /api/users/:id` - Delete user by ID (authenticated)
@@ -209,6 +215,13 @@ Key points:
    - `PORT` - Server port (default: 5000)
    - `CORS_ORIGIN` - Your production domain
    - `NODE_ENV=production`
+   - `FRONTEND_URL` - Your frontend URL (for password reset links)
+   - `SMTP_HOST` - SMTP server hostname (e.g., smtp.gmail.com)
+   - `SMTP_PORT` - SMTP server port (e.g., 587)
+   - `SMTP_SECURE` - Use secure connection (true/false)
+   - `SMTP_USER` - SMTP username/email
+   - `SMTP_PASS` - SMTP password or app password
+   - `SMTP_FROM` - From email address (optional, defaults to SMTP_USER)
 
 3. Deploy the backend and serve the built frontend files
 
