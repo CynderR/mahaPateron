@@ -95,7 +95,7 @@ app.get('/api/health', (req, res) => {
 // Register new user
 app.post('/api/register', async (req, res) => {
   try {
-    const { username, email, password, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
+    const { username, email, password, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
 
     // Validate required fields
     if (!username || !email || !password) {
@@ -124,7 +124,6 @@ app.post('/api/register', async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      whatsapp_number: whatsapp_number || null,
       patreon_id: patreon_id || null,
       is_mixcloud: is_mixcloud || false,
       is_free: false, // New accounts default to premium (not free)
@@ -380,7 +379,6 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
         await updateUser(user.id, {
           username: user.username,
           email: user.email,
-          whatsapp_number: user.whatsapp_number,
           patreon_id: patreonId,
           is_mixcloud: user.is_mixcloud || false,
           is_free: user.is_free,
@@ -409,7 +407,6 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
         username,
         email: patreonEmail || `patreon_${patreonId}@example.com`,
         password: hashedPassword,
-        whatsapp_number: null,
         patreon_id: patreonId,
         is_mixcloud: false,
         is_free: false, // New accounts default to premium
@@ -522,7 +519,7 @@ app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
 // Update user profile
 app.put('/api/profile', authenticateToken, async (req, res) => {
   try {
-    const { username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
+    const { username, email, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
     const userId = req.user.id;
 
     // Check if username or email is being changed and if they're already taken
@@ -543,7 +540,6 @@ app.put('/api/profile', authenticateToken, async (req, res) => {
     const updateData = {
       username: username || req.user.username,
       email: email || req.user.email,
-      whatsapp_number,
       patreon_id,
       is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
       is_free,
@@ -704,7 +700,7 @@ app.post('/api/auth/reset-password', async (req, res) => {
 app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const { username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
+    const { username, email, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
 
     // Check if username or email is being changed and if they're already taken
     if (username) {
@@ -724,7 +720,6 @@ app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
     const updateData = {
       username,
       email,
-      whatsapp_number,
       patreon_id,
       is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
       is_free,
@@ -937,7 +932,6 @@ app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) 
             const updateData = {
               username: existingUser.username,
               email: existingUser.email,
-              whatsapp_number: existingUser.whatsapp_number,
               patreon_id: patron.user.id,
               is_mixcloud: existingUser.is_mixcloud || false,
               is_free: !isActivePatron ? true : false, // Set to free if not active patron
@@ -960,7 +954,6 @@ app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) 
               username: patron.user.full_name || patron.user.email.split('@')[0],
               email: patron.user.email,
               password: null, // Will need to set password later
-              whatsapp_number: null,
               patreon_id: patron.user.id,
               is_mixcloud: false,
               is_free: !isActivePatron, // Set to free if not active patron
@@ -1052,7 +1045,6 @@ app.post('/api/patreon/alerts/:userId/clear', authenticateToken, requireAdmin, a
     const updateData = {
       username: user.username,
       email: user.email,
-      whatsapp_number: user.whatsapp_number,
       patreon_id: user.patreon_id,
       is_mixcloud: user.is_mixcloud || false,
       is_free: user.is_free,

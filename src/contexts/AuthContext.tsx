@@ -5,7 +5,6 @@ interface User {
   id: number;
   username: string;
   email: string;
-  whatsapp_number?: string;
   patreon_id?: string;
   is_mixcloud?: boolean;
   is_free: boolean;
@@ -30,7 +29,6 @@ interface RegisterData {
   username: string;
   email: string;
   password: string;
-  whatsapp_number?: string;
   patreon_id?: string;
   is_mixcloud?: boolean;
   is_free?: boolean;

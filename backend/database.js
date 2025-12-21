@@ -15,7 +15,6 @@ const initDatabase = () => {
         username TEXT UNIQUE NOT NULL,
         email TEXT UNIQUE NOT NULL,
         password TEXT NOT NULL,
-        whatsapp_number TEXT,
         patreon_id TEXT,
         is_mixcloud BOOLEAN DEFAULT 0,
         is_free BOOLEAN DEFAULT 1,
@@ -138,11 +137,11 @@ const initDatabase = () => {
 // User CRUD operations
 const createUser = (userData) => {
   return new Promise((resolve, reject) => {
-    const { username, email, password, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin } = userData;
-    const sql = `INSERT INTO users (username, email, password, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin) 
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const { username, email, password, patreon_id, is_mixcloud, is_free, is_admin } = userData;
+    const sql = `INSERT INTO users (username, email, password, patreon_id, is_mixcloud, is_free, is_admin) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`;
     
-    db.run(sql, [username, email, password, whatsapp_number, patreon_id, is_mixcloud || false, is_free || false, is_admin || false], function(err) {
+    db.run(sql, [username, email, password, patreon_id, is_mixcloud || false, is_free || false, is_admin || false], function(err) {
       if (err) {
         reject(err);
       } else {
@@ -206,7 +205,7 @@ const getUserByPatreonId = (patreonId) => {
 
 const getAllUsers = () => {
   return new Promise((resolve, reject) => {
-    const sql = 'SELECT id, username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, created_at, updated_at FROM users';
+    const sql = 'SELECT id, username, email, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, created_at, updated_at FROM users';
     db.all(sql, [], (err, rows) => {
       if (err) {
         reject(err);
@@ -219,14 +218,14 @@ const getAllUsers = () => {
 
 const updateUser = (id, userData) => {
   return new Promise((resolve, reject) => {
-    const { username, email, whatsapp_number, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent } = userData;
+    const { username, email, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent } = userData;
     const sql = `UPDATE users SET 
-                 username = ?, email = ?, whatsapp_number = ?, patreon_id = ?, 
+                 username = ?, email = ?, patreon_id = ?, 
                  is_mixcloud = ?, is_free = ?, is_admin = ?, patreon_subscription_status = ?, 
                  last_patreon_sync = ?, subscription_alert_sent = ?, updated_at = CURRENT_TIMESTAMP 
                  WHERE id = ?`;
     
-    db.run(sql, [username, email, whatsapp_number, patreon_id, is_mixcloud || false, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, id], function(err) {
+    db.run(sql, [username, email, patreon_id, is_mixcloud || false, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, id], function(err) {
       if (err) {
         reject(err);
       } else {

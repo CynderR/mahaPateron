@@ -12,7 +12,6 @@ const SignUp: React.FC = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    whatsapp_number: '',
     patreon_id: ''
   });
   const [error, setError] = useState('');
@@ -126,30 +125,6 @@ const SignUp: React.FC = () => {
               onChange={handleChange}
               required
               placeholder="Confirm your password"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="whatsapp_number">WhatsApp Number</label>
-            <input
-              type="tel"
-              id="whatsapp_number"
-              name="whatsapp_number"
-              value={formData.whatsapp_number}
-              onChange={handleChange}
-              placeholder="Your WhatsApp number (optional)"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="patreon_id">Patreon ID</label>
-            <input
-              type="text"
-              id="patreon_id"
-              name="patreon_id"
-              value={formData.patreon_id}
-              onChange={handleChange}
-              placeholder="Your Patreon ID (optional)"
             />
           </div>
 

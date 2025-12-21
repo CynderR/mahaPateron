@@ -25,7 +25,6 @@ const UserDashboard: React.FC = () => {
   const [editForm, setEditForm] = useState({
     username: user?.username || '',
     email: user?.email || '',
-    whatsapp_number: user?.whatsapp_number || '',
     patreon_id: user?.patreon_id || '',
     is_free: user?.is_free || true,
     is_admin: user?.is_admin || false
@@ -75,7 +74,6 @@ const UserDashboard: React.FC = () => {
       setEditForm({
         username: response.data.username,
         email: response.data.email,
-        whatsapp_number: response.data.whatsapp_number || '',
         patreon_id: response.data.patreon_id || '',
         is_free: response.data.is_free,
         is_admin: response.data.is_admin
@@ -116,7 +114,6 @@ const UserDashboard: React.FC = () => {
     setEditForm({
       username: profile?.username || '',
       email: profile?.email || '',
-      whatsapp_number: profile?.whatsapp_number || '',
       patreon_id: profile?.patreon_id || '',
       is_free: profile?.is_free || true,
       is_admin: profile?.is_admin || false
@@ -254,16 +251,6 @@ const UserDashboard: React.FC = () => {
 
                 <div className="form-row">
                   <div className="form-group">
-                    <label>WhatsApp Number</label>
-                    <input
-                      type="tel"
-                      name="whatsapp_number"
-                      value={editForm.whatsapp_number}
-                      onChange={handleInputChange}
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div className="form-group">
                     <label>Patreon ID</label>
                     <input
                       type="text"
@@ -302,10 +289,6 @@ const UserDashboard: React.FC = () => {
                   <div className="info-item">
                     <label>Email</label>
                     <p>{profile?.email}</p>
-                  </div>
-                  <div className="info-item">
-                    <label>WhatsApp Number</label>
-                    <p>{profile?.whatsapp_number || 'Not provided'}</p>
                   </div>
                   <div className="info-item">
                     <label>Patreon ID</label>

@@ -11,7 +11,6 @@ interface User {
   id: number;
   username: string;
   email: string;
-  whatsapp_number?: string;
   patreon_id?: string;
   is_mixcloud?: boolean;
   is_free: boolean;
@@ -22,7 +21,7 @@ interface User {
   created_at: string;
 }
 
-type UserSortColumn = 'id' | 'username' | 'email' | 'whatsapp' | 'patreon' | 'mixcloud' | 'type' | 'admin' | 'created' | null;
+type UserSortColumn = 'id' | 'username' | 'email' | 'patreon' | 'mixcloud' | 'type' | 'admin' | 'created' | null;
 type UserSortDirection = 'asc' | 'desc';
 
 const AdminDashboard: React.FC = () => {
@@ -59,7 +58,6 @@ const AdminDashboard: React.FC = () => {
     setEditForm({
       username: user.username,
       email: user.email,
-      whatsapp_number: user.whatsapp_number || '',
       patreon_id: user.patreon_id || '',
       is_mixcloud: user.is_mixcloud || false,
       is_free: user.is_free,
@@ -138,10 +136,6 @@ const AdminDashboard: React.FC = () => {
         case 'email':
           aValue = a.email || '';
           bValue = b.email || '';
-          break;
-        case 'whatsapp':
-          aValue = a.whatsapp_number || '';
-          bValue = b.whatsapp_number || '';
           break;
         case 'patreon':
           aValue = a.patreon_id || '';
@@ -285,13 +279,6 @@ const AdminDashboard: React.FC = () => {
                         </th>
                         <th 
                           className="sortable" 
-                          onClick={() => handleSort('whatsapp')}
-                          style={{ cursor: 'pointer', userSelect: 'none' }}
-                        >
-                          WhatsApp {getSortIcon('whatsapp')}
-                        </th>
-                        <th 
-                          className="sortable" 
                           onClick={() => handleSort('patreon')}
                           style={{ cursor: 'pointer', userSelect: 'none' }}
                         >
@@ -334,7 +321,6 @@ const AdminDashboard: React.FC = () => {
                           <td>{user.id}</td>
                           <td>{user.username}</td>
                           <td>{user.email}</td>
-                          <td>{user.whatsapp_number || '-'}</td>
                           <td>{user.patreon_id || '-'}</td>
                           <td>
                             <span className={`user-type ${user.is_mixcloud ? 'premium' : 'free'}`}>
@@ -421,15 +407,6 @@ const AdminDashboard: React.FC = () => {
                   value={editForm.email || ''}
                   onChange={handleInputChange}
                   required
-                />
-              </div>
-              <div className="form-group">
-                <label>WhatsApp Number</label>
-                <input
-                  type="tel"
-                  name="whatsapp_number"
-                  value={editForm.whatsapp_number || ''}
-                  onChange={handleInputChange}
                 />
               </div>
               <div className="form-group">
