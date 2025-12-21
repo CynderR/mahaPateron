@@ -2,9 +2,9 @@
 .auth-container {
   min-height: 100vh;
   width: 100vw;
-  height: 100vh;
   position: relative;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,6 +266,9 @@
 @media (max-width: 640px) {
   .auth-container {
     padding: 1rem;
+    align-items: flex-start;
+    padding-top: 2rem;
+    padding-bottom: 2rem;
   }
   
   .auth-card {

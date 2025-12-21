@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Auth.css';
 
+// Configure axios baseURL (same as AuthContext)
+axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
+
 const ForgotPassword: React.FC = () => {
   // Array of background images (same as landing page)
   const backgroundImages = [
