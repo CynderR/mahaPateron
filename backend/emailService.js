@@ -4,12 +4,22 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 
 // Create reusable transporter object using SMTP transport
 const createTransporter = () => {
-  // For development, you can use Gmail or other SMTP services
-  // For production, configure with your actual SMTP settings
+  // Check if SMTP credentials are configured
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error('SMTP credentials are not configured. Please set SMTP_USER and SMTP_PASS environment variables.');
+  }
+
+  // Get SMTP configuration from environment variables
+  const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const port = parseInt(process.env.SMTP_PORT || '587');
+  const secure = process.env.SMTP_SECURE === 'true'; // true for 465, false for other ports
+  
+  // For ProtonMail, use STARTTLS (secure: false, port 587)
+  // For Gmail, use STARTTLS (secure: false, port 587) or SSL (secure: true, port 465)
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    host: host,
+    port: port,
+    secure: secure, // true for 465, false for other ports (STARTTLS)
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,

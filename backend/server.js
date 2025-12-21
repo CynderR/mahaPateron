@@ -638,6 +638,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
       
       if (!emailResult.success) {
         console.error('Failed to send password reset email:', emailResult.error);
+        console.error('Please ensure SMTP credentials (SMTP_USER, SMTP_PASS) are set in your environment variables.');
         // Still return success to user to prevent email enumeration
       }
     }
