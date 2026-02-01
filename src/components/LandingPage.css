@@ -63,10 +63,15 @@
     sans-serif;
   font-size: 1.75rem;
   font-weight: 600;
-  color: #ffffff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.3);
+  text-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 6px 20px rgba(0, 0, 0, 0.2),
+    0 0 40px rgba(255, 255, 255, 0.15);
   letter-spacing: 0.02em;
   animation: fadeIn 1s ease-in;
+  color: black;
+  font-size: 55px;
 }
 
 /* Sign In Button */
