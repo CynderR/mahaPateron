@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
@@ -6,7 +6,16 @@ import './Auth.css';
 const SignUp: React.FC = () => {
   const location = useLocation();
   const isMixcloudSignup = location.pathname.includes('/mixcloud');
-  
+
+  // Background images (same as Sign In / landing page)
+  const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
+  const [selectedImage, setSelectedImage] = useState<string>('');
+
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * backgroundImages.length);
+    setSelectedImage(backgroundImages[randomIndex]);
+  }, []);
+
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -61,6 +70,17 @@ const SignUp: React.FC = () => {
 
   return (
     <div className="auth-container">
+      {/* Background with parallax effect */}
+      <div
+        className="auth-background"
+        style={{
+          filter: 'blur(20px)',
+          backgroundImage: selectedImage ? `url(${selectedImage})` : undefined
+        }}
+      >
+        <div className="background-overlay"></div>
+      </div>
+
       {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">
