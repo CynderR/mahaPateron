@@ -6,11 +6,8 @@ const LandingPage: React.FC = () => {
   // Array of background images
   const backgroundImages = [
 
-    '/signal-2.jpeg',
-    '/signal-3.jpeg',
-    '/signal-4.jpeg'
+    '/signal-2026-02-01-105917_002.jpeg'
   ];
-
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
 

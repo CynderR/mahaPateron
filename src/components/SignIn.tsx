@@ -7,9 +7,7 @@ const SignIn: React.FC = () => {
   // Array of background images (same as landing page)
   const backgroundImages = [
 
-    '/signal-2.jpeg',
-    '/signal-3.jpeg',
-    '/signal-4.jpeg'
+    '/signal-2026-02-01-105917_002.jpeg'
   ];
 
   // Randomly select an image on component mount
@@ -59,10 +57,6 @@ const SignIn: React.FC = () => {
       {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">
-        <div className="auth-header">
-          <p>Sign in to your account</p>
-        </div>
-
         {error && (
           <div className="error-message">
             {error}

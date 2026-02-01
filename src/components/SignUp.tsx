@@ -64,11 +64,6 @@ const SignUp: React.FC = () => {
       {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">
-          <div className="auth-header">
-            <h1>Create Account</h1>
-            <p>Join our community today</p>
-          </div>
-
         {error && (
           <div className="error-message">
             {error}
