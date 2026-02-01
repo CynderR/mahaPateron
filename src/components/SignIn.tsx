@@ -48,6 +48,7 @@ const SignIn: React.FC = () => {
       <div 
         className="auth-background"
         style={{
+          filter: 'blur(20px)',
           backgroundImage: selectedImage ? `url(${selectedImage})` : undefined
         }}
       >

@@ -33,6 +33,8 @@ const LandingPage: React.FC = () => {
       
       {/* Fixed content layer - doesn't move with parallax */}
       <div className="content-layer">
+        {/* Page title - top left */}
+        <h1 className="landing-page-title">Shyam Akaash</h1>
         {/* Sign In Button */}
         <Link to="/signin" className="sign-in-button">
           Sign In
