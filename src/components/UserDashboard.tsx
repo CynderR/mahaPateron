@@ -352,7 +352,7 @@ const UserDashboard: React.FC = () => {
                   ) : <div className="info-item"> 
                     <label></label>
                     <p>
-                      <span className="user-type free"></span>
+                      <span className=""></span>
                     </p>
                     </div>}
                   <div className="info-item">
