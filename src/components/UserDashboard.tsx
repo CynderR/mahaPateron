@@ -349,7 +349,12 @@ const UserDashboard: React.FC = () => {
                         <span className="user-type premium">Yes</span>
                       </p>
                     </div>
-                  ) : <></>}
+                  ) : <div className="info-item"> 
+                    <label></label>
+                    <p>
+                      <span className="user-type free"></span>
+                    </p>
+                    </div>}
                   <div className="info-item">
                     <label>Account Type</label>
                     <p>
