@@ -464,7 +464,7 @@ const UserDashboard: React.FC = () => {
                 </form>
               ) : (
                 <div className="password-info">
-                  <p>Keep your account secure by changing your password regularly.</p>
+                  
                 </div>
               )}
             </div>
