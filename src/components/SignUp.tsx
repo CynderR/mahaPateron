@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
@@ -6,16 +6,7 @@ import './Auth.css';
 const SignUp: React.FC = () => {
   const location = useLocation();
   const isMixcloudSignup = location.pathname.includes('/mixcloud');
-
-  // Background images (same as Sign In / landing page)
-  const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
-  const [selectedImage, setSelectedImage] = useState<string>('');
-
-  useEffect(() => {
-    const randomIndex = Math.floor(Math.random() * backgroundImages.length);
-    setSelectedImage(backgroundImages[randomIndex]);
-  }, []);
-
+  
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -70,17 +61,6 @@ const SignUp: React.FC = () => {
 
   return (
     <div className="auth-container">
-      {/* Background with parallax effect */}
-      <div
-        className="auth-background"
-        style={{
-          filter: 'blur(20px)',
-          backgroundImage: selectedImage ? `url(${selectedImage})` : undefined
-        }}
-      >
-        <div className="background-overlay"></div>
-      </div>
-
       {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">
@@ -148,35 +128,9 @@ const SignUp: React.FC = () => {
             disabled={loading}
             className="auth-button"
           >
-            {loading
-              ? (isMixcloudSignup ? 'Signing up with Mixcloud...' : 'Creating Account...')
-              : (isMixcloudSignup ? 'Sign up with Mixcloud' : 'Create Account')}
+            {loading ? 'Creating Account...' : 'Create Account'}
           </button>
         </form>
-
-        {!isMixcloudSignup && (
-          <>
-            <div className="oauth-divider">
-              <span>or</span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                const backendUrl = process.env.NODE_ENV === 'production'
-                  ? '/api/auth/patreon'
-                  : 'http://localhost:5000/api/auth/patreon';
-                window.location.href = backendUrl;
-              }}
-              className="patreon-oauth-button"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M0 .48v23.04h4.32V.48zm7.405 0C11.135.48 13.2 2.16 13.2 5.04c0 2.88-2.065 4.56-5.795 4.56H4.32v8.4H0V.48zm0 7.68h2.64c1.92 0 2.88-.96 2.88-2.4 0-1.44-.96-2.4-2.88-2.4H7.405z"/>
-              </svg>
-              Sign up with Patreon
-            </button>
-          </>
-        )}
 
         <div className="auth-footer">
           <p>

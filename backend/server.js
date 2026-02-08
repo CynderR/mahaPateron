@@ -16,7 +16,6 @@ const {
   getUserByPatreonId,
   getAllUsers,
   updateUser,
-  updatePatreonRssUrl,
   updatePassword,
   setPasswordResetToken,
   getUserByResetToken,
@@ -455,65 +454,20 @@ app.get('/api/profile', authenticateToken, async (req, res) => {
 });
 
 // Get Patreon RSS URL (for users with linked Patreon accounts)
-// Returns the user's personalized RSS URL if they've saved one, otherwise falls back to campaign URL
 app.get('/api/patreon/rss-url', authenticateToken, async (req, res) => {
   try {
-    // First check if the user has a stored personalized RSS URL
-    const user = await getUserById(req.user.id);
-    if (user?.patreon_rss_url) {
-      return res.json({ rssUrl: user.patreon_rss_url, isPersonalized: true });
-    }
-
-    // Fall back to campaign-level RSS URL (without auth - won't work for private feeds)
     if (!patreonService.accessToken || !patreonService.campaignId) {
-      return res.status(404).json({ error: 'Patreon not configured', needsRssUrl: true });
+      return res.status(404).json({ error: 'Patreon not configured' });
     }
 
     const rssUrl = await patreonService.getRSSUrl();
     if (rssUrl) {
-      res.json({ rssUrl, isPersonalized: false });
+      res.json({ rssUrl });
     } else {
-      res.status(404).json({ error: 'RSS URL not available', needsRssUrl: true });
+      res.status(404).json({ error: 'RSS URL not available' });
     }
   } catch (error) {
     console.error('Get RSS URL error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Save/update the user's personalized Patreon RSS URL
-app.put('/api/patreon/rss-url', authenticateToken, async (req, res) => {
-  try {
-    const { rssUrl } = req.body;
-
-    // Validate the URL format
-    if (!rssUrl || typeof rssUrl !== 'string') {
-      return res.status(400).json({ error: 'RSS URL is required' });
-    }
-
-    // Basic validation: must be a Patreon RSS URL with auth parameter
-    const trimmedUrl = rssUrl.trim();
-    if (!trimmedUrl.includes('patreon.com/rss/') || !trimmedUrl.includes('auth=')) {
-      return res.status(400).json({ 
-        error: 'Invalid Patreon RSS URL. It should look like: https://www.patreon.com/rss/creatorname?auth=YOUR_AUTH_TOKEN' 
-      });
-    }
-
-    await updatePatreonRssUrl(req.user.id, trimmedUrl);
-    res.json({ message: 'RSS URL saved successfully', rssUrl: trimmedUrl });
-  } catch (error) {
-    console.error('Save RSS URL error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Delete the user's personalized Patreon RSS URL
-app.delete('/api/patreon/rss-url', authenticateToken, async (req, res) => {
-  try {
-    await updatePatreonRssUrl(req.user.id, null);
-    res.json({ message: 'RSS URL removed successfully' });
-  } catch (error) {
-    console.error('Delete RSS URL error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

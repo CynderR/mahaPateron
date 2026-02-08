@@ -6,7 +6,6 @@ interface User {
   username: string;
   email: string;
   patreon_id?: string;
-  patreon_rss_url?: string;
   is_mixcloud?: boolean;
   is_free: boolean;
   is_admin: boolean;

@@ -75,15 +75,6 @@ const initDatabase = () => {
                         console.log('password_reset_expires column added successfully');
                       }
                       
-                      // Add patreon_rss_url column if it doesn't exist (migration)
-                      db.run(`ALTER TABLE users ADD COLUMN patreon_rss_url TEXT`, (err) => {
-                        if (err && !err.message.includes('duplicate column name')) {
-                          console.log('patreon_rss_url column already exists or error:', err.message);
-                        } else if (!err) {
-                          console.log('patreon_rss_url column added successfully');
-                        }
-                      });
-                      
                       // Migration: Convert mixcloud_id to is_mixcloud
                       // First check if mixcloud_id column exists
                       db.all("PRAGMA table_info(users)", (err, columns) => {
@@ -214,7 +205,7 @@ const getUserByPatreonId = (patreonId) => {
 
 const getAllUsers = () => {
   return new Promise((resolve, reject) => {
-    const sql = 'SELECT id, username, email, patreon_id, patreon_rss_url, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, created_at, updated_at FROM users';
+    const sql = 'SELECT id, username, email, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, created_at, updated_at FROM users';
     db.all(sql, [], (err, rows) => {
       if (err) {
         reject(err);
@@ -227,32 +218,18 @@ const getAllUsers = () => {
 
 const updateUser = (id, userData) => {
   return new Promise((resolve, reject) => {
-    const { username, email, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, patreon_rss_url } = userData;
+    const { username, email, patreon_id, is_mixcloud, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent } = userData;
     const sql = `UPDATE users SET 
                  username = ?, email = ?, patreon_id = ?, 
                  is_mixcloud = ?, is_free = ?, is_admin = ?, patreon_subscription_status = ?, 
-                 last_patreon_sync = ?, subscription_alert_sent = ?, patreon_rss_url = ?,
-                 updated_at = CURRENT_TIMESTAMP 
+                 last_patreon_sync = ?, subscription_alert_sent = ?, updated_at = CURRENT_TIMESTAMP 
                  WHERE id = ?`;
     
-    db.run(sql, [username, email, patreon_id, is_mixcloud || false, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, patreon_rss_url || null, id], function(err) {
+    db.run(sql, [username, email, patreon_id, is_mixcloud || false, is_free, is_admin, patreon_subscription_status, last_patreon_sync, subscription_alert_sent, id], function(err) {
       if (err) {
         reject(err);
       } else {
         resolve({ id, ...userData });
-      }
-    });
-  });
-};
-
-const updatePatreonRssUrl = (id, rssUrl) => {
-  return new Promise((resolve, reject) => {
-    const sql = `UPDATE users SET patreon_rss_url = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
-    db.run(sql, [rssUrl || null, id], function(err) {
-      if (err) {
-        reject(err);
-      } else {
-        resolve({ id, patreon_rss_url: rssUrl, updated: this.changes > 0 });
       }
     });
   });
@@ -333,7 +310,6 @@ module.exports = {
   getUserByPatreonId,
   getAllUsers,
   updateUser,
-  updatePatreonRssUrl,
   updatePassword,
   setPasswordResetToken,
   getUserByResetToken,

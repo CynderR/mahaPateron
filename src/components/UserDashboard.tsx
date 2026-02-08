@@ -12,12 +12,6 @@ const UserDashboard: React.FC = () => {
   const [success, setSuccess] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [rssUrl, setRssUrl] = useState<string | null>(null);
-  const [isRssPersonalized, setIsRssPersonalized] = useState(false);
-  const [rssInput, setRssInput] = useState('');
-  const [isEditingRss, setIsEditingRss] = useState(false);
-  const [rssError, setRssError] = useState('');
-  const [rssSuccess, setRssSuccess] = useState('');
-  const [savingRss, setSavingRss] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -52,45 +46,9 @@ const UserDashboard: React.FC = () => {
     try {
       const response = await axios.get('/patreon/rss-url');
       setRssUrl(response.data.rssUrl);
-      setIsRssPersonalized(response.data.isPersonalized || false);
     } catch (err: any) {
       // RSS URL not available or Patreon not configured - that's okay
       console.log('RSS URL not available:', err.response?.data?.error);
-      setRssUrl(null);
-      setIsRssPersonalized(false);
-    }
-  };
-
-  const savePatreonRssUrl = async () => {
-    setRssError('');
-    setRssSuccess('');
-    setSavingRss(true);
-    try {
-      const response = await axios.put('/patreon/rss-url', { rssUrl: rssInput });
-      setRssUrl(response.data.rssUrl);
-      setIsRssPersonalized(true);
-      setRssSuccess('RSS feed URL saved successfully!');
-      setIsEditingRss(false);
-      setRssInput('');
-      // Re-fetch posts with the new URL
-      fetchPatreonPosts();
-    } catch (err: any) {
-      setRssError(err.response?.data?.error || 'Failed to save RSS URL');
-    } finally {
-      setSavingRss(false);
-    }
-  };
-
-  const removePatreonRssUrl = async () => {
-    setRssError('');
-    setRssSuccess('');
-    try {
-      await axios.delete('/patreon/rss-url');
-      setRssUrl(null);
-      setIsRssPersonalized(false);
-      setRssSuccess('RSS feed URL removed.');
-    } catch (err: any) {
-      setRssError(err.response?.data?.error || 'Failed to remove RSS URL');
     }
   };
 
@@ -384,14 +342,14 @@ const UserDashboard: React.FC = () => {
                       </div>
                     )}
                   </div>
-                  {profile?.is_mixcloud && (
+                  {profile?.is_mixcloud ? (
                     <div className="info-item">
                       <label>Mixcloud Account</label>
                       <p>
                         <span className="user-type premium">Yes</span>
                       </p>
                     </div>
-                  )}
+                  ) : <></>}
                   <div className="info-item">
                     <label>Account Type</label>
                     <p>
@@ -523,94 +481,24 @@ const UserDashboard: React.FC = () => {
             </div>
           </div>
 
-          {profile?.patreon_id && (
+          {/* {profile?.patreon_id && (
             <div className="patreon-section">
               <h3>Patreon</h3>
-              
-              {/* RSS Feed URL Section */}
-              <div className="rss-section">
-                {rssSuccess && <p className="success-message" style={{ marginBottom: '0.5rem' }}>{rssSuccess}</p>}
-                {rssError && <p className="error-message" style={{ marginBottom: '0.5rem' }}>{rssError}</p>}
-                
-                {rssUrl && isRssPersonalized ? (
-                  <div className="rss-link-container">
-                    <a 
-                      href={rssUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="rss-link"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '0.5rem' }}>
-                        <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-3.368c10.58.046 19.152 8.594 19.183 19.188h4.817c-.03-13.231-10.755-23.954-24-24v4.812z"/>
-                      </svg>
-                      RSS Feed
-                    </a>
-                    <button 
-                      className="btn-secondary btn-small" 
-                      onClick={() => { setIsEditingRss(true); setRssInput(rssUrl || ''); setRssSuccess(''); }}
-                      style={{ marginLeft: '0.5rem' }}
-                    >
-                      Edit
-                    </button>
-                    <button 
-                      className="btn-secondary btn-small" 
-                      onClick={removePatreonRssUrl}
-                      style={{ marginLeft: '0.25rem' }}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                ) : !isEditingRss ? (
-                  <div className="rss-setup-prompt">
-                    <p style={{ marginBottom: '0.5rem', fontSize: '0.9rem', color: 'var(--text-secondary, #666)' }}>
-                      Set up your private Patreon RSS feed to access exclusive audio content in your podcast app.
-                    </p>
-                    <button 
-                      className="btn-primary btn-small" 
-                      onClick={() => { setIsEditingRss(true); setRssSuccess(''); setRssError(''); }}
-                    >
-                      Add RSS Feed URL
-                    </button>
-                  </div>
-                ) : null}
-
-                {isEditingRss && (
-                  <div className="rss-input-form" style={{ marginTop: '0.75rem' }}>
-                    <div style={{ marginBottom: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--bg-secondary, #f5f5f5)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary, #555)' }}>
-                      <strong>How to find your private RSS URL:</strong>
-                      <ol style={{ margin: '0.5rem 0 0 1.2rem', padding: 0 }}>
-                        <li>Go to your Patreon creator page you support</li>
-                        <li>Click <strong>"My membership"</strong> on the sidebar</li>
-                        <li>Look for the <strong>"Audio RSS link"</strong> or <strong>"Private RSS"</strong> section</li>
-                        <li>Copy the full URL (it includes an <code>auth=</code> parameter)</li>
-                      </ol>
-                    </div>
-                    <input
-                      type="url"
-                      value={rssInput}
-                      onChange={(e) => setRssInput(e.target.value)}
-                      placeholder="https://www.patreon.com/rss/creatorname?auth=YOUR_AUTH_TOKEN&show=..."
-                      className="form-input"
-                      style={{ width: '100%', marginBottom: '0.5rem' }}
-                    />
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button 
-                        className="btn-primary btn-small" 
-                        onClick={savePatreonRssUrl}
-                        disabled={savingRss || !rssInput.trim()}
-                      >
-                        {savingRss ? 'Saving...' : 'Save RSS URL'}
-                      </button>
-                      <button 
-                        className="btn-secondary btn-small" 
-                        onClick={() => { setIsEditingRss(false); setRssInput(''); setRssError(''); }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {rssUrl && (
+                <div className="rss-link-container">
+                  <a 
+                    href={rssUrl} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="rss-link"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style={{ marginRight: '0.5rem' }}>
+                      <path d="M6.503 20.752c0 1.794-1.456 3.248-3.251 3.248-1.796 0-3.252-1.454-3.252-3.248 0-1.794 1.456-3.248 3.252-3.248 1.795.001 3.251 1.454 3.251 3.248zm-6.503-12.572v4.811c6.05.062 10.96 4.966 11.022 11.009h4.817c-.062-8.71-7.118-15.758-15.839-15.82zm0-3.368c10.58.046 19.152 8.594 19.183 19.188h4.817c-.03-13.231-10.755-23.954-24-24v4.812z"/>
+                    </svg>
+                    RSS Feed
+                  </a>
+                </div>
+              )}
               
               <div className="patreon-posts">
                 <h4>Recent Posts</h4>
@@ -648,7 +536,7 @@ const UserDashboard: React.FC = () => {
                 )}
               </div>
             </div>
-          )}
+          )} */}
         </div>
       </main>
     </div>
