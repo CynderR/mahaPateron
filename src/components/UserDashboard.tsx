@@ -337,7 +337,7 @@ const UserDashboard: React.FC = () => {
                           }}
                           className="btn-link-patreon"
                         >
-                          Link to Patreon Account
+                          Create Patreon Account
                         </button>
                       </div>
                     )}
