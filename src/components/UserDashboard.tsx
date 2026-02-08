@@ -296,7 +296,6 @@ const UserDashboard: React.FC = () => {
                       <p>{profile.patreon_id}</p>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                        <p style={{ margin: 0 }}>Not linked</p>
                         <button
                           type="button"
                           onClick={async () => {
@@ -338,7 +337,7 @@ const UserDashboard: React.FC = () => {
                           }}
                           className="btn-link-patreon"
                         >
-                          Link Patreon Account
+                          Link to Patreon Account
                         </button>
                       </div>
                     )}
