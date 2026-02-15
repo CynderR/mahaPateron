@@ -22,8 +22,15 @@ const PatreonOAuthCallback: React.FC = () => {
       localStorage.setItem('token', token);
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       
-      // Reload the page to trigger AuthContext to pick up the token and refresh profile
-      window.location.href = '/dashboard';
+      const isNewSignup = searchParams.get('newSignup') === 'true';
+      
+      if (isNewSignup) {
+        // New signups go to the Patreon page after linking
+        window.location.href = 'https://www.patreon.com/c/shyamaakash/posts?vanity=shyamaakash';
+      } else {
+        // Existing users go to the dashboard
+        window.location.href = '/dashboard';
+      }
     } else {
       navigate('/signin?error=no_token');
     }

@@ -261,10 +261,11 @@ app.get('/api/auth/patreon/link', authenticateToken, (req, res) => {
 
   // Get userId from authenticated JWT token
   const userId = req.user.id;
-  console.log('OAuth link initiation: User authenticated, linking account for userId:', userId);
+  const isNewSignup = req.query.source === 'signup';
+  console.log('OAuth link initiation: User authenticated, linking account for userId:', userId, 'newSignup:', isNewSignup);
 
   // Generate state for CSRF protection, include user ID for account linking
-  const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
+  const state = jwt.sign({ timestamp: Date.now(), userId: userId, newSignup: isNewSignup }, JWT_SECRET, { expiresIn: '10m' });
   console.log('OAuth link initiation: State created with userId:', userId);
   
   const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
@@ -396,7 +397,8 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
 
       // Redirect to frontend with token
       const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
+      const newSignupParam = stateData.newSignup ? '&newSignup=true' : '';
+      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}${newSignupParam}`);
     } else {
       // Create new user from Patreon data
       const username = patreonUser.attributes.vanity || (patreonEmail ? patreonEmail.split('@')[0] : null) || `patreon_${patreonId}`;
@@ -422,7 +424,8 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
 
       // Redirect to frontend with token
       const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
+      const newSignupParam = stateData.newSignup ? '&newSignup=true' : '';
+      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}${newSignupParam}`);
     }
   } catch (error) {
     console.error('Patreon OAuth callback error:', error);

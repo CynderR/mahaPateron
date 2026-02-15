@@ -56,8 +56,8 @@ const SignUp: React.FC = () => {
       // Redirect new users to Patreon account linking (same as "Create Patreon Account" on dashboard)
       try {
         const backendUrl = process.env.NODE_ENV === 'production' 
-          ? '/auth/patreon/link' 
-          : 'http://localhost:5000/api/auth/patreon/link';
+          ? '/auth/patreon/link?source=signup' 
+          : 'http://localhost:5000/api/auth/patreon/link?source=signup';
         
         const response = await axios.get(backendUrl);
         
