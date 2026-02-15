@@ -12,7 +12,12 @@ const PatreonOAuthCallback: React.FC = () => {
     const error = searchParams.get('error');
 
     if (error) {
-      // Handle OAuth errors
+      // If user already has a token (e.g. just signed up), send to dashboard instead of signin
+      const existingToken = localStorage.getItem('token');
+      if (existingToken) {
+        window.location.href = '/dashboard';
+        return;
+      }
       navigate(`/signin?error=${error}`);
       return;
     }

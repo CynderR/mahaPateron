@@ -289,7 +289,19 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
   const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
 
     if (!code || !state) {
-      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+      console.log('OAuth callback: Missing code or state. code:', !!code, 'state:', !!state);
+      // If we have a state, try to decode it to check if user already has an account
+      if (state) {
+        try {
+          const stateCheck = jwt.verify(state, JWT_SECRET);
+          if (stateCheck.userId) {
+            console.log('OAuth callback: OAuth failed but user already has account, redirecting to dashboard');
+            return res.redirect(`${frontendOrigin}/dashboard`);
+          }
+        } catch (e) {
+          // State expired or invalid, fall through to signin
+        }
+      }
       return res.redirect(`${frontendOrigin}/signin?error=oauth_failed`);
     }
 
@@ -433,6 +445,21 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
       code: error.code
     });
     const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+    
+    // If user already has an account (state had userId), send to dashboard instead of signin
+    try {
+      const { state } = req.query;
+      if (state) {
+        const stateCheck = jwt.verify(state, JWT_SECRET);
+        if (stateCheck.userId) {
+          console.log('OAuth callback: OAuth error but user already has account, redirecting to dashboard');
+          return res.redirect(`${frontendOrigin}/dashboard`);
+        }
+      }
+    } catch (e) {
+      // State expired or invalid, fall through to signin
+    }
+    
     return res.redirect(`${frontendOrigin}/signin?error=oauth_error`);
   }
 });
