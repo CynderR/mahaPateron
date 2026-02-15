@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
@@ -52,29 +51,6 @@ const SignUp: React.FC = () => {
         is_mixcloud: isMixcloudSignup
       };
       await register(finalRegisterData);
-      
-      // Redirect new users to Patreon account linking (same as "Create Patreon Account" on dashboard)
-      try {
-        const backendUrl = process.env.NODE_ENV === 'production' 
-          ? '/auth/patreon/link?source=signup' 
-          : 'http://localhost:5000/api/auth/patreon/link?source=signup';
-        
-        const response = await axios.get(backendUrl);
-        
-        if (response.data && response.data.redirectUrl) {
-          window.location.href = response.data.redirectUrl;
-          return;
-        }
-      } catch (patreonError: any) {
-        // If we got a 200 response but axios still threw, check if redirectUrl is in the response
-        if (patreonError.response?.status === 200 && patreonError.response?.data?.redirectUrl) {
-          window.location.href = patreonError.response.data.redirectUrl;
-          return;
-        }
-        console.error('Error initiating Patreon link after signup:', patreonError);
-      }
-      
-      // Fallback to dashboard if Patreon redirect fails
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);

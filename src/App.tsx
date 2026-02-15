@@ -11,6 +11,7 @@ import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import PatreonOAuthCallback from './components/PatreonOAuthCallback';
+import PatreonRedirect from './components/PatreonRedirect';
 import './App.css';
 import './styles/themes.css';
 
@@ -27,6 +28,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/patreon/success" element={<PatreonOAuthCallback />} />
+      <Route path="/redirect" element={<PatreonRedirect />} />
       <Route
         path="/dashboard"
         element={
