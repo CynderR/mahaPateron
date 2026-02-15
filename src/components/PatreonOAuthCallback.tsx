@@ -26,10 +26,10 @@ const PatreonOAuthCallback: React.FC = () => {
       
       if (isNewSignup) {
         // New signups go to the Patreon page after linking
-        window.location.href = 'https://www.patreon.com/c/shyamaakash/posts?vanity=shyamaakash';
+        window.location.href = 'https://www.patreon.com/shyamaakash';
       } else {
         // Existing users go to the dashboard
-        window.location.href = '/dashboard';
+        window.location.href = 'https://www.patreon.com/shyamaakash';
       }
     } else {
       navigate('/signin?error=no_token');
