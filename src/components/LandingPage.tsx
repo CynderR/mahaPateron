@@ -36,8 +36,8 @@ const LandingPage: React.FC = () => {
         {/* Page title - top left */}
         <h1 className="landing-page-title">Shyam Akaash</h1>
         {/* Sign In Button */}
-        <Link to="/signin" className="sign-in-button">
-          Sign In
+        <Link to="/signup" className="sign-in-button">
+          Create Account
         </Link>
         
       </div>
