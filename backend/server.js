@@ -279,6 +279,61 @@ app.get('/api/auth/patreon/link', authenticateToken, (req, res) => {
   res.json({ redirectUrl: patreonAuthUrl });
 });
 
+// Patreon OAuth - Signup via Patreon (no auth required)
+// Collects signup data, stores in state JWT, and redirects to Patreon OAuth
+// User account is only created after Patreon OAuth completes successfully
+app.post('/api/auth/patreon/signup', async (req, res) => {
+  try {
+    const { username, email, password, is_mixcloud } = req.body;
+    const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
+    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+    const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
+
+    if (!PATREON_CLIENT_ID) {
+      return res.status(500).json({ error: 'Patreon OAuth not configured' });
+    }
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+    }
+
+    // Check if username or email already exists
+    const existingUsername = await getUserByUsername(username);
+    if (existingUsername) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+    const existingEmail = await getUserByEmail(email);
+    if (existingEmail) {
+      return res.status(400).json({ error: 'Email already registered' });
+    }
+
+    // Hash password before storing in state
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Store signup data in state JWT (1 hour expiry to allow for Patreon account creation + email verification)
+    const signupData = { username, email, password: hashedPassword, is_mixcloud: is_mixcloud || false };
+    const state = jwt.sign({ timestamp: Date.now(), signupData }, JWT_SECRET, { expiresIn: '1h' });
+
+    console.log('Patreon signup initiation: Signup data stored in state for:', username, email);
+
+    const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
+      `response_type=code&` +
+      `client_id=${PATREON_CLIENT_ID}&` +
+      `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
+      `scope=identity%20identity%5Bemail%5D&` +
+      `state=${state}`;
+
+    res.json({ redirectUrl: patreonAuthUrl });
+  } catch (error) {
+    console.error('Patreon signup initiation error:', error);
+    res.status(500).json({ error: 'Failed to initiate Patreon signup' });
+  }
+});
+
 // Patreon OAuth - Handle callback
 app.get('/api/auth/patreon/callback', async (req, res) => {
   try {
@@ -352,6 +407,40 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     const patreonId = patreonUser.id;
     const patreonEmail = patreonUser.attributes?.email || null;
     const patreonName = patreonUser.attributes?.full_name || patreonUser.attributes?.first_name || 'Patreon User';
+
+    // If this is a signup-via-Patreon flow (signupData in state), create the user now with Patreon ID
+    if (stateData.signupData) {
+      const { username, email, password, is_mixcloud } = stateData.signupData;
+      console.log('OAuth callback: Signup flow - creating user:', username, email, 'with Patreon ID:', patreonId);
+
+      // Check if username/email were taken while user was on Patreon
+      const existingUsername = await getUserByUsername(username);
+      const existingEmail = await getUserByEmail(email);
+      if (existingUsername || existingEmail) {
+        console.log('OAuth callback: Username or email taken during Patreon flow');
+        return res.redirect(`${frontendOrigin}/signup?error=account_taken`);
+      }
+
+      const newUser = await createUser({
+        username,
+        email,
+        password, // already hashed
+        patreon_id: patreonId,
+        is_mixcloud: is_mixcloud || false,
+        is_free: false,
+        is_admin: false
+      });
+
+      console.log('OAuth callback: User created via signup flow:', newUser.id, username);
+
+      const token = jwt.sign(
+        { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
+        JWT_SECRET,
+        { expiresIn: '24h' }
+      );
+
+      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
+    }
 
     // If linking account (userId in state), prioritize finding user by userId first
     let user = null;

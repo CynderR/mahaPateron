@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 const SignUp: React.FC = () => {
@@ -15,10 +14,17 @@ const SignUp: React.FC = () => {
     confirmPassword: '',
     patreon_id: ''
   });
+  const [searchParams] = useSearchParams();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const urlError = searchParams.get('error');
+    if (urlError === 'account_taken') {
+      setError('That username or email was taken while you were on Patreon. Please try different details.');
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -45,38 +51,25 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      const { confirmPassword, ...registerData } = formData;
-      // Add is_mixcloud flag if this is a Mixcloud signup
-      const finalRegisterData = {
-        ...registerData,
+      const backendUrl = process.env.NODE_ENV === 'production' 
+        ? '/auth/patreon/signup' 
+        : 'http://localhost:5000/api/auth/patreon/signup';
+
+      const response = await axios.post(backendUrl, {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password,
         is_mixcloud: isMixcloudSignup
-      };
-      await register(finalRegisterData);
-      
-      // Send new users to Patreon account linking (same as "Create Patreon Account" on dashboard)
-      try {
-        const backendUrl = process.env.NODE_ENV === 'production' 
-          ? '/auth/patreon/link' 
-          : 'http://localhost:5000/api/auth/patreon/link';
-        
-        const response = await axios.get(backendUrl);
-        
-        if (response.data && response.data.redirectUrl) {
-          window.location.href = response.data.redirectUrl;
-          return;
-        }
-      } catch (patreonError: any) {
-        if (patreonError.response?.status === 200 && patreonError.response?.data?.redirectUrl) {
-          window.location.href = patreonError.response.data.redirectUrl;
-          return;
-        }
-        console.error('Error initiating Patreon link after signup:', patreonError);
+      });
+
+      if (response.data && response.data.redirectUrl) {
+        window.location.href = response.data.redirectUrl;
+        return;
       }
       
-      // Fallback to dashboard if Patreon redirect fails
-      navigate('/dashboard');
+      setError('Unexpected response from server. Please try again.');
     } catch (err: any) {
-      setError(err.message);
+      setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
@@ -151,7 +144,7 @@ const SignUp: React.FC = () => {
             disabled={loading}
             className="auth-button"
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {loading ? 'Connecting to Patreon...' : 'Continue with Patreon'}
           </button>
         </form>
 
