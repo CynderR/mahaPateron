@@ -3,6 +3,7 @@ const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const axios = require('axios');
+const cookieParser = require('cookie-parser');
 const PatreonService = require('./patreonService');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -58,6 +59,7 @@ const corsOrigins = CORS_ORIGIN.includes(",")
   credentials: true
 }));
 app.use(express.json());
+app.use(cookieParser());
 
 // JWT verification middleware
 const authenticateToken = (req, res, next) => {
@@ -311,14 +313,25 @@ app.post('/api/auth/patreon/signup', async (req, res) => {
       return res.status(400).json({ error: 'Email already registered' });
     }
 
-    // Hash password before storing in state
+    // Hash password before storing
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Store signup data in state JWT (1 hour expiry to allow for Patreon account creation + email verification)
     const signupData = { username, email, password: hashedPassword, is_mixcloud: is_mixcloud || false };
+
+    // Store signup data in a signed cookie (survives Patreon redirects even if state is lost)
+    const signupToken = jwt.sign({ signupData }, JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('pending_signup', signupToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000, // 1 hour
+      path: '/'
+    });
+
+    // Also include signup data in state JWT as a backup
     const state = jwt.sign({ timestamp: Date.now(), signupData }, JWT_SECRET, { expiresIn: '1h' });
 
-    console.log('Patreon signup initiation: Signup data stored in state for:', username, email);
+    console.log('Patreon signup initiation: Signup data stored in cookie + state for:', username, email);
 
     const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
       `response_type=code&` +
@@ -366,8 +379,24 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
       stateData = jwt.verify(state, JWT_SECRET);
       console.log('OAuth callback: State data:', stateData);
     } catch (err) {
-      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
+      console.log('OAuth callback: State invalid/expired, checking for pending_signup cookie');
+      // State expired but we might have signup data in a cookie
+      const pendingSignupCookie = req.cookies?.pending_signup;
+      if (pendingSignupCookie) {
+        try {
+          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
+          if (cookieData.signupData) {
+            stateData = { timestamp: Date.now(), signupData: cookieData.signupData };
+            console.log('OAuth callback: Recovered signup data from cookie for:', cookieData.signupData.username);
+          }
+        } catch (cookieErr) {
+          console.log('OAuth callback: Cookie also invalid/expired');
+        }
+      }
+      if (!stateData) {
+        const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
+        return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
+      }
     }
 
     if (!PATREON_CLIENT_ID || !PATREON_CLIENT_SECRET) {
@@ -408,9 +437,25 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
     const patreonEmail = patreonUser.attributes?.email || null;
     const patreonName = patreonUser.attributes?.full_name || patreonUser.attributes?.first_name || 'Patreon User';
 
-    // If this is a signup-via-Patreon flow (signupData in state), create the user now with Patreon ID
-    if (stateData.signupData) {
-      const { username, email, password, is_mixcloud } = stateData.signupData;
+    // If this is a signup-via-Patreon flow, check for signupData in state or cookie
+    let signupData = stateData.signupData || null;
+    if (!signupData) {
+      const pendingSignupCookie = req.cookies?.pending_signup;
+      if (pendingSignupCookie) {
+        try {
+          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
+          signupData = cookieData.signupData || null;
+          if (signupData) {
+            console.log('OAuth callback: Recovered signup data from cookie for:', signupData.username);
+          }
+        } catch (e) {
+          console.log('OAuth callback: Cookie expired or invalid');
+        }
+      }
+    }
+
+    if (signupData) {
+      const { username, email, password, is_mixcloud } = signupData;
       console.log('OAuth callback: Signup flow - creating user:', username, email, 'with Patreon ID:', patreonId);
 
       // Check if username/email were taken while user was on Patreon
@@ -432,6 +477,9 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
       });
 
       console.log('OAuth callback: User created via signup flow:', newUser.id, username);
+
+      // Clear the pending signup cookie
+      res.clearCookie('pending_signup', { path: '/' });
 
       const token = jwt.sign(
         { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
