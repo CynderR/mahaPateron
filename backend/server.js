@@ -358,6 +358,30 @@ app.get('/api/auth/patreon/callback', async (req, res) => {
 
     if (!code || !state) {
       console.log('OAuth callback: Missing code or state. code:', !!code, 'state:', !!state);
+
+      // Check for pending signup cookie — user likely just created a Patreon account
+      // and the "return to OAuth app" link didn't complete the OAuth flow.
+      // Re-redirect them to Patreon OAuth — they now have an account so it will complete.
+      const pendingSignupCookie = req.cookies?.pending_signup;
+      if (pendingSignupCookie && PATREON_CLIENT_ID) {
+        try {
+          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
+          if (cookieData.signupData) {
+            console.log('OAuth callback: No code/state but found pending signup cookie. Re-initiating OAuth for:', cookieData.signupData.username);
+            const newState = jwt.sign({ timestamp: Date.now(), signupData: cookieData.signupData }, JWT_SECRET, { expiresIn: '1h' });
+            const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
+              `response_type=code&` +
+              `client_id=${PATREON_CLIENT_ID}&` +
+              `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
+              `scope=identity%20identity%5Bemail%5D&` +
+              `state=${newState}`;
+            return res.redirect(patreonAuthUrl);
+          }
+        } catch (e) {
+          console.log('OAuth callback: Pending signup cookie expired or invalid');
+        }
+      }
+
       // If we have a state, try to decode it to check if user already has an account
       if (state) {
         try {
