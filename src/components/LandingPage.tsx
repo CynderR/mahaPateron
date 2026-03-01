@@ -35,9 +35,19 @@ const LandingPage: React.FC = () => {
       <div className="content-layer">
         {/* Page title - top left */}
         <h1 className="landing-page-title">Shyam Akaash</h1>
+        <div className="hero-cta-container">
+          <a
+            href="https://www.patreon.com/shyamaakash"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="patreon-main-button"
+          >
+            Join on Patreon
+          </a>
+        </div>
         {/* Sign In Button */}
-        <Link to="/signup" className="sign-in-button">
-          Create Account
+        <Link to="/signin" className="sign-in-button">
+          Sign In
         </Link>
         
       </div>
