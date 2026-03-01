@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import './LandingPage.css';
 
 const LandingPage: React.FC = () => {
@@ -35,20 +34,14 @@ const LandingPage: React.FC = () => {
       <div className="content-layer">
         {/* Page title - top left */}
         <h1 className="landing-page-title">Shyam Akaash</h1>
-        <div className="hero-cta-container">
-          <a
-            href="https://www.patreon.com/shyamaakash"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="patreon-main-button"
-          >
-            Join on Patreon
-          </a>
-        </div>
-        {/* Sign In Button */}
-        <Link to="/signin" className="sign-in-button">
-          Sign In
-        </Link>
+        <a
+          href="https://www.patreon.com/shyamaakash"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="sign-in-button"
+        >
+          Join on Patreon
+        </a>
         
       </div>
     </div>
