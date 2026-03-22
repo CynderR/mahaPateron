@@ -89,6 +89,12 @@
 }
 
 /* Sign In Button */
+button.sign-in-button {
+  cursor: pointer;
+  border: none;
+  font: inherit;
+}
+
 .sign-in-button {
   flex-shrink: 0;
   z-index: 11;

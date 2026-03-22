@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './LandingPage.css';
+import PatreonSetupModal from './PatreonSetupModal';
 
 const LandingPage: React.FC = () => {
   // Array of background images
@@ -9,6 +10,7 @@ const LandingPage: React.FC = () => {
   ];
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
+  const [patreonModalOpen, setPatreonModalOpen] = useState(false);
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * backgroundImages.length);
@@ -35,14 +37,13 @@ const LandingPage: React.FC = () => {
         {/* Page title - top left */}
         <h1 className="landing-page-title">Shyam Akaash</h1>
         <div className="landing-cta-group">
-          <a
-            href="https://www.patreon.com/shyamaakash"
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
             className="sign-in-button"
+            onClick={() => setPatreonModalOpen(true)}
           >
             Join on Patreon
-          </a>
+          </button>
           <a
             href="https://www.mixcloud.com/ShyamAkaash/subscribe/"
             target="_blank"
@@ -53,7 +54,7 @@ const LandingPage: React.FC = () => {
           </a>
         </div>
 
-
+        <PatreonSetupModal isOpen={patreonModalOpen} onClose={() => setPatreonModalOpen(false)} />
       </div>
     </div>
   );
