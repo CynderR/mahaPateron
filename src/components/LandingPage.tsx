@@ -34,22 +34,24 @@ const LandingPage: React.FC = () => {
       <div className="content-layer">
         {/* Page title - top left */}
         <h1 className="landing-page-title">Shyam Akaash</h1>
-        <a
-          href="https://www.patreon.com/shyamaakash"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="sign-in-button"
-        >
-          Join on Patreon
-        </a>
-        <a
-          href="https://www.mixcloud.com/ShyamAkaash/subscribe/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="sign-in-button"
-        >
-          Join on Mixcloud
-        </a>
+        <div className="landing-cta-group">
+          <a
+            href="https://www.patreon.com/shyamaakash"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sign-in-button"
+          >
+            Join on Patreon
+          </a>
+          <a
+            href="https://www.mixcloud.com/ShyamAkaash/subscribe/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="sign-in-button"
+          >
+            Join on Mixcloud
+          </a>
+        </div>
 
 
       </div>
