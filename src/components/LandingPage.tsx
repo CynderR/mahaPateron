@@ -42,7 +42,16 @@ const LandingPage: React.FC = () => {
         >
           Join on Patreon
         </a>
-        
+        <a
+          href="https://www.mixcloud.com/ShyamAkaash/subscribe/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="sign-in-button"
+        >
+          Join on Mixcloud
+        </a>
+
+
       </div>
     </div>
   );
