@@ -45,12 +45,12 @@ const LandingPage: React.FC = () => {
             Join on Patreon
           </button>
           <a
-            href="https://www.mixcloud.com/ShyamAkaash/subscribe/"
+            href="https://hearthis.at/shyam-akaash/"
             target="_blank"
             rel="noopener noreferrer"
             className="sign-in-button"
           >
-            Join on Mixcloud
+            Join on HearThis.at
           </a>
         </div>
 
