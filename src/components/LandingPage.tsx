@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './LandingPage.css';
 import HearThisSetupModal from './HearThisSetupModal';
+import PatreonGuideModal from './PatreonGuideModal';
 
 const LANDING_VIDEO_ID = 'UU5YZ3JnVMM';
 const BACKGROUND_IMAGES = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -8,6 +9,7 @@ const BACKGROUND_IMAGES = ['/signal-2026-02-01-105917_002.jpeg'];
 const LandingPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string>('');
   const [hearThisModalOpen, setHearThisModalOpen] = useState(false);
+  const [patreonModalOpen, setPatreonModalOpen] = useState(false);
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
@@ -29,14 +31,13 @@ const LandingPage: React.FC = () => {
         <header className="landing-top-bar">
           <h1 className="landing-page-title">Shyam Akaash</h1>
           <div className="landing-cta-group">
-            <a
-              href="https://www.patreon.com/shyamaakash"
-              target="_blank"
-              rel="noopener noreferrer"
+            <button
+              type="button"
               className="sign-in-button"
+              onClick={() => setPatreonModalOpen(true)}
             >
               Join on Patreon
-            </a>
+            </button>
             <button
               type="button"
               className="sign-in-button"
@@ -57,6 +58,7 @@ const LandingPage: React.FC = () => {
           />
         </div>
 
+        <PatreonGuideModal isOpen={patreonModalOpen} onClose={() => setPatreonModalOpen(false)} />
         <HearThisSetupModal isOpen={hearThisModalOpen} onClose={() => setHearThisModalOpen(false)} />
       </div>
     </div>
