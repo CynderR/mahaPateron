@@ -1,66 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import './LandingPage.css';
-import PatreonSetupModal from './PatreonSetupModal';
+import HearThisSetupModal from './HearThisSetupModal';
+
+const LANDING_VIDEO_ID = 'UU5YZ3JnVMM';
+const BACKGROUND_IMAGES = ['/signal-2026-02-01-105917_002.jpeg'];
 
 const LandingPage: React.FC = () => {
-  // Array of background images
-  const backgroundImages = [
-
-    '/signal-2026-02-01-105917_002.jpeg'
-  ];
-  // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
-  const [patreonModalOpen, setPatreonModalOpen] = useState(false);
+  const [hearThisModalOpen, setHearThisModalOpen] = useState(false);
 
   useEffect(() => {
-    const randomIndex = Math.floor(Math.random() * backgroundImages.length);
-    setSelectedImage(backgroundImages[randomIndex]);
+    const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
+    setSelectedImage(BACKGROUND_IMAGES[randomIndex]);
   }, []);
-
-
 
   return (
     <div className="landing-page">
-      {/* Background with parallax effect */}
-      <div 
+      <div
         className="sky"
         style={{
           backgroundImage: selectedImage ? `url(${selectedImage})` : undefined,
         }}
       >
-        {/* Overlay for better text readability */}
-        <div className="background-overlay"></div>
+        <div className="background-overlay" />
       </div>
-      
-      {/* Fixed content layer - doesn't move with parallax */}
-      <div className="content-layer">
-        {/* Page title - top left */}
-        <h1 className="landing-page-title">Shyam Akaash</h1>
-        <div className="landing-cta-group">
-          <button
-            type="button"
-            className="sign-in-button"
-            onClick={() => setPatreonModalOpen(true)}
-          >
-            Join on Patreon
-          </button>
-          <a
-            href="https://hearthis.at/shyam-akaash/"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="sign-in-button"
-          >
-            Join on HearThis.at
-          </a>
+
+      <div className="content-layer landing-layout">
+        <header className="landing-top-bar">
+          <h1 className="landing-page-title">Shyam Akaash</h1>
+          <div className="landing-cta-group">
+            <a
+              href="https://www.patreon.com/shyamaakash"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="sign-in-button"
+            >
+              Join on Patreon
+            </a>
+            <button
+              type="button"
+              className="sign-in-button"
+              onClick={() => setHearThisModalOpen(true)}
+            >
+              Join on HearThis.at
+            </button>
+          </div>
+        </header>
+
+        <div className="landing-video-shell">
+          <iframe
+            title="Shyam Akaash tutorial"
+            src={`https://www.youtube.com/embed/${LANDING_VIDEO_ID}`}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allowFullScreen
+            className="landing-main-video"
+          />
         </div>
 
-        <PatreonSetupModal isOpen={patreonModalOpen} onClose={() => setPatreonModalOpen(false)} />
+        <HearThisSetupModal isOpen={hearThisModalOpen} onClose={() => setHearThisModalOpen(false)} />
       </div>
     </div>
   );
 };
 
 export default LandingPage;
-
-
-
