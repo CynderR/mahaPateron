@@ -362,6 +362,32 @@ npm run build
 
 **Do not** rely on `DISABLE_ESLINT_PLUGIN=true` as a permanent fix — upgrade Node instead. The backend also expects a modern Node runtime.
 
+### `EADDRINUSE` on port 5000 (dev or nodemon crash loop)
+
+Port 5000 is almost always the **pm2 production backend** or a **leftover nodemon** from a previous `./start-dev.sh`. A `git pull` while nodemon is running will restart it and hit the same conflict.
+
+```bash
+cd /var/www/user-management-app
+
+# Stop everything on 5000/3000 (stops pm2 + nodemon)
+./stop-dev.sh
+
+# Then start dev
+./start-dev.sh
+```
+
+Manual alternative:
+
+```bash
+pm2 stop user-management-backend
+pkill -f "nodemon server.js"
+sudo apt install -y psmisc    # optional, for fuser
+fuser -k 5000/tcp 2>/dev/null || true
+ss -tlnp 'sport = :5000'    # should show nothing listening
+```
+
+When you exit dev (Ctrl+C), `start-dev.sh` will restart the pm2 production backend if it was stopped for you.
+
 ## Performance Optimization
 
 1. **Enable gzip compression** in Nginx

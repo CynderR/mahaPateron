@@ -2,9 +2,7 @@
 
 # User Management App - Development Startup Script
 # Starts backend (5000) and frontend (3000) for local development.
-# Works on Debian without lsof (uses ss/fuser instead).
-
-set -e
+# On a server that also runs pm2, run ./stop-dev.sh first (this script calls it).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
@@ -20,8 +18,25 @@ NC='\033[0m'
 
 BACKEND_PORT=5000
 FRONTEND_PORT=3000
+PM2_WAS_STOPPED=0
 
-# Return 0 if something is listening on TCP port $1.
+export BACKEND_PORT FRONTEND_PORT
+
+# Free ports 5000/3000 — stops pm2 production backend and stale nodemon.
+if ! bash "$SCRIPT_DIR/stop-dev.sh"; then
+  echo -e "${RED}Cannot start dev servers until port ${BACKEND_PORT} is free.${NC}"
+  exit 1
+fi
+
+# Remember if we stopped pm2 so we can restart it on exit (optional courtesy).
+if command -v pm2 >/dev/null 2>&1; then
+  if pm2 list 2>/dev/null | grep -q user-management-backend; then
+    if pm2 list 2>/dev/null | grep user-management-backend | grep -q stopped; then
+      PM2_WAS_STOPPED=1
+    fi
+  fi
+fi
+
 check_port() {
   local port="$1"
   if command -v ss >/dev/null 2>&1; then
@@ -32,56 +47,8 @@ check_port() {
     lsof -Pi ":${port}" -sTCP:LISTEN -t >/dev/null 2>&1
     return $?
   fi
-  if command -v netstat >/dev/null 2>&1; then
-    netstat -tln 2>/dev/null | grep -q ":${port} "
-    return $?
-  fi
   return 1
 }
-
-# Kill whatever is listening on TCP port $1 (no lsof required on Debian).
-kill_port() {
-  local port="$1"
-  echo -e "${YELLOW}🔄 Stopping any existing processes on port ${port}...${NC}"
-
-  if command -v fuser >/dev/null 2>&1; then
-    fuser -k "${port}/tcp" 2>/dev/null || true
-  elif command -v lsof >/dev/null 2>&1; then
-    lsof -ti:"${port}" | xargs -r kill -9 2>/dev/null || true
-  elif command -v ss >/dev/null 2>&1; then
-    local pids
-    pids=$(ss -tlnpH "sport = :${port}" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
-    if [ -n "$pids" ]; then
-      echo "$pids" | xargs -r kill -9 2>/dev/null || true
-    fi
-  else
-    echo -e "${YELLOW}⚠ Install psmisc (fuser) or lsof to free port ${port} automatically${NC}"
-  fi
-
-  sleep 1
-}
-
-warn_port_still_in_use() {
-  local port="$1"
-  echo -e "${RED}❌ Port ${port} is still in use.${NC}"
-  if command -v ss >/dev/null 2>&1; then
-    echo -e "${YELLOW}   Listener:${NC}"
-    ss -tlnpH "sport = :${port}" 2>/dev/null || true
-  fi
-  if [ "$port" = "$BACKEND_PORT" ] && command -v pm2 >/dev/null 2>&1; then
-    echo -e "${YELLOW}   If the production backend is running under pm2, stop it first:${NC}"
-    echo -e "   pm2 stop user-management-backend"
-  fi
-  echo -e "${YELLOW}   Or pick another port: PORT=5001 npm run dev${NC} (in backend/)"
-}
-
-kill_port "$BACKEND_PORT"
-kill_port "$FRONTEND_PORT"
-
-if check_port "$BACKEND_PORT"; then
-  warn_port_still_in_use "$BACKEND_PORT"
-  exit 1
-fi
 
 echo -e "${BLUE}📦 Installing backend dependencies...${NC}"
 if [ ! -d "backend/node_modules" ]; then
@@ -132,18 +99,23 @@ echo -e "${BLUE}🔍 API Health:${NC} http://localhost:${BACKEND_PORT}/api/healt
 echo ""
 echo -e "${YELLOW}👤 Admin (after create-admin.js):${NC}"
 echo -e "   Email: admin@4thstate.ca"
-echo -e "   Password: (see backend/create-admin.js)"
 echo ""
-echo -e "${YELLOW}🛑 To stop:${NC} Press Ctrl+C"
+echo -e "${YELLOW}🛑 To stop dev:${NC} Press Ctrl+C (pm2 production will restart if it was stopped)"
 echo "=================================================="
 
 cleanup() {
   echo ""
-  echo -e "${YELLOW}🛑 Shutting down servers...${NC}"
+  echo -e "${YELLOW}🛑 Shutting down dev servers...${NC}"
   kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
-  kill_port "$BACKEND_PORT"
-  kill_port "$FRONTEND_PORT"
-  echo -e "${GREEN}✅ Servers stopped${NC}"
+  pkill -f "nodemon server.js" 2>/dev/null || true
+  bash "$SCRIPT_DIR/stop-dev.sh" >/dev/null 2>&1 || true
+
+  if [ "$PM2_WAS_STOPPED" = "1" ] && command -v pm2 >/dev/null 2>&1; then
+    echo -e "${YELLOW}Restarting pm2 production backend...${NC}"
+    pm2 start user-management-backend 2>/dev/null || pm2 restart user-management-backend 2>/dev/null || true
+  fi
+
+  echo -e "${GREEN}✅ Done${NC}"
   exit 0
 }
 

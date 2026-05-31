@@ -308,8 +308,21 @@ API_PREFIXES.forEach((prefix) => {
 const startServer = async () => {
   try {
     await initDatabase();
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
+    });
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`\nPort ${PORT} is already in use.`);
+        console.error('On this server, stop the production backend first:');
+        console.error('  pm2 stop user-management-backend');
+        console.error('Or run from the project root:');
+        console.error('  ./stop-dev.sh');
+        console.error('Then start dev again: ./start-dev.sh\n');
+      } else {
+        console.error('Server error:', err);
+      }
+      process.exit(1);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
