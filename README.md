@@ -32,8 +32,8 @@ A modern React TypeScript application with a Node.js backend for user management
 ## Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
+- Node.js **v18 or higher** (v20 LTS recommended — required for `npm run build`)
+- npm v8 or higher
 
 ### Quick Start (Recommended)
 

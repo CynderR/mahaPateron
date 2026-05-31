@@ -329,6 +329,39 @@ sudo journalctl -u nginx -f
 6. **SSL**: Always use HTTPS in production
 7. **Environment variables**: Never commit .env files to version control
 
+## Troubleshooting
+
+### `Cannot find module 'node:path'` during `npm run build`
+
+This means the server is running **Node.js older than 14** (often Debian’s default `nodejs` package). Create React App 5 and its ESLint toolchain require **Node 18+** (Node 20 LTS recommended).
+
+Check your version:
+
+```bash
+node --version
+npm --version
+```
+
+If `node` reports v10, v12, or similar, install Node 20 from NodeSource:
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+node --version   # should show v20.x
+npm --version    # should show 10.x
+```
+
+Then reinstall dependencies and rebuild:
+
+```bash
+cd /var/www/user-management-app
+rm -rf node_modules
+npm install
+npm run build
+```
+
+**Do not** rely on `DISABLE_ESLINT_PLUGIN=true` as a permanent fix — upgrade Node instead. The backend also expects a modern Node runtime.
+
 ## Performance Optimization
 
 1. **Enable gzip compression** in Nginx

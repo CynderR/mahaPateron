@@ -1,115 +1,152 @@
 #!/bin/bash
 
 # User Management App - Development Startup Script
-# This script starts both the backend and frontend servers for development
+# Starts backend (5000) and frontend (3000) for local development.
+# Works on Debian without lsof (uses ss/fuser instead).
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
 
 echo "🚀 Starting User Management App Development Environment..."
 echo "=================================================="
 
-# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to check if a port is in use
+BACKEND_PORT=5000
+FRONTEND_PORT=3000
+
+# Return 0 if something is listening on TCP port $1.
 check_port() {
-    if lsof -Pi :$1 -sTCP:LISTEN -t >/dev/null ; then
-        return 0
-    else
-        return 1
-    fi
+  local port="$1"
+  if command -v ss >/dev/null 2>&1; then
+    ss -tlnH "sport = :${port}" 2>/dev/null | grep -q .
+    return $?
+  fi
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -Pi ":${port}" -sTCP:LISTEN -t >/dev/null 2>&1
+    return $?
+  fi
+  if command -v netstat >/dev/null 2>&1; then
+    netstat -tln 2>/dev/null | grep -q ":${port} "
+    return $?
+  fi
+  return 1
 }
 
-# Function to kill processes on specific ports
+# Kill whatever is listening on TCP port $1 (no lsof required on Debian).
 kill_port() {
-    echo -e "${YELLOW}🔄 Stopping any existing processes on port $1...${NC}"
-    lsof -ti:$1 | xargs kill -9 2>/dev/null || true
+  local port="$1"
+  echo -e "${YELLOW}🔄 Stopping any existing processes on port ${port}...${NC}"
+
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${port}/tcp" 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    lsof -ti:"${port}" | xargs -r kill -9 2>/dev/null || true
+  elif command -v ss >/dev/null 2>&1; then
+    local pids
+    pids=$(ss -tlnpH "sport = :${port}" 2>/dev/null | sed -n 's/.*pid=\([0-9]*\).*/\1/p' | sort -u)
+    if [ -n "$pids" ]; then
+      echo "$pids" | xargs -r kill -9 2>/dev/null || true
+    fi
+  else
+    echo -e "${YELLOW}⚠ Install psmisc (fuser) or lsof to free port ${port} automatically${NC}"
+  fi
+
+  sleep 1
 }
 
-# Kill existing processes on our ports
-kill_port 5000
-kill_port 3000
+warn_port_still_in_use() {
+  local port="$1"
+  echo -e "${RED}❌ Port ${port} is still in use.${NC}"
+  if command -v ss >/dev/null 2>&1; then
+    echo -e "${YELLOW}   Listener:${NC}"
+    ss -tlnpH "sport = :${port}" 2>/dev/null || true
+  fi
+  if [ "$port" = "$BACKEND_PORT" ] && command -v pm2 >/dev/null 2>&1; then
+    echo -e "${YELLOW}   If the production backend is running under pm2, stop it first:${NC}"
+    echo -e "   pm2 stop user-management-backend"
+  fi
+  echo -e "${YELLOW}   Or pick another port: PORT=5001 npm run dev${NC} (in backend/)"
+}
+
+kill_port "$BACKEND_PORT"
+kill_port "$FRONTEND_PORT"
+
+if check_port "$BACKEND_PORT"; then
+  warn_port_still_in_use "$BACKEND_PORT"
+  exit 1
+fi
 
 echo -e "${BLUE}📦 Installing backend dependencies...${NC}"
-cd backend
-if [ ! -d "node_modules" ]; then
-    npm install
+if [ ! -d "backend/node_modules" ]; then
+  (cd backend && npm install)
 fi
 
 echo -e "${BLUE}📦 Installing frontend dependencies...${NC}"
-cd ../src
-cd ../
 if [ ! -d "node_modules" ]; then
-    npm install
+  npm install
 fi
 
 echo -e "${GREEN}✅ Dependencies installed${NC}"
 
-# Start backend server
-echo -e "${BLUE}🔧 Starting backend server on port 5000...${NC}"
-cd backend
-npm run dev &
+echo -e "${BLUE}🔧 Starting backend server on port ${BACKEND_PORT}...${NC}"
+(cd backend && npm run dev) &
 BACKEND_PID=$!
 
-# Wait a moment for backend to start
 sleep 3
 
-# Check if backend started successfully
-if check_port 5000; then
-    echo -e "${GREEN}✅ Backend server started successfully on http://localhost:5000${NC}"
+if check_port "$BACKEND_PORT"; then
+  echo -e "${GREEN}✅ Backend server started on http://localhost:${BACKEND_PORT}${NC}"
 else
-    echo -e "${RED}❌ Failed to start backend server${NC}"
-    exit 1
+  echo -e "${RED}❌ Failed to start backend server${NC}"
+  kill "$BACKEND_PID" 2>/dev/null || true
+  exit 1
 fi
 
-# Start frontend server
-echo -e "${BLUE}🎨 Starting frontend server on port 3000...${NC}"
-cd ../
+echo -e "${BLUE}🎨 Starting frontend server on port ${FRONTEND_PORT}...${NC}"
 npm start &
 FRONTEND_PID=$!
 
-# Wait a moment for frontend to start
 sleep 5
 
-# Check if frontend started successfully
-if check_port 3000; then
-    echo -e "${GREEN}✅ Frontend server started successfully on http://localhost:3000${NC}"
+if check_port "$FRONTEND_PORT"; then
+  echo -e "${GREEN}✅ Frontend server started on http://localhost:${FRONTEND_PORT}${NC}"
 else
-    echo -e "${RED}❌ Failed to start frontend server${NC}"
-    kill $BACKEND_PID 2>/dev/null
-    exit 1
+  echo -e "${RED}❌ Failed to start frontend server${NC}"
+  kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+  exit 1
 fi
 
 echo ""
 echo -e "${GREEN}🎉 Development environment is ready!${NC}"
 echo "=================================================="
-echo -e "${BLUE}📱 Frontend:${NC} http://localhost:3000"
-echo -e "${BLUE}🔧 Backend API:${NC} http://localhost:5000"
-echo -e "${BLUE}🔍 API Health:${NC} http://localhost:5000/api/health"
+echo -e "${BLUE}📱 Frontend:${NC} http://localhost:${FRONTEND_PORT}"
+echo -e "${BLUE}🔧 Backend API:${NC} http://localhost:${BACKEND_PORT}"
+echo -e "${BLUE}🔍 API Health:${NC} http://localhost:${BACKEND_PORT}/api/health"
 echo ""
-echo -e "${YELLOW}👤 Admin Login:${NC}"
-echo -e "   Email: admin@example.com"
-echo -e "   Password: admin123"
+echo -e "${YELLOW}👤 Admin (after create-admin.js):${NC}"
+echo -e "   Email: admin@4thstate.ca"
+echo -e "   Password: (see backend/create-admin.js)"
 echo ""
-echo -e "${YELLOW}🛑 To stop servers:${NC} Press Ctrl+C"
+echo -e "${YELLOW}🛑 To stop:${NC} Press Ctrl+C"
 echo "=================================================="
 
-# Function to cleanup on exit
 cleanup() {
-    echo ""
-    echo -e "${YELLOW}🛑 Shutting down servers...${NC}"
-    kill $BACKEND_PID 2>/dev/null
-    kill $FRONTEND_PID 2>/dev/null
-    kill_port 5000
-    kill_port 3000
-    echo -e "${GREEN}✅ Servers stopped${NC}"
-    exit 0
+  echo ""
+  echo -e "${YELLOW}🛑 Shutting down servers...${NC}"
+  kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+  kill_port "$BACKEND_PORT"
+  kill_port "$FRONTEND_PORT"
+  echo -e "${GREEN}✅ Servers stopped${NC}"
+  exit 0
 }
 
-# Set up signal handlers
 trap cleanup SIGINT SIGTERM
 
-# Wait for user to stop
 wait

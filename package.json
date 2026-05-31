@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "private": true,
   "homepage": "/shyam_akaash",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "dependencies": {
     "@stripe/react-stripe-js": "^6.5.0",
     "@stripe/stripe-js": "^9.7.0",
