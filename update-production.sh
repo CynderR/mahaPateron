@@ -65,23 +65,16 @@ print_status "Installing backend dependencies..."
 print_status "Building React app (homepage /shyam_akaash)..."
 npm run build
 
-print_status "Linking build/ for nginx root+try_files..."
-ln -sfn "$SCRIPT_DIR/build" "$SCRIPT_DIR/shyam_akaash"
+print_status "Linking build/ and verifying nginx static serving..."
+if [ "$RELOAD_NGINX" = "1" ]; then
+  bash "$SCRIPT_DIR/fix-nginx.sh"
+else
+  ln -sfn "$SCRIPT_DIR/build" "$SCRIPT_DIR/shyam_akaash"
+  print_warning "Skipped nginx MIME check (RELOAD_NGINX=0)"
+fi
 
 print_status "Restarting production backend (pm2)..."
 pm2 restart user-management-backend
-
-if [ "$RELOAD_NGINX" = "1" ]; then
-  print_status "Reloading nginx..."
-  if sudo nginx -t; then
-    sudo systemctl reload nginx
-  else
-    print_error "nginx config test failed — fix config before reloading"
-    exit 1
-  fi
-else
-  print_warning "Skipping nginx reload (RELOAD_NGINX=0)"
-fi
 
 echo ""
 echo "=================================================="

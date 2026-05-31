@@ -79,8 +79,13 @@ server {
     server_name 4thstate.ca www.4thstate.ca;
     client_max_body_size 550M;            # allow 500 MB audio uploads
 
-    # React app — root+try_files with shyam_akaash -> build symlink (see deploy.sh).
-    # Do NOT use alias+try_files here; it serves index.html for JS/CSS and blanks the page.
+    # Hashed JS/CSS — must not fall through to index.html (MIME text/html bug).
+    location ^~ /shyam_akaash/static/ {
+        alias /var/www/user-management-app/build/static/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
     location = /shyam_akaash {
         return 301 /shyam_akaash/;
     }
@@ -110,12 +115,9 @@ server {
 }
 ```
 
-After each `npm run build`, refresh the symlink nginx reads:
-
-```bash
-ln -sfn /var/www/user-management-app/build /var/www/user-management-app/shyam_akaash
-sudo nginx -t && sudo systemctl reload nginx
-```
+After each `npm run build`, run `./fix-nginx.sh` (or `./update-production.sh`, which calls it).
+It refreshes the `shyam_akaash` → `build` symlink and verifies JS is served as
+`application/javascript`, not `text/html`.
 
 `deploy.sh` writes this configuration automatically. Add HTTPS with
 `sudo certbot --nginx -d 4thstate.ca`.

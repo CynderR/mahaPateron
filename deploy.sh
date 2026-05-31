@@ -131,9 +131,13 @@ server {
     # Increase body size to allow large audio uploads (500 MB max).
     client_max_body_size 550M;
 
-    # Podcast platform frontend (React app served under the /shyam_akaash subpath).
-    # Use root+try_files with a shyam_akaash symlink to build/ — alias+try_files
-    # serves index.html for /static/js/*.js requests and causes a blank white page.
+    # Hashed JS/CSS — must not fall through to index.html (MIME text/html bug).
+    location ^~ /shyam_akaash/static/ {
+        alias /var/www/user-management-app/build/static/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
     location = /shyam_akaash {
         return 301 /shyam_akaash/;
     }
