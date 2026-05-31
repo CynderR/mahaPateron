@@ -63,7 +63,8 @@ subpath.
 Create the first admin:
 
 ```bash
-cd backend && node create-admin.js   # admin / p1assword2 — change immediately
+cd backend && node create-admin.js          # admin / p1assword2 — change immediately
+cd backend && node create-test-subscriber.js # comped member / testpassword1
 ```
 
 ## nginx configuration
