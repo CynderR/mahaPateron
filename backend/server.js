@@ -2,9 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const axios = require('axios');
-const cookieParser = require('cookie-parser');
-const PatreonService = require('./patreonService');
+const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
 
@@ -14,773 +12,213 @@ const {
   getUserByEmail,
   getUserByUsername,
   getUserById,
-  getUserByPatreonId,
-  getAllUsers,
-  updateUser,
   updatePassword,
   setPasswordResetToken,
   getUserByResetToken,
   clearPasswordResetToken,
-  deleteUser
+  updateUserFields
 } = require('./database');
 const { sendPasswordResetEmail } = require('./emailService');
 
+const authenticateToken = require('./middleware/authenticateToken');
+const requireAdmin = require('./middleware/requireAdmin');
+const { JWT_SECRET } = authenticateToken;
+const { ensureDirs, IMAGE_DIR } = require('./config');
+
+const adminUsersRouter = require('./routes/admin-users');
+const adminPostsRouter = require('./routes/admin-posts');
+const adminRouter = require('./routes/admin');
+const accountRouter = require('./routes/account');
+const rssRouter = require('./routes/rss');
+const streamRouter = require('./routes/stream');
+const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
-// Initialize Patreon service
-const patreonService = new PatreonService();
-
-// Auto-load Patreon token from environment if available
-if (process.env.PATREON_ACCESS_TOKEN) {
-  patreonService.setAccessToken(process.env.PATREON_ACCESS_TOKEN);
-  console.log('✅ Patreon access token loaded from environment variables');
-  
-  // Test connection to get campaign ID
-  patreonService.testConnection()
-    .then(() => {
-      console.log('✅ Patreon connection tested and campaign ID set');
-    })
-    .catch((error) => {
-      console.log('⚠️ Patreon connection test failed:', error.message);
-    });
-}
+ensureDirs();
 
 // Middleware
+const corsOrigins = CORS_ORIGIN.includes(',')
+  ? CORS_ORIGIN.split(',').map((origin) => origin.trim())
+  : CORS_ORIGIN;
 
-const corsOrigins = CORS_ORIGIN.includes(",")
-  ? CORS_ORIGIN.split(",").map(origin => origin.trim())
-  : CORS_ORIGIN
+app.use(cors({ origin: corsOrigins, credentials: true }));
 
-  app.use(cors({
-  origin: corsOrigins,
-  credentials: true
-}));
+// The Stripe webhook must receive the unparsed body so its signature can be
+// verified, so it is registered before express.json() consumes the body.
+['/api/payments/webhook', '/shyam_akaash/api/payments/webhook'].forEach((p) =>
+  app.post(p, express.raw({ type: 'application/json' }), webhookHandler)
+);
+
 app.use(express.json());
-app.use(cookieParser());
 
-// JWT verification middleware
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
+// Cover art is public so podcast apps can fetch it without auth. Audio is
+// never served statically; it only flows through the authenticated /stream
+// route which enforces the paying check and supports range requests.
+['/uploads/images', '/shyam_akaash/uploads/images'].forEach((p) =>
+  app.use(p, express.static(IMAGE_DIR))
+);
 
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
+// ---------------------------------------------------------------------------
+// Core auth + profile routes (reused under both the root and subpath prefixes)
+// ---------------------------------------------------------------------------
+const core = express.Router();
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid or expired token' });
-    }
-    req.user = user;
-    next();
-  });
+const sanitizeUser = (user) => {
+  if (!user) return user;
+  const { password, password_reset_token, password_reset_expires, ...rest } = user;
+  return rest;
 };
 
-// Admin verification middleware
-const requireAdmin = (req, res, next) => {
-  if (!req.user || !req.user.is_admin) {
-    return res.status(403).json({ error: 'Admin access required' });
-  }
-  next();
-};
-
-// Routes
-
-// Health check
-app.get('/api/health', (req, res) => {
+core.get('/health', (req, res) => {
   res.json({ message: 'Server is running' });
 });
 
-// Register new user
-app.post('/api/register', async (req, res) => {
+// Register a new self-service account.
+core.post('/register', async (req, res) => {
   try {
-    const { username, email, password, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
-
-    // Validate required fields
+    const { username, email, password } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
     }
 
-    // Check if user already exists
-    const existingUserByEmail = await getUserByEmail(email);
-    const existingUserByUsername = await getUserByUsername(username);
-
-    if (existingUserByEmail) {
+    if (await getUserByEmail(email)) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
-
-    if (existingUserByUsername) {
+    if (await getUserByUsername(username)) {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    // Users cannot set is_free during registration - only admins can set this
-    // Default to false (premium account) for new registrations
-    const userData = {
+    const newUser = await createUser({
       username,
       email,
       password: hashedPassword,
-      patreon_id: patreon_id || null,
-      is_mixcloud: is_mixcloud || false,
-      is_free: false, // New accounts default to premium (not free)
-      is_admin: is_admin !== undefined ? is_admin : false
-    };
+      is_free: false,
+      is_admin: false
+    });
 
-    const newUser = await createUser(userData);
-
-    // Generate JWT token
+    const created = await getUserById(newUser.id);
     const token = jwt.sign(
-      { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
+      { id: created.id, username: created.username, email: created.email, is_admin: created.is_admin },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = newUser;
-    res.status(201).json({
-      message: 'User created successfully',
-      user: userWithoutPassword,
-      token
-    });
+    res.status(201).json({ message: 'User created successfully', user: sanitizeUser(created), token });
   } catch (error) {
     console.error('Registration error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Login user
-app.post('/api/login', async (req, res) => {
+// Login.
+core.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
-    // Find user by email
     const user = await getUserByEmail(email);
-    if (!user) {
+    if (!user || user.deleted_at) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate JWT token
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Return user data without password
-    const { password: _, ...userWithoutPassword } = user;
-    res.json({
-      message: 'Login successful',
-      user: userWithoutPassword,
-      token
-    });
+    res.json({ message: 'Login successful', user: sanitizeUser(user), token });
   } catch (error) {
     console.error('Login error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Patreon OAuth - Initiate OAuth flow (for sign-in, no auth required)
-app.get('/api/auth/patreon', (req, res) => {
-  const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
-  const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
-  
-  if (!PATREON_CLIENT_ID) {
-    return res.status(500).json({ error: 'Patreon OAuth not configured' });
-  }
-
-  // Log all query parameters for debugging
-  console.log('OAuth initiation: Query params:', JSON.stringify(req.query));
-  console.log('OAuth initiation: Headers authorization:', req.headers.authorization ? 'present' : 'missing');
-  
-  // Try to get userId from JWT token (for account linking)
-  let userId = null;
-  try {
-    const authHeader = req.headers.authorization;
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7);
-      const decoded = jwt.verify(token, JWT_SECRET);
-      userId = decoded.id;
-      console.log('OAuth initiation: User authenticated, linking account for userId:', userId);
-    }
-  } catch (err) {
-    // Not authenticated, that's fine - this is for sign-in
-    console.log('OAuth initiation: User not authenticated (no valid JWT token)');
-  }
-
-  // Fallback: Get userId from query parameter if provided (for cases where auth header isn't sent)
-  if (!userId && req.query.link === 'true' && req.query.userId) {
-    userId = parseInt(req.query.userId);
-    if (isNaN(userId)) {
-      userId = null;
-      console.log('OAuth initiation: Invalid userId in query parameter:', req.query.userId);
-    } else {
-      console.log('OAuth initiation: Using userId from query parameter:', userId);
-    }
-  } else if (!userId && req.query.link === 'true') {
-    console.log('OAuth initiation: link=true but no userId in query params');
-  }
-
-  // Generate state for CSRF protection, include user ID if linking account
-  const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
-  console.log('OAuth initiation: State created with userId:', userId);
-  
-  const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
-    `response_type=code&` +
-    `client_id=${PATREON_CLIENT_ID}&` +
-    `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
-    `scope=identity&` +
-    `state=${state}`;
-
-  res.redirect(patreonAuthUrl);
-});
-
-// Patreon OAuth - Initiate OAuth flow for account linking (requires authentication)
-app.get('/api/auth/patreon/link', authenticateToken, (req, res) => {
-  const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
-  const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
-  
-  if (!PATREON_CLIENT_ID) {
-    return res.status(500).json({ error: 'Patreon OAuth not configured' });
-  }
-
-  // Get userId from authenticated JWT token
-  const userId = req.user.id;
-  console.log('OAuth link initiation: User authenticated, linking account for userId:', userId);
-
-  // Generate state for CSRF protection, include user ID for account linking
-  const state = jwt.sign({ timestamp: Date.now(), userId: userId }, JWT_SECRET, { expiresIn: '10m' });
-  console.log('OAuth link initiation: State created with userId:', userId);
-  
-  const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
-    `response_type=code&` +
-    `client_id=${PATREON_CLIENT_ID}&` +
-    `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
-    `scope=identity&` +
-    `state=${state}`;
-
-  // Return the URL in JSON instead of redirecting (frontend will handle the redirect)
-  // This avoids CORS issues when axios tries to follow the redirect
-  res.json({ redirectUrl: patreonAuthUrl });
-});
-
-// Patreon OAuth - Signup via Patreon (no auth required)
-// Collects signup data, stores in state JWT, and redirects to Patreon OAuth
-// User account is only created after Patreon OAuth completes successfully
-app.post('/api/auth/patreon/signup', async (req, res) => {
-  try {
-    const { username, email, password, is_mixcloud } = req.body;
-    const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
-    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-    const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
-
-    if (!PATREON_CLIENT_ID) {
-      return res.status(500).json({ error: 'Patreon OAuth not configured' });
-    }
-
-    if (!username || !email || !password) {
-      return res.status(400).json({ error: 'Username, email, and password are required' });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters long' });
-    }
-
-    // Check if username or email already exists
-    const existingUsername = await getUserByUsername(username);
-    if (existingUsername) {
-      return res.status(400).json({ error: 'Username already taken' });
-    }
-    const existingEmail = await getUserByEmail(email);
-    if (existingEmail) {
-      return res.status(400).json({ error: 'Email already registered' });
-    }
-
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const signupData = { username, email, password: hashedPassword, is_mixcloud: is_mixcloud || false };
-
-    // Store signup data in a signed cookie (survives Patreon redirects even if state is lost)
-    const signupToken = jwt.sign({ signupData }, JWT_SECRET, { expiresIn: '1h' });
-    res.cookie('pending_signup', signupToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 1000, // 1 hour
-      path: '/'
-    });
-
-    // Also include signup data in state JWT as a backup
-    const state = jwt.sign({ timestamp: Date.now(), signupData }, JWT_SECRET, { expiresIn: '1h' });
-
-    console.log('Patreon signup initiation: Signup data stored in cookie + state for:', username, email);
-
-    const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
-      `response_type=code&` +
-      `client_id=${PATREON_CLIENT_ID}&` +
-      `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
-      `scope=identity%20identity%5Bemail%5D&` +
-      `state=${state}`;
-
-    res.json({ redirectUrl: patreonAuthUrl });
-  } catch (error) {
-    console.error('Patreon signup initiation error:', error);
-    res.status(500).json({ error: 'Failed to initiate Patreon signup' });
-  }
-});
-
-// Patreon OAuth - Handle callback
-app.get('/api/auth/patreon/callback', async (req, res) => {
-  try {
-    const { code, state } = req.query;
-    const PATREON_CLIENT_ID = process.env.PATREON_CLIENT_ID;
-    const PATREON_CLIENT_SECRET = process.env.PATREON_CLIENT_SECRET;
-    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-  const PATREON_REDIRECT_URI = process.env.PATREON_REDIRECT_URI || `${frontendOrigin}/api/auth/patreon/callback`;
-
-    if (!code || !state) {
-      console.log('OAuth callback: Missing code or state. code:', !!code, 'state:', !!state);
-
-      // Check for pending signup cookie — user likely just created a Patreon account
-      // and the "return to OAuth app" link didn't complete the OAuth flow.
-      // Re-redirect them to Patreon OAuth — they now have an account so it will complete.
-      const pendingSignupCookie = req.cookies?.pending_signup;
-      if (pendingSignupCookie && PATREON_CLIENT_ID) {
-        try {
-          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
-          if (cookieData.signupData) {
-            console.log('OAuth callback: No code/state but found pending signup cookie. Re-initiating OAuth for:', cookieData.signupData.username);
-            const newState = jwt.sign({ timestamp: Date.now(), signupData: cookieData.signupData }, JWT_SECRET, { expiresIn: '1h' });
-            const patreonAuthUrl = `https://www.patreon.com/oauth2/authorize?` +
-              `response_type=code&` +
-              `client_id=${PATREON_CLIENT_ID}&` +
-              `redirect_uri=${encodeURIComponent(PATREON_REDIRECT_URI)}&` +
-              `scope=identity%20identity%5Bemail%5D&` +
-              `state=${newState}`;
-            return res.redirect(patreonAuthUrl);
-          }
-        } catch (e) {
-          console.log('OAuth callback: Pending signup cookie expired or invalid');
-        }
-      }
-
-      // If we have a state, try to decode it to check if user already has an account
-      if (state) {
-        try {
-          const stateCheck = jwt.verify(state, JWT_SECRET);
-          if (stateCheck.userId) {
-            console.log('OAuth callback: OAuth failed but user already has account, redirecting to dashboard');
-            return res.redirect(`${frontendOrigin}/dashboard`);
-          }
-        } catch (e) {
-          // State expired or invalid, fall through to signin
-        }
-      }
-      return res.redirect(`${frontendOrigin}/signin?error=oauth_failed`);
-    }
-
-    // Verify state token and extract userId if present (for account linking)
-    let stateData;
-    try {
-      stateData = jwt.verify(state, JWT_SECRET);
-      console.log('OAuth callback: State data:', stateData);
-    } catch (err) {
-      console.log('OAuth callback: State invalid/expired, checking for pending_signup cookie');
-      // State expired but we might have signup data in a cookie
-      const pendingSignupCookie = req.cookies?.pending_signup;
-      if (pendingSignupCookie) {
-        try {
-          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
-          if (cookieData.signupData) {
-            stateData = { timestamp: Date.now(), signupData: cookieData.signupData };
-            console.log('OAuth callback: Recovered signup data from cookie for:', cookieData.signupData.username);
-          }
-        } catch (cookieErr) {
-          console.log('OAuth callback: Cookie also invalid/expired');
-        }
-      }
-      if (!stateData) {
-        const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-        return res.redirect(`${frontendOrigin}/signin?error=invalid_state`);
-      }
-    }
-
-    if (!PATREON_CLIENT_ID || !PATREON_CLIENT_SECRET) {
-      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/signin?error=oauth_not_configured`);
-    }
-
-    // Exchange code for access token
-    const tokenResponse = await axios.post('https://www.patreon.com/api/oauth2/token', 
-      new URLSearchParams({
-        code: String(code),
-        grant_type: 'authorization_code',
-        client_id: PATREON_CLIENT_ID,
-        client_secret: PATREON_CLIENT_SECRET,
-        redirect_uri: PATREON_REDIRECT_URI
-      }),
-      {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        }
-      }
-    );
-
-    const { access_token } = tokenResponse.data;
-
-    // Get user identity from Patreon
-    const userResponse = await axios.get('https://www.patreon.com/api/oauth2/v2/identity', {
-      headers: {
-        'Authorization': `Bearer ${access_token}`
-      },
-      params: {
-        'fields[user]': 'email,first_name,last_name,full_name,vanity,url,image_url'
-      }
-    });
-
-    const patreonUser = userResponse.data.data;
-    const patreonId = patreonUser.id;
-    const patreonEmail = patreonUser.attributes?.email || null;
-    const patreonName = patreonUser.attributes?.full_name || patreonUser.attributes?.first_name || 'Patreon User';
-
-    // If this is a signup-via-Patreon flow, check for signupData in state or cookie
-    let signupData = stateData.signupData || null;
-    if (!signupData) {
-      const pendingSignupCookie = req.cookies?.pending_signup;
-      if (pendingSignupCookie) {
-        try {
-          const cookieData = jwt.verify(pendingSignupCookie, JWT_SECRET);
-          signupData = cookieData.signupData || null;
-          if (signupData) {
-            console.log('OAuth callback: Recovered signup data from cookie for:', signupData.username);
-          }
-        } catch (e) {
-          console.log('OAuth callback: Cookie expired or invalid');
-        }
-      }
-    }
-
-    if (signupData) {
-      const { username, email, password, is_mixcloud } = signupData;
-      console.log('OAuth callback: Signup flow - creating user:', username, email, 'with Patreon ID:', patreonId);
-
-      // Check if username/email were taken while user was on Patreon
-      const existingUsername = await getUserByUsername(username);
-      const existingEmail = await getUserByEmail(email);
-      if (existingUsername || existingEmail) {
-        console.log('OAuth callback: Username or email taken during Patreon flow');
-        return res.redirect(`${frontendOrigin}/signup?error=account_taken`);
-      }
-
-      const newUser = await createUser({
-        username,
-        email,
-        password, // already hashed
-        patreon_id: patreonId,
-        is_mixcloud: is_mixcloud || false,
-        is_free: false,
-        is_admin: false
-      });
-
-      console.log('OAuth callback: User created via signup flow:', newUser.id, username);
-
-      // Clear the pending signup cookie
-      res.clearCookie('pending_signup', { path: '/' });
-
-      const token = jwt.sign(
-        { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
-    }
-
-    // If linking account (userId in state), prioritize finding user by userId first
-    let user = null;
-    if (stateData.userId) {
-      console.log('OAuth callback: Linking account - Looking up user by userId from state:', stateData.userId);
-      user = await getUserById(stateData.userId);
-      if (user) {
-        console.log('OAuth callback: Found user for linking:', user.id, user.username, user.email);
-      } else {
-        console.log('OAuth callback: User not found by userId:', stateData.userId);
-      }
-    }
-    
-    // If not linking or user not found by userId, check by Patreon ID or email
-    if (!user) {
-      console.log('OAuth callback: Looking up user by Patreon ID:', patreonId);
-      user = await getUserByPatreonId(patreonId);
-      if (user) {
-        console.log('OAuth callback: Found user by Patreon ID:', user.id, user.username);
-      } else if (patreonEmail) {
-        console.log('OAuth callback: Looking up user by email:', patreonEmail);
-        user = await getUserByEmail(patreonEmail);
-        if (user) {
-          console.log('OAuth callback: Found user by email:', user.id, user.username);
-        }
-      }
-    }
-    
-    if (!user) {
-      console.log('OAuth callback: No user found - will create new user');
-    }
-
-    if (user) {
-      // Update user with Patreon ID (link account or update if different)
-      if (!user.patreon_id || user.patreon_id !== patreonId) {
-        console.log('Updating user Patreon ID:', user.id, 'from', user.patreon_id, 'to', patreonId);
-        await updateUser(user.id, {
-          username: user.username,
-          email: user.email,
-          patreon_id: patreonId,
-          is_mixcloud: user.is_mixcloud || false,
-          is_free: user.is_free,
-          is_admin: user.is_admin
-        });
-        user = await getUserById(user.id);
-      }
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      // Redirect to frontend with token
-      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
-    } else {
-      // Create new user from Patreon data
-      const username = patreonUser.attributes.vanity || (patreonEmail ? patreonEmail.split('@')[0] : null) || `patreon_${patreonId}`;
-      const tempPassword = Math.random().toString(36).slice(-12);
-      const hashedPassword = await bcrypt.hash(tempPassword, 10);
-
-      const newUser = await createUser({
-        username,
-        email: patreonEmail || `patreon_${patreonId}@example.com`,
-        password: hashedPassword,
-        patreon_id: patreonId,
-        is_mixcloud: false,
-        is_free: false, // New accounts default to premium
-        is_admin: false
-      });
-
-      // Generate JWT token
-      const token = jwt.sign(
-        { id: newUser.id, username: newUser.username, email: newUser.email, is_admin: newUser.is_admin },
-        JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-
-      // Redirect to frontend with token
-      const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-      return res.redirect(`${frontendOrigin}/auth/patreon/success?token=${token}`);
-    }
-  } catch (error) {
-    console.error('Patreon OAuth callback error:', error);
-    console.error('Error details:', {
-      message: error.message,
-      response: error.response?.data,
-      status: error.response?.status,
-      code: error.code
-    });
-    const frontendOrigin = CORS_ORIGIN.includes(',') ? CORS_ORIGIN.split(',')[0].trim() : CORS_ORIGIN;
-    
-    // If user already has an account (state had userId), send to dashboard instead of signin
-    try {
-      const { state } = req.query;
-      if (state) {
-        const stateCheck = jwt.verify(state, JWT_SECRET);
-        if (stateCheck.userId) {
-          console.log('OAuth callback: OAuth error but user already has account, redirecting to dashboard');
-          return res.redirect(`${frontendOrigin}/dashboard`);
-        }
-      }
-    } catch (e) {
-      // State expired or invalid, fall through to signin
-    }
-    
-    return res.redirect(`${frontendOrigin}/signin?error=oauth_error`);
-  }
-});
-
-// Get current user profile
-app.get('/api/profile', authenticateToken, async (req, res) => {
+// Current user profile.
+core.get('/profile', authenticateToken, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    const { password: _, ...userWithoutPassword } = user;
-    res.json(userWithoutPassword);
+    res.json(sanitizeUser(user));
   } catch (error) {
     console.error('Profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Get Patreon RSS URL (for users with linked Patreon accounts)
-app.get('/api/patreon/rss-url', authenticateToken, async (req, res) => {
+// Update own profile (username/email only; privileged and billing fields are
+// not editable here).
+core.put('/profile', authenticateToken, async (req, res) => {
   try {
-    if (!patreonService.accessToken || !patreonService.campaignId) {
-      return res.status(404).json({ error: 'Patreon not configured' });
-    }
-
-    const rssUrl = await patreonService.getRSSUrl();
-    if (rssUrl) {
-      res.json({ rssUrl });
-    } else {
-      res.status(404).json({ error: 'RSS URL not available' });
-    }
-  } catch (error) {
-    console.error('Get RSS URL error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get Patreon posts (for users with linked Patreon accounts)
-app.get('/api/patreon/posts', authenticateToken, async (req, res) => {
-  try {
-    if (!patreonService.accessToken || !patreonService.campaignId) {
-      console.log('Get posts: Patreon not configured - accessToken:', !!patreonService.accessToken, 'campaignId:', patreonService.campaignId);
-      return res.status(404).json({ error: 'Patreon not configured' });
-    }
-
-    console.log('Get posts: Fetching RSS URL...');
-    const rssUrl = await patreonService.getRSSUrl();
-    console.log('Get posts: RSS URL:', rssUrl);
-    
-    if (!rssUrl) {
-      return res.status(404).json({ error: 'RSS URL not available' });
-    }
-
-    console.log('Get posts: Fetching posts from RSS...');
-    const result = await patreonService.getPostsFromRSS(rssUrl);
-    console.log('Get posts: Result success:', result.success, 'posts count:', result.posts?.length || 0);
-    
-    if (result.success) {
-      res.json({ posts: result.posts });
-    } else {
-      console.error('Get posts: Failed to fetch posts:', result.error);
-      res.status(500).json({ error: result.error || 'Failed to fetch posts' });
-    }
-  } catch (error) {
-    console.error('Get posts error:', error);
-    console.error('Get posts error stack:', error.stack);
-    res.status(500).json({ error: 'Internal server error', details: error.message });
-  }
-});
-
-// Get all users (admin only)
-app.get('/api/users', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const users = await getAllUsers();
-    res.json(users);
-  } catch (error) {
-    console.error('Get users error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Update user profile
-app.put('/api/profile', authenticateToken, async (req, res) => {
-  try {
-    const { username, email, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
     const userId = req.user.id;
+    const { username, email } = req.body;
+    const data = {};
 
-    // Check if username or email is being changed and if they're already taken
-    if (username) {
-      const existingUser = await getUserByUsername(username);
-      if (existingUser && existingUser.id !== userId) {
+    if (username !== undefined) {
+      const existing = await getUserByUsername(username);
+      if (existing && existing.id !== userId) {
         return res.status(400).json({ error: 'Username already taken' });
       }
+      data.username = username;
     }
-
-    if (email) {
-      const existingUser = await getUserByEmail(email);
-      if (existingUser && existingUser.id !== userId) {
+    if (email !== undefined) {
+      const existing = await getUserByEmail(email);
+      if (existing && existing.id !== userId) {
         return res.status(400).json({ error: 'Email already taken' });
       }
+      data.email = email;
     }
 
-    const updateData = {
-      username: username || req.user.username,
-      email: email || req.user.email,
-      patreon_id,
-      is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
-      is_free,
-      is_admin
-    };
-
-    const updatedUser = await updateUser(userId, updateData);
-    res.json({ message: 'Profile updated successfully', user: updatedUser });
+    await updateUserFields(userId, data);
+    const updated = await getUserById(userId);
+    res.json({ message: 'Profile updated successfully', user: sanitizeUser(updated) });
   } catch (error) {
     console.error('Update profile error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// Change user password
-app.post('/api/profile/change-password', authenticateToken, async (req, res) => {
+// Change password.
+core.post('/profile/change-password', authenticateToken, async (req, res) => {
   try {
     const { currentPassword, newPassword, confirmPassword } = req.body;
     const userId = req.user.id;
 
-    // Validate required fields
     if (!currentPassword || !newPassword || !confirmPassword) {
       return res.status(400).json({ error: 'Current password, new password, and confirmation are required' });
     }
-
-    // Check if new password matches confirmation
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: 'New password and confirmation do not match' });
     }
-
-    // Check password length
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
-    // Get user to verify current password
     const user = await getUserById(userId);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Verify current password
     const isValidPassword = await bcrypt.compare(currentPassword, user.password);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
     await updatePassword(userId, hashedPassword);
-
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
@@ -788,96 +226,57 @@ app.post('/api/profile/change-password', authenticateToken, async (req, res) => 
   }
 });
 
-// Forgot password - request password reset
-app.post('/api/auth/forgot-password', async (req, res) => {
+// Forgot password — emails a reset token via the existing email sender.
+core.post('/auth/forgot-password', async (req, res) => {
+  const genericMessage = 'If an account exists with this email, a password reset link has been sent.';
   try {
     const { email } = req.body;
-
     if (!email) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Find user by email
     const user = await getUserByEmail(email);
-    
-    // Always return success to prevent email enumeration
-    // But only send email if user exists
-    if (user) {
-      // Don't allow password reset for Patreon-linked accounts
-      if (user.patreon_id) {
-        return res.json({ 
-          message: 'If an account exists with this email, a password reset link has been sent.' 
-        });
-      }
-
-      // Generate reset token
-      const crypto = require('crypto');
+    if (user && !user.deleted_at) {
       const resetToken = crypto.randomBytes(32).toString('hex');
-      
-      // Set expiration to 1 hour from now
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 1);
-
-      // Save reset token to database
       await setPasswordResetToken(email, resetToken, expiresAt.toISOString());
 
-      // Send reset email
       const emailResult = await sendPasswordResetEmail(email, resetToken);
-      
       if (!emailResult.success) {
         console.error('Failed to send password reset email:', emailResult.error);
-        console.error('Please ensure SMTP credentials (SMTP_USER, SMTP_PASS) are set in your environment variables.');
-        // Still return success to user to prevent email enumeration
       }
     }
 
-    // Always return the same message regardless of whether user exists
-    res.json({ 
-      message: 'If an account exists with this email, a password reset link has been sent.' 
-    });
+    res.json({ message: genericMessage });
   } catch (error) {
     console.error('Forgot password error:', error);
-    // Still return success to prevent email enumeration
-    res.json({ 
-      message: 'If an account exists with this email, a password reset link has been sent.' 
-    });
+    res.json({ message: genericMessage });
   }
 });
 
-// Reset password - use reset token to set new password
-app.post('/api/auth/reset-password', async (req, res) => {
+// Reset password using the emailed token.
+core.post('/auth/reset-password', async (req, res) => {
   try {
     const { token, newPassword, confirmPassword } = req.body;
-
     if (!token || !newPassword || !confirmPassword) {
       return res.status(400).json({ error: 'Token, new password, and confirmation are required' });
     }
-
-    // Check if passwords match
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: 'New password and confirmation do not match' });
     }
-
-    // Check password length
     if (newPassword.length < 6) {
       return res.status(400).json({ error: 'New password must be at least 6 characters long' });
     }
 
-    // Find user by reset token
     const user = await getUserByResetToken(token);
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }
 
-    // Hash new password
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-    // Update password
     await updatePassword(user.id, hashedPassword);
-
-    // Clear reset token
     await clearPasswordResetToken(user.id);
-
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
     console.error('Reset password error:', error);
@@ -885,373 +284,24 @@ app.post('/api/auth/reset-password', async (req, res) => {
   }
 });
 
-// Update user by ID (admin functionality)
-app.put('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { username, email, patreon_id, is_mixcloud, is_free, is_admin } = req.body;
-
-    // Check if username or email is being changed and if they're already taken
-    if (username) {
-      const existingUser = await getUserByUsername(username);
-      if (existingUser && existingUser.id !== parseInt(id)) {
-        return res.status(400).json({ error: 'Username already taken' });
-      }
-    }
-
-    if (email) {
-      const existingUser = await getUserByEmail(email);
-      if (existingUser && existingUser.id !== parseInt(id)) {
-        return res.status(400).json({ error: 'Email already taken' });
-      }
-    }
-
-    const updateData = {
-      username,
-      email,
-      patreon_id,
-      is_mixcloud: is_mixcloud !== undefined ? is_mixcloud : false,
-      is_free,
-      is_admin
-    };
-
-    const updatedUser = await updateUser(id, updateData);
-    res.json({ message: 'User updated successfully', user: updatedUser });
-  } catch (error) {
-    console.error('Update user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// ---------------------------------------------------------------------------
+// Mount routers under both the root and the /shyam_akaash subpath so the app
+// works whether nginx forwards the prefix or not.
+// ---------------------------------------------------------------------------
+const API_PREFIXES = ['/api', '/shyam_akaash/api'];
+API_PREFIXES.forEach((prefix) => {
+  app.use(prefix, core);
+  app.use(`${prefix}/admin/users`, authenticateToken, requireAdmin, adminUsersRouter);
+  app.use(`${prefix}/admin/posts`, authenticateToken, requireAdmin, adminPostsRouter);
+  app.use(`${prefix}/admin`, authenticateToken, requireAdmin, adminRouter);
+  app.use(`${prefix}/account`, authenticateToken, accountRouter);
+  app.use(`${prefix}/payments`, authenticateToken, paymentsRouter);
 });
 
-// Delete user (admin only)
-app.delete('/api/users/:id', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await deleteUser(id);
-    
-    if (result.deleted) {
-      res.json({ message: 'User deleted successfully' });
-    } else {
-      res.status(404).json({ error: 'User not found' });
-    }
-  } catch (error) {
-    console.error('Delete user error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Patreon API endpoints (admin only)
-
-// Check if Patreon is already configured
-app.get('/api/patreon/status', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    if (patreonService.accessToken) {
-      const result = await patreonService.testConnection();
-      if (result.success) {
-        res.json({
-          configured: true,
-          message: 'Patreon is already configured and connected',
-          campaign: result.campaign
-        });
-      } else {
-        res.json({
-          configured: false,
-          message: 'Patreon token is set but connection failed',
-          error: result.error
-        });
-      }
-    } else {
-      res.json({
-        configured: false,
-        message: 'Patreon access token not configured'
-      });
-    }
-  } catch (error) {
-    console.error('Patreon status check error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Test Patreon connection
-app.post('/api/patreon/test', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { accessToken } = req.body;
-    
-    if (!accessToken) {
-      return res.status(400).json({ error: 'Access token is required' });
-    }
-
-    patreonService.setAccessToken(accessToken);
-    const result = await patreonService.testConnection();
-    
-    if (result.success) {
-      res.json({
-        message: 'Patreon connection successful',
-        campaign: result.campaign
-      });
-    } else {
-      res.status(400).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Patreon test connection error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get active Patreon patrons
-app.get('/api/patreon/patrons/active', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const result = await patreonService.getActivePatrons();
-    
-    if (result.success) {
-      res.json({
-        message: 'Active patrons retrieved successfully',
-        patrons: result.patrons,
-        total: result.total,
-        pagination: result.pagination
-      });
-    } else {
-      res.status(400).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Get active patrons error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get all Patreon patrons
-app.get('/api/patreon/patrons', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const result = await patreonService.getAllPatrons();
-    
-    if (result.success) {
-      res.json({
-        message: 'All patrons retrieved successfully',
-        patrons: result.patrons,
-        total: result.total,
-        pagination: result.pagination
-      });
-    } else {
-      res.status(400).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Get all patrons error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get campaign tiers
-app.get('/api/patreon/tiers', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const result = await patreonService.getCampaignTiers();
-    
-    if (result.success) {
-      res.json({
-        message: 'Campaign tiers retrieved successfully',
-        tiers: result.tiers
-      });
-    } else {
-      res.status(400).json({ error: result.error });
-    }
-  } catch (error) {
-    console.error('Get campaign tiers error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Sync Patreon patrons with local users (enhanced with subscription tracking)
-app.post('/api/patreon/sync', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { accessToken } = req.body;
-    
-    if (!accessToken) {
-      return res.status(400).json({ error: 'Access token is required' });
-    }
-
-    patreonService.setAccessToken(accessToken);
-    
-    // Get both active and all patrons to track subscription changes
-    const [activeResult, allResult] = await Promise.all([
-      patreonService.getActivePatrons(),
-      patreonService.getAllPatrons()
-    ]);
-    
-    if (!activeResult.success || !allResult.success) {
-      return res.status(400).json({ error: 'Failed to fetch Patreon data' });
-    }
-
-    const activePatronIds = new Set(activeResult.patrons.map(p => p.user?.id).filter(Boolean));
-    const allPatronIds = new Set(allResult.patrons.map(p => p.user?.id).filter(Boolean));
-    
-    const syncedUsers = [];
-    const errors = [];
-    const subscriptionAlerts = [];
-    const currentTime = new Date().toISOString();
-
-    // Process all patrons (active and inactive)
-    for (const patron of allResult.patrons) {
-      if (patron.user && patron.user.email) {
-        try {
-          // Check if user exists by email or Patreon ID
-          let existingUser = await getUserByEmail(patron.user.email);
-          if (!existingUser && patron.user.id) {
-            existingUser = await getUserByPatreonId(patron.user.id);
-          }
-          
-          const isActivePatron = activePatronIds.has(patron.user.id);
-          const subscriptionStatus = isActivePatron ? 'active_patron' : patron.patron_status;
-          
-          if (existingUser) {
-            // Check for subscription status changes that matter
-            const wasPremium = !existingUser.is_free;
-            const wasActive = existingUser.patreon_subscription_status === 'active_patron';
-            const isNowInactive = !isActivePatron && wasActive;
-            
-            // Only alert if user was premium and is now unsubscribed
-            if (wasPremium && isNowInactive && !existingUser.subscription_alert_sent) {
-              subscriptionAlerts.push({
-                user: existingUser,
-                patron: patron,
-                action: 'unsubscribed',
-                message: `Premium user ${existingUser.username} (${existingUser.email}) has unsubscribed from Patreon`
-              });
-            }
-            
-            // Update existing user with Patreon info
-            const updateData = {
-              username: existingUser.username,
-              email: existingUser.email,
-              patreon_id: patron.user.id,
-              is_mixcloud: existingUser.is_mixcloud || false,
-              is_free: !isActivePatron ? true : false, // Set to free if not active patron
-              is_admin: existingUser.is_admin,
-              patreon_subscription_status: subscriptionStatus,
-              last_patreon_sync: currentTime,
-              subscription_alert_sent: isNowInactive ? true : existingUser.subscription_alert_sent
-            };
-            
-            const updatedUser = await updateUser(existingUser.id, updateData);
-            syncedUsers.push({ 
-              action: 'updated', 
-              user: updatedUser, 
-              patron: patron,
-              subscriptionChange: wasActive !== isActivePatron ? (isActivePatron ? 'subscribed' : 'unsubscribed') : 'none'
-            });
-          } else {
-            // Create new user from Patreon data
-            const userData = {
-              username: patron.user.full_name || patron.user.email.split('@')[0],
-              email: patron.user.email,
-              password: null, // Will need to set password later
-              patreon_id: patron.user.id,
-              is_mixcloud: false,
-              is_free: !isActivePatron, // Set to free if not active patron
-              is_admin: false,
-              patreon_subscription_status: subscriptionStatus,
-              last_patreon_sync: currentTime,
-              subscription_alert_sent: false
-            };
-            
-            // Generate a temporary password
-            const tempPassword = Math.random().toString(36).slice(-8);
-            const hashedPassword = await bcrypt.hash(tempPassword, 10);
-            userData.password = hashedPassword;
-            
-            const newUser = await createUser(userData);
-            syncedUsers.push({ 
-              action: 'created', 
-              user: newUser, 
-              patron: patron,
-              tempPassword: tempPassword,
-              subscriptionStatus: subscriptionStatus
-            });
-          }
-        } catch (error) {
-          errors.push({
-            patron: patron,
-            error: error.message
-          });
-        }
-      }
-    }
-
-    res.json({
-      message: 'Patreon sync completed with subscription tracking',
-      synced: syncedUsers.length,
-      errors: errors.length,
-      subscriptionAlerts: subscriptionAlerts.length,
-      details: {
-        syncedUsers: syncedUsers,
-        errors: errors,
-        subscriptionAlerts: subscriptionAlerts
-      }
-    });
-
-  } catch (error) {
-    console.error('Patreon sync error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Get subscription alerts (admin only)
-app.get('/api/patreon/alerts', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    // Get users who have subscription alerts
-    const users = await getAllUsers();
-    const alerts = users
-      .filter(user => user.subscription_alert_sent && user.patreon_subscription_status !== 'active_patron' && !user.is_free)
-      .map(user => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        patreon_id: user.patreon_id,
-        subscription_status: user.patreon_subscription_status,
-        last_sync: user.last_patreon_sync,
-        alert_sent: user.subscription_alert_sent
-      }));
-
-    res.json({
-      message: 'Subscription alerts retrieved',
-      alerts: alerts,
-      total: alerts.length
-    });
-  } catch (error) {
-    console.error('Get subscription alerts error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Clear subscription alert (admin only)
-app.post('/api/patreon/alerts/:userId/clear', authenticateToken, requireAdmin, async (req, res) => {
-  try {
-    const { userId } = req.params;
-    const user = await getUserById(userId);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const updateData = {
-      username: user.username,
-      email: user.email,
-      patreon_id: user.patreon_id,
-      is_mixcloud: user.is_mixcloud || false,
-      is_free: user.is_free,
-      is_admin: user.is_admin,
-      patreon_subscription_status: user.patreon_subscription_status,
-      last_patreon_sync: user.last_patreon_sync,
-      subscription_alert_sent: false
-    };
-
-    const updatedUser = await updateUser(userId, updateData);
-    res.json({
-      message: 'Subscription alert cleared',
-      user: updatedUser
-    });
-  } catch (error) {
-    console.error('Clear subscription alert error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
+// Public RSS and authenticated streaming endpoints (token validated inside).
+['', '/shyam_akaash'].forEach((prefix) => {
+  app.use(`${prefix}/rss`, rssRouter);
+  app.use(`${prefix}/stream`, streamRouter);
 });
 
 // Initialize database and start server
@@ -1268,5 +318,3 @@ const startServer = async () => {
 };
 
 startServer();
-
-

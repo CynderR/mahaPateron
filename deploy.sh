@@ -91,10 +91,19 @@ JWT_SECRET=$(openssl rand -base64 32)
 DATABASE_URL=/var/www/user-management-app/backend/users.db
 
 # CORS Origin (CHANGE THIS!)
-CORS_ORIGIN=https://yourdomain.com
+CORS_ORIGIN=https://4thstate.ca
 
-# Patreon API (ADD YOUR TOKEN)
-PATREON_ACCESS_TOKEN=your-patreon-token-here
+# Podcast platform - public base URL (subpath deployment)
+BASE_URL=https://4thstate.ca/shyam_akaash
+
+# Uploaded media location
+UPLOAD_DIR=/var/www/user-management-app/backend/uploads
+
+# Stripe (ADD YOUR KEYS)
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PUBLISHABLE_KEY=
+DEFAULT_SUBSCRIPTION_PRICE=9.99
 
 # Security
 BCRYPT_ROUNDS=12
@@ -115,17 +124,35 @@ print_status "Configuring Nginx..."
 sudo tee /etc/nginx/sites-available/user-management-app > /dev/null << 'EOF'
 server {
     listen 80;
-    server_name yourdomain.com www.yourdomain.com;
+    server_name 4thstate.ca www.4thstate.ca;
 
-    # Frontend (React app)
-    location / {
-        root /var/www/user-management-app/build;
-        index index.html index.htm;
-        try_files $uri $uri/ /index.html;
+    # Increase body size to allow large audio uploads (500 MB max).
+    client_max_body_size 550M;
+
+    # Podcast platform frontend (React app served under the /shyam_akaash subpath)
+    location /shyam_akaash {
+        alias /var/www/user-management-app/build;
+        try_files $uri $uri/ /shyam_akaash/index.html;
     }
 
-    # Backend API
-    location /api {
+    # RSS feeds and audio streaming. The full /shyam_akaash prefix is forwarded
+    # to the Node server (which mounts these routes under both prefixes).
+    # Buffering is disabled so HTTP range requests stream correctly.
+    location ~ ^/shyam_akaash/(rss|stream|uploads) {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Range $http_range;
+        proxy_set_header If-Range $http_if_range;
+        proxy_buffering off;
+        proxy_request_buffering off;
+    }
+
+    # JSON API (the /shyam_akaash prefix is forwarded; the server mounts /shyam_akaash/api).
+    location /shyam_akaash/api {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -220,7 +247,8 @@ echo "- Backup: /var/www/user-management-app/backup.sh"
 echo ""
 print_warning "Don't forget to:"
 echo "- Change the JWT_SECRET in .env"
-echo "- Add your Patreon access token"
+echo "- Add your Stripe keys (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PUBLISHABLE_KEY)"
+echo "- Set BASE_URL and UPLOAD_DIR in .env"
 echo "- Update CORS_ORIGIN with your domain"
 echo "- Configure your domain DNS to point to this server"
 

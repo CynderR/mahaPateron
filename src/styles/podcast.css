@@ -1,0 +1,416 @@
+/* Podcast platform styles.
+   Built entirely on the existing theme custom properties from themes.css so
+   light/dark mode and the established visual language carry over. */
+
+.podcast-page {
+  min-height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.podcast-header {
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.podcast-header-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.podcast-brand {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.podcast-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.podcast-nav a {
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 0.4rem 0.75rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.podcast-nav a:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.podcast-nav a.active {
+  color: var(--accent-primary);
+  background: var(--bg-tertiary);
+}
+
+.podcast-main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.podcast-section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+}
+
+/* Buttons */
+.pod-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: var(--bg-button);
+  color: var(--text-inverse);
+  border: none;
+  padding: 0.6rem 1.1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.pod-btn:hover:not(:disabled) {
+  background: var(--bg-button-hover);
+}
+
+.pod-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.pod-btn-secondary {
+  background: var(--bg-button-secondary);
+  color: var(--text-primary);
+}
+
+.pod-btn-secondary:hover:not(:disabled) {
+  background: var(--bg-button-secondary-hover);
+}
+
+.pod-btn-danger {
+  background: var(--accent-error);
+  color: #fff;
+}
+
+.pod-btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.pod-btn-sm {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.8rem;
+}
+
+/* Cards */
+.pod-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.5rem;
+}
+
+.pod-card + .pod-card {
+  margin-top: 1.5rem;
+}
+
+/* Summary stat cards */
+.pod-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.pod-stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  padding: 1.25rem 1.5rem;
+}
+
+.pod-stat-label {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 0.5rem 0;
+}
+
+.pod-stat-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* Forms */
+.pod-form-group {
+  margin-bottom: 1.1rem;
+}
+
+.pod-form-group label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.4rem;
+}
+
+.pod-input,
+.pod-select,
+.pod-textarea {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--border-secondary);
+  border-radius: 0.375rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.pod-input:focus,
+.pod-select:focus,
+.pod-textarea:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.2);
+}
+
+.pod-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+/* Banners */
+.pod-banner {
+  padding: 0.85rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.25rem;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.pod-banner-error {
+  background: var(--bg-error);
+  color: var(--text-error);
+  border: 1px solid var(--border-error);
+}
+
+.pod-banner-success {
+  background: var(--bg-success);
+  color: var(--text-success);
+}
+
+.pod-banner-info {
+  background: var(--bg-info);
+  color: var(--text-info);
+}
+
+/* Tables */
+.pod-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+}
+
+.pod-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.pod-table th,
+.pod-table td {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border-primary);
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.pod-table th {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+}
+
+.pod-table tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.pod-table .pod-input,
+.pod-table .pod-select {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.82rem;
+  min-width: 110px;
+}
+
+/* Badges */
+.pod-badge {
+  display: inline-block;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.pod-badge-on {
+  background: var(--status-premium);
+  color: var(--text-success);
+}
+
+.pod-badge-off {
+  background: var(--status-free);
+  color: var(--text-secondary);
+}
+
+/* Feed grid + post cards */
+.pod-feed-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.pod-post-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.pod-post-cover {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+}
+
+.pod-post-cover-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 2rem;
+}
+
+.pod-post-body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.pod-post-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.pod-post-meta {
+  font-size: 0.78rem;
+  color: var(--text-tertiary);
+}
+
+.pod-post-desc {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+}
+
+.pod-audio {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+/* RSS copy widget */
+.pod-copy-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.pod-copy-row .pod-input {
+  font-family: monospace;
+  font-size: 0.82rem;
+}
+
+/* Upgrade / empty states */
+.pod-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-tertiary);
+}
+
+.pod-instructions {
+  margin: 1rem 0 0;
+  padding-left: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+
+.pod-inline-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pod-image-preview {
+  max-width: 200px;
+  border-radius: 0.5rem;
+  margin-top: 0.5rem;
+  border: 1px solid var(--border-primary);
+}
+
+@media (max-width: 768px) {
+  .podcast-main {
+    padding: 1.25rem;
+  }
+  .podcast-header-inner {
+    padding: 1rem 1.25rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .pod-feed-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -23,10 +23,9 @@ async function createAdminUser() {
       username: ADMIN_USERNAME,
       email: ADMIN_EMAIL,
       password: hashedPassword,
-      patreon_id: null,
-      is_mixcloud: false,
       is_free: false,
-      is_admin: true
+      is_admin: true,
+      is_paying: true
     });
 
     console.log('Admin user created successfully. ID:', user.id);

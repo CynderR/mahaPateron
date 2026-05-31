@@ -98,8 +98,15 @@ DATABASE_URL=/var/www/user-management-app/backend/users.db
 # CORS Origin (your domain)
 CORS_ORIGIN=https://yourdomain.com
 
-# Patreon API
-PATREON_ACCESS_TOKEN=your-patreon-token-here
+# Podcast platform
+BASE_URL=https://4thstate.ca/shyam_akaash
+UPLOAD_DIR=/var/www/user-management-app/backend/uploads
+
+# Stripe
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+STRIPE_PUBLISHABLE_KEY=
+DEFAULT_SUBSCRIPTION_PRICE=9.99
 
 # Security
 BCRYPT_ROUNDS=12

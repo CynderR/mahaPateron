@@ -2,18 +2,23 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { ROUTER_BASENAME } from './config';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
 import SignUp from './components/SignUp';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
-import AdminDashboard from './components/AdminDashboard';
-import UserDashboard from './components/UserDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
-import PatreonOAuthCallback from './components/PatreonOAuthCallback';
-import PatreonRedirect from './components/PatreonRedirect';
+import Feed from './pages/Feed';
+import RssFeed from './pages/account/RssFeed';
+import Settings from './pages/account/Settings';
+import Billing from './pages/account/Billing';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminPosts from './pages/admin/Posts';
 import './App.css';
 import './styles/themes.css';
+import './styles/podcast.css';
 
 const AppRoutes: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -24,19 +29,44 @@ const AppRoutes: React.FC = () => {
       <Route path="/shyam_akaash" element={<LandingPage />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
-      <Route path="/signup/mixcloud" element={<SignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/auth/patreon/success" element={<PatreonOAuthCallback />} />
-      <Route path="/redirect" element={<PatreonRedirect />} />
+
+      <Route path="/dashboard" element={<Navigate to={isAdmin ? '/admin' : '/feed'} replace />} />
+
       <Route
-        path="/dashboard"
+        path="/feed"
         element={
           <ProtectedRoute>
-            {isAdmin ? <AdminDashboard /> : <UserDashboard />}
+            <Feed />
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/account/rss"
+        element={
+          <ProtectedRoute>
+            <RssFeed />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/account/billing"
+        element={
+          <ProtectedRoute>
+            <Billing />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/account/settings"
+        element={
+          <ProtectedRoute>
+            <Settings />
+          </ProtectedRoute>
+        }
+      />
+
       <Route
         path="/admin"
         element={
@@ -45,6 +75,23 @@ const AppRoutes: React.FC = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/admin/users"
+        element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminUsers />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/posts"
+        element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminPosts />
+          </ProtectedRoute>
+        }
+      />
+
       <Route path="*" element={<Navigate to="/shyam_akaash" replace />} />
     </Routes>
   );
@@ -54,7 +101,7 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <Router basename={ROUTER_BASENAME}>
           <div className="App">
             <AppRoutes />
           </div>

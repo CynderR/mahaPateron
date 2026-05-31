@@ -3,13 +3,9 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import './Auth.css';
 
+const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
+
 const ResetPassword: React.FC = () => {
-  // Array of background images (same as landing page)
-  const backgroundImages = [
-
-    '/signal-2026-02-01-105917_002.jpeg'
-  ];
-
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
 

@@ -1,15 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './LandingPage.css';
-import HearThisSetupModal from './HearThisSetupModal';
-import PatreonGuideModal from './PatreonGuideModal';
 
 const LANDING_VIDEO_ID = 'UU5YZ3JnVMM';
 const BACKGROUND_IMAGES = ['/signal-2026-02-01-105917_002.jpeg'];
 
 const LandingPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string>('');
-  const [hearThisModalOpen, setHearThisModalOpen] = useState(false);
-  const [patreonModalOpen, setPatreonModalOpen] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * BACKGROUND_IMAGES.length);
@@ -34,16 +32,16 @@ const LandingPage: React.FC = () => {
             <button
               type="button"
               className="sign-in-button"
-              onClick={() => setPatreonModalOpen(true)}
+              onClick={() => navigate('/signin')}
             >
-              Join on Patreon
+              Sign In
             </button>
             <button
               type="button"
               className="sign-in-button"
-              onClick={() => setHearThisModalOpen(true)}
+              onClick={() => navigate('/signup')}
             >
-              Join on HearThis.at
+              Become a Member
             </button>
           </div>
         </header>
@@ -57,9 +55,6 @@ const LandingPage: React.FC = () => {
             className="landing-main-video"
           />
         </div>
-
-        <PatreonGuideModal isOpen={patreonModalOpen} onClose={() => setPatreonModalOpen(false)} />
-        <HearThisSetupModal isOpen={hearThisModalOpen} onClose={() => setHearThisModalOpen(false)} />
       </div>
     </div>
   );

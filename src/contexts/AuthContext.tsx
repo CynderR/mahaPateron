@@ -1,17 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 
 interface User {
   id: number;
   username: string;
   email: string;
-  patreon_id?: string;
-  is_mixcloud?: boolean;
   is_free: boolean;
   is_admin: boolean;
-  patreon_subscription_status?: string;
-  last_patreon_sync?: string;
-  subscription_alert_sent?: boolean;
+  whatsapp_id?: string;
+  signal_id?: string;
+  payment_category?: 'full' | 'free' | 'discounted' | 'non_card';
+  is_paying?: boolean | number;
+  access_type?: 'rss' | 'streaming' | 'both';
+  subscription_price?: number | null;
+  rss_token?: string;
+  stripe_customer_id?: string;
+  stripe_sub_id?: string;
   created_at?: string;
 }
 
@@ -29,16 +34,12 @@ interface RegisterData {
   username: string;
   email: string;
   password: string;
-  patreon_id?: string;
-  is_mixcloud?: boolean;
-  is_free?: boolean;
-  is_admin?: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Configure axios defaults
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
+axios.defaults.baseURL = API_BASE_URL;
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

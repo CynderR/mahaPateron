@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { API_BASE_URL } from '../config';
 import './Auth.css';
 
 // Configure axios baseURL (same as AuthContext)
-axios.defaults.baseURL = process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5000/api';
+axios.defaults.baseURL = API_BASE_URL;
+
+const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
 
 const ForgotPassword: React.FC = () => {
-  // Array of background images (same as landing page)
-  const backgroundImages = [
-
-    '/signal-2026-02-01-105917_002.jpeg'
-  ];
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
 

@@ -92,8 +92,6 @@ npm run dev
 ### User Registration
 - Click "Get Started" or "Sign Up" to create a new account
 - Fill in the required fields (username, email, password)
-- Optional fields include Patreon ID and Mixcloud ID
-- Choose between free or premium account
 
 ### User Sign-In
 - Use your email and password to sign in

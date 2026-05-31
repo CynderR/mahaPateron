@@ -1,30 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import './Auth.css';
 
 const SignUp: React.FC = () => {
-  const location = useLocation();
-  const isMixcloudSignup = location.pathname.includes('/mixcloud');
-  
   const [formData, setFormData] = useState({
     username: '',
     email: '',
     password: '',
-    confirmPassword: '',
-    patreon_id: ''
+    confirmPassword: ''
   });
-  const [searchParams] = useSearchParams();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const urlError = searchParams.get('error');
-    if (urlError === 'account_taken') {
-      setError('That username or email was taken while you were on Patreon. Please try different details.');
-    }
-  }, [searchParams]);
+  const { register } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
@@ -51,25 +40,14 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      const backendUrl = process.env.NODE_ENV === 'production' 
-        ? '/auth/patreon/signup' 
-        : 'http://localhost:5000/api/auth/patreon/signup';
-
-      const response = await axios.post(backendUrl, {
+      await register({
         username: formData.username,
         email: formData.email,
-        password: formData.password,
-        is_mixcloud: isMixcloudSignup
+        password: formData.password
       });
-
-      if (response.data && response.data.redirectUrl) {
-        window.location.href = response.data.redirectUrl;
-        return;
-      }
-      
-      setError('Unexpected response from server. Please try again.');
+      navigate('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message);
+      setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -144,7 +122,7 @@ const SignUp: React.FC = () => {
             disabled={loading}
             className="auth-button"
           >
-            {loading ? 'Connecting to Patreon...' : 'Continue with Patreon'}
+            {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 

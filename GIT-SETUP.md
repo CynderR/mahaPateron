@@ -24,7 +24,9 @@ nano .env  # or use your preferred editor
   ```
 - `PORT` - Server port (default: 5000)
 - `DATABASE_URL` - Database file path (default: ./users.db)
-- `PATREON_ACCESS_TOKEN` - Your Patreon Creator Access Token (optional)
+- `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` / `STRIPE_PUBLISHABLE_KEY` - Stripe billing keys
+- `BASE_URL` - Public base URL for RSS/stream links
+- `UPLOAD_DIR` - Path for uploaded audio/images
 
 ### **2. Verify .gitignore is Working**
 
@@ -50,7 +52,7 @@ git init
 git add .
 
 # Make your first commit
-git commit -m "Initial commit: User management app with Patreon integration"
+git commit -m "Initial commit: podcast membership platform"
 ```
 
 ## 📁 **What's Protected by .gitignore**
@@ -85,7 +87,7 @@ git commit -m "Initial commit: User management app with Patreon integration"
 - ✅ Each developer gets their own local database
 
 ### **API Keys:**
-- ✅ Patreon access tokens are stored in `.env`
+- ✅ Stripe keys are stored in `.env`
 - ✅ Never hardcode API keys in source code
 - ✅ Use environment variables for all secrets
 
@@ -129,7 +131,10 @@ For production deployment:
 | `PORT` | Server port | `5000` | ❌ |
 | `NODE_ENV` | Environment mode | `development` | ❌ |
 | `DATABASE_URL` | Database file path | `./users.db` | ❌ |
-| `PATREON_ACCESS_TOKEN` | Patreon API token | (empty) | ❌ |
+| `STRIPE_SECRET_KEY` | Stripe secret key | (empty) | ❌ |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | (empty) | ❌ |
+| `BASE_URL` | Public base URL for RSS/stream | `http://localhost:5000` | ❌ |
+| `UPLOAD_DIR` | Uploaded media directory | `backend/uploads` | ❌ |
 | `CORS_ORIGIN` | Allowed CORS origin | `http://localhost:3000` | ❌ |
 | `BCRYPT_ROUNDS` | Password hashing rounds | `10` | ❌ |
 | `LOG_LEVEL` | Logging level | `info` | ❌ |
@@ -148,9 +153,9 @@ For production deployment:
 - Update `CORS_ORIGIN` in `.env` to match your frontend URL
 - For development: `http://localhost:3000`
 
-### **Patreon API errors:**
-- Set `PATREON_ACCESS_TOKEN` in `.env`
-- Or configure via the admin dashboard UI
+### **Stripe errors:**
+- Set `STRIPE_SECRET_KEY` and `STRIPE_WEBHOOK_SECRET` in `.env`
+- Configure the webhook endpoint in the Stripe dashboard (see `README_PODCAST.md`)
 
 ## ✅ **Verification Checklist**
 
