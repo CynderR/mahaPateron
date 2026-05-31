@@ -79,9 +79,14 @@ server {
     server_name 4thstate.ca www.4thstate.ca;
     client_max_body_size 550M;            # allow 500 MB audio uploads
 
-    # React app
-    location /shyam_akaash {
-        alias /var/www/user-management-app/build;
+    # React app — root+try_files with shyam_akaash -> build symlink (see deploy.sh).
+    # Do NOT use alias+try_files here; it serves index.html for JS/CSS and blanks the page.
+    location = /shyam_akaash {
+        return 301 /shyam_akaash/;
+    }
+
+    location /shyam_akaash/ {
+        root /var/www/user-management-app;
         try_files $uri $uri/ /shyam_akaash/index.html;
     }
 
@@ -103,6 +108,13 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
+```
+
+After each `npm run build`, refresh the symlink nginx reads:
+
+```bash
+ln -sfn /var/www/user-management-app/build /var/www/user-management-app/shyam_akaash
+sudo nginx -t && sudo systemctl reload nginx
 ```
 
 `deploy.sh` writes this configuration automatically. Add HTTPS with

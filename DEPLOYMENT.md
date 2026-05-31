@@ -114,10 +114,14 @@ BCRYPT_ROUNDS=12
 
 ### Set proper permissions
 ```bash
-sudo chown -R www-data:www-data /var/www/user-management-app
-sudo chmod -R 755 /var/www/user-management-app
-sudo chmod 600 /var/www/user-management-app/backend/.env
+# Keep the deploy user as owner so git pull and npm work. nginx only needs read access.
+sudo chown -R $USER:$USER /var/www/user-management-app
+chmod 600 /var/www/user-management-app/backend/.env
 ```
+
+Do **not** `chown` the whole tree to `www-data` — git will refuse with "dubious ownership"
+when you pull as your normal user. `./update-production.sh` fixes this automatically if it
+happens.
 
 ## Step 4: PM2 Configuration
 
@@ -398,12 +402,9 @@ When you exit dev (Ctrl+C), `start-dev.sh` will restart the pm2 production backe
 ## Maintenance Commands
 
 ```bash
-# Update application
+# Update application (preferred)
 cd /var/www/user-management-app
-git pull origin main
-npm install
-npm run build
-pm2 restart user-management-backend
+./update-production.sh
 
 # Update system
 sudo apt update && sudo apt upgrade -y

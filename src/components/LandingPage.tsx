@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import './LandingPage.css';
 
 const LANDING_VIDEO_ID = 'UU5YZ3JnVMM';
-const BACKGROUND_IMAGES = ['/signal-2026-02-01-105917_002.jpeg'];
+const publicUrl = process.env.PUBLIC_URL || '';
+const BACKGROUND_IMAGES = [`${publicUrl}/signal-2026-02-01-105917_002.jpeg`];
 
 const LandingPage: React.FC = () => {
   const [selectedImage, setSelectedImage] = useState<string>('');

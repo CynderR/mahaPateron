@@ -25,8 +25,7 @@ const AppRoutes: React.FC = () => {
 
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/shyam_akaash" replace />} />
-      <Route path="/shyam_akaash" element={<LandingPage />} />
+      <Route path="/" element={<LandingPage />} />
       <Route path="/signin" element={<SignIn />} />
       <Route path="/signup" element={<SignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -92,7 +91,7 @@ const AppRoutes: React.FC = () => {
         }
       />
 
-      <Route path="*" element={<Navigate to="/shyam_akaash" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

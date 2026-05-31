@@ -74,6 +74,8 @@ fi
 if [ -f "package.json" ]; then
     npm install
     npm run build
+    # nginx root+try_files expects assets under .../shyam_akaash/ (not alias+build).
+    ln -sfn /var/www/user-management-app/build /var/www/user-management-app/shyam_akaash
 fi
 
 print_status "Setting up environment variables..."
@@ -111,9 +113,9 @@ EOF
 fi
 
 print_status "Setting proper permissions..."
-sudo chown -R www-data:www-data /var/www/user-management-app
-sudo chmod -R 755 /var/www/user-management-app
-sudo chmod 600 /var/www/user-management-app/backend/.env
+# Deploy user owns the tree (git pull, npm, pm2). nginx reads static files via 755/644.
+sudo chown -R "$USER:$USER" /var/www/user-management-app
+chmod 600 /var/www/user-management-app/backend/.env
 
 print_status "Starting application with PM2..."
 pm2 start ecosystem.config.js
@@ -129,9 +131,15 @@ server {
     # Increase body size to allow large audio uploads (500 MB max).
     client_max_body_size 550M;
 
-    # Podcast platform frontend (React app served under the /shyam_akaash subpath)
-    location /shyam_akaash {
-        alias /var/www/user-management-app/build;
+    # Podcast platform frontend (React app served under the /shyam_akaash subpath).
+    # Use root+try_files with a shyam_akaash symlink to build/ — alias+try_files
+    # serves index.html for /static/js/*.js requests and causes a blank white page.
+    location = /shyam_akaash {
+        return 301 /shyam_akaash/;
+    }
+
+    location /shyam_akaash/ {
+        root /var/www/user-management-app;
         try_files $uri $uri/ /shyam_akaash/index.html;
     }
 
