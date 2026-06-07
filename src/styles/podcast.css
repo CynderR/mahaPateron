@@ -204,6 +204,44 @@
   resize: vertical;
 }
 
+.pod-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 1rem;
+}
+
+.pod-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 1.75rem 1rem;
+  border: 2px dashed var(--border-secondary);
+  border-radius: 0.5rem;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.pod-dropzone:hover,
+.pod-dropzone-active {
+  border-color: var(--accent-primary);
+  background: var(--bg-hover);
+}
+
+.pod-dropzone-filled {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.pod-dropzone-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted, var(--text-secondary));
+}
+
 /* Banners */
 .pod-banner {
   padding: 0.85rem 1rem;

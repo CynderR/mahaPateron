@@ -72,14 +72,23 @@ const removeFiles = (files) => {
   });
 };
 
-const extractDuration = async (audioPath) => {
+const parseAudioMetadata = async (audioPath) => {
   try {
-    const metadata = await mm.parseFile(audioPath);
-    return metadata.format.duration ? Math.round(metadata.format.duration) : null;
+    return await mm.parseFile(audioPath);
   } catch (e) {
-    console.warn('Could not extract audio duration:', e.message);
+    console.warn('Could not parse audio metadata:', e.message);
     return null;
   }
+};
+
+const saveEmbeddedCover = (metadata) => {
+  const picture = metadata?.common?.picture?.[0];
+  if (!picture) return null;
+
+  const format = picture.format === 'jpeg' ? 'jpg' : picture.format;
+  const filename = `${uuidv4()}.${format}`;
+  fs.writeFileSync(path.join(IMAGE_DIR, filename), picture.data);
+  return filename;
 };
 
 // GET / — list all posts (including unpublished) for the admin.
@@ -113,13 +122,19 @@ router.post('/', handleUpload, async (req, res) => {
       return res.status(400).json({ error: 'Image exceeds the 10 MB limit' });
     }
 
-    const duration = await extractDuration(audioFile.path);
+    const metadata = await parseAudioMetadata(audioFile.path);
+    const duration = metadata?.format?.duration
+      ? Math.round(metadata.format.duration)
+      : null;
+    const imageFilename = imageFile
+      ? imageFile.filename
+      : saveEmbeddedCover(metadata);
 
     const post = await createPost({
       title,
       description: description || null,
       audio_filename: audioFile.filename,
-      image_filename: imageFile ? imageFile.filename : null,
+      image_filename: imageFilename,
       duration_secs: duration,
       created_by: req.user.id,
       is_published: is_published === 'false' || is_published === false ? false : true
@@ -157,7 +172,19 @@ router.put('/:id', handleUpload, async (req, res) => {
 
     if (audioFile) {
       data.audio_filename = audioFile.filename;
-      data.duration_secs = await extractDuration(audioFile.path);
+      const metadata = await parseAudioMetadata(audioFile.path);
+      data.duration_secs = metadata?.format?.duration
+        ? Math.round(metadata.format.duration)
+        : null;
+      if (!imageFile) {
+        const embeddedCover = saveEmbeddedCover(metadata);
+        if (embeddedCover) {
+          data.image_filename = embeddedCover;
+          if (existing.image_filename) {
+            fs.unlink(path.join(IMAGE_DIR, existing.image_filename), () => {});
+          }
+        }
+      }
       // Remove the previous audio file.
       fs.unlink(path.join(AUDIO_DIR, existing.audio_filename), () => {});
     }
