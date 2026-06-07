@@ -34,7 +34,9 @@ location /shyam_akaash/api {
     proxy_cache_bypass $http_upgrade;
 }
 
-# RSS feeds, audio streaming, uploaded cover art (range requests)
+# RSS feeds, audio streaming, uploaded cover art (range requests).
+# Published covers live at /shyam_akaash/uploads/images/<filename>.
+# blob: URLs in the upload form are browser-only previews — not nginx paths.
 location ~ ^/shyam_akaash/(rss|stream|uploads) {
     proxy_pass http://localhost:5000;
     proxy_http_version 1.1;
@@ -46,4 +48,15 @@ location ~ ^/shyam_akaash/(rss|stream|uploads) {
     proxy_set_header If-Range $http_if_range;
     proxy_buffering off;
     proxy_request_buffering off;
+}
+
+# Legacy/alternate cover URLs when BASE_URL omits the subpath prefix.
+location ~ ^/uploads/(images|audio) {
+    proxy_pass http://localhost:5000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_buffering off;
 }

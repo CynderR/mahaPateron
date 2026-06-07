@@ -1,9 +1,10 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import {
   buildDescription,
   parseMp3Metadata,
-  pictureToCoverFile
+  pictureToCoverFile,
+  pictureToPreviewUrl
 } from '../utils/parseMp3Metadata';
 
 interface UploadFormProps {
@@ -28,10 +29,26 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploaded }) => {
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string>('');
+
+  const clearPreviewUrl = () => {
+    if (previewUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+    previewUrlRef.current = '';
+  };
+
+  useEffect(() => () => clearPreviewUrl(), []);
+
+  const setPreviewUrl = (url: string) => {
+    clearPreviewUrl();
+    previewUrlRef.current = url;
+    setImagePreview(url);
+  };
 
   const handleImage = (file: File | null) => {
     setImage(file);
-    setImagePreview(file ? URL.createObjectURL(file) : '');
+    setPreviewUrl(file ? URL.createObjectURL(file) : '');
   };
 
   const reset = () => {
@@ -44,6 +61,7 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploaded }) => {
     setAudio(null);
     setAudioName('');
     setImage(null);
+    clearPreviewUrl();
     setImagePreview('');
     setProgress(0);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -72,9 +90,10 @@ const UploadForm: React.FC<UploadFormProps> = ({ onUploaded }) => {
       if (metadata.picture) {
         const coverFile = pictureToCoverFile(metadata.picture);
         setImage(coverFile);
-        setImagePreview(URL.createObjectURL(coverFile));
+        setPreviewUrl(pictureToPreviewUrl(metadata.picture));
       } else {
         setImage(null);
+        clearPreviewUrl();
         setImagePreview('');
         if (coverInputRef.current) coverInputRef.current.value = '';
       }

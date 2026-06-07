@@ -150,6 +150,8 @@ server {
     # RSS feeds and audio streaming. The full /shyam_akaash prefix is forwarded
     # to the Node server (which mounts these routes under both prefixes).
     # Buffering is disabled so HTTP range requests stream correctly.
+    # Published covers: /shyam_akaash/uploads/images/<filename>
+    # Upload-form blob: previews are browser-only — not served by nginx.
     location ~ ^/shyam_akaash/(rss|stream|uploads) {
         proxy_pass http://localhost:5000;
         proxy_http_version 1.1;
@@ -161,6 +163,16 @@ server {
         proxy_set_header If-Range $http_if_range;
         proxy_buffering off;
         proxy_request_buffering off;
+    }
+
+    location ~ ^/uploads/(images|audio) {
+        proxy_pass http://localhost:5000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
     }
 
     # JSON API (the /shyam_akaash prefix is forwarded; the server mounts /shyam_akaash/api).

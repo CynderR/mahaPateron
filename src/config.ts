@@ -15,3 +15,7 @@ export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000'
 // Build the streaming URL for a post, authenticated with the user's RSS token.
 export const buildStreamUrl = (postId: string, rssToken: string): string =>
   `${MEDIA_BASE_URL}/stream/${postId}?token=${encodeURIComponent(rssToken)}`;
+
+// Cover art is served publicly from the backend uploads directory.
+export const buildImageUrl = (filename: string): string =>
+  `${MEDIA_BASE_URL}/uploads/images/${encodeURIComponent(filename)}`;

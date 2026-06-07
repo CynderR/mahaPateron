@@ -1,5 +1,6 @@
 import React from 'react';
 import AudioPlayer from './AudioPlayer';
+import { buildImageUrl } from '../config';
 
 export interface FeedPost {
   id: string;
@@ -7,7 +8,7 @@ export interface FeedPost {
   description?: string | null;
   duration_secs?: number | null;
   published_at?: string;
-  image_url?: string | null;
+  image_filename?: string | null;
 }
 
 interface PostCardProps {
@@ -27,11 +28,12 @@ const formatDuration = (secs?: number | null): string => {
 
 const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream }) => {
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
+  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   return (
     <article className="pod-post-card">
-      {post.image_url ? (
-        <img className="pod-post-cover" src={post.image_url} alt={post.title} />
+      {coverUrl ? (
+        <img className="pod-post-cover" src={coverUrl} alt={post.title} />
       ) : (
         <div className="pod-post-cover-placeholder" aria-hidden>
           ♪

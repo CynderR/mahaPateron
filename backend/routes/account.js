@@ -39,7 +39,7 @@ router.get('/feed', async (req, res) => {
         description: p.description,
         duration_secs: p.duration_secs,
         published_at: p.published_at,
-        image_url: p.image_filename ? `${BASE_URL}/uploads/images/${p.image_filename}` : null
+        image_filename: p.image_filename || null
       }))
     });
   } catch (error) {

@@ -81,12 +81,19 @@ const parseAudioMetadata = async (audioPath) => {
   }
 };
 
+const normalizeImageExt = (format) => {
+  if (!format) return 'jpg';
+  const normalized = String(format).replace(/^image\//i, '').toLowerCase();
+  if (normalized === 'jpeg') return 'jpg';
+  return normalized;
+};
+
 const saveEmbeddedCover = (metadata) => {
   const picture = metadata?.common?.picture?.[0];
   if (!picture) return null;
 
-  const format = picture.format === 'jpeg' ? 'jpg' : picture.format;
-  const filename = `${uuidv4()}.${format}`;
+  const ext = normalizeImageExt(picture.format);
+  const filename = `${uuidv4()}.${ext}`;
   fs.writeFileSync(path.join(IMAGE_DIR, filename), picture.data);
   return filename;
 };

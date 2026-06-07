@@ -6,7 +6,7 @@ export interface Mp3Metadata {
   album: string;
   year: string;
   genre: string;
-  picture: { data: Uint8Array; format: string } | null;
+  picture: { data: Uint8Array | number[]; format: string } | null;
 }
 
 const fallbackFromFilename = (filename: string): Pick<Mp3Metadata, 'title' | 'year'> => {
@@ -16,6 +16,22 @@ const fallbackFromFilename = (filename: string): Pick<Mp3Metadata, 'title' | 'ye
     return { year: match[1], title: match[2].trim() };
   }
   return { title: base.trim(), year: '' };
+};
+
+const toUint8Array = (data: Uint8Array | number[]): Uint8Array =>
+  data instanceof Uint8Array ? data : new Uint8Array(data);
+
+const normalizePictureMime = (format: string): { mime: string; ext: string } => {
+  const raw = format.replace(/^image\//i, '').toLowerCase();
+  if (raw === 'jpg' || raw === 'jpeg') return { mime: 'image/jpeg', ext: 'jpg' };
+  if (raw === 'png') return { mime: 'image/png', ext: 'png' };
+  if (raw === 'gif') return { mime: 'image/gif', ext: 'gif' };
+  if (raw === 'webp') return { mime: 'image/webp', ext: 'webp' };
+  if (format.toLowerCase().startsWith('image/')) {
+    const ext = raw === 'jpeg' ? 'jpg' : raw || 'jpg';
+    return { mime: format.toLowerCase(), ext };
+  }
+  return { mime: `image/${raw}`, ext: raw === 'jpeg' ? 'jpg' : raw };
 };
 
 export const parseMp3Metadata = (file: File): Promise<Mp3Metadata> => {
@@ -53,11 +69,16 @@ export const parseMp3Metadata = (file: File): Promise<Mp3Metadata> => {
   });
 };
 
-export const pictureToCoverFile = (picture: { data: Uint8Array; format: string }): File => {
-  const format = picture.format.replace(/^image\//, '');
-  const mime = picture.format.startsWith('image/') ? picture.format : `image/${format}`;
-  const ext = format === 'jpeg' ? 'jpg' : format;
-  return new File([picture.data], `cover.${ext}`, { type: mime });
+export const pictureToCoverFile = (picture: { data: Uint8Array | number[]; format: string }): File => {
+  const bytes = toUint8Array(picture.data);
+  const { mime, ext } = normalizePictureMime(picture.format);
+  return new File([bytes], `cover.${ext}`, { type: mime });
+};
+
+export const pictureToPreviewUrl = (picture: { data: Uint8Array | number[]; format: string }): string => {
+  const bytes = toUint8Array(picture.data);
+  const { mime } = normalizePictureMime(picture.format);
+  return URL.createObjectURL(new Blob([bytes], { type: mime }));
 };
 
 export const buildDescription = (
