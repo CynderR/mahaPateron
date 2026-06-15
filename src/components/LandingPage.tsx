@@ -28,7 +28,7 @@ const LandingPage: React.FC = () => {
 
       <div className="content-layer landing-layout">
         <header className="landing-top-bar">
-          <h1 className="landing-page-title"> Welcome to 4thState.ca - Shyam Akaash</h1>
+          <h1 className="landing-page-title"> Welcome to 4thState.ca -Shyam Akaash</h1>
           <div className="landing-cta-group">
             <button
               type="button"
