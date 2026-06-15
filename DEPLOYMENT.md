@@ -406,6 +406,9 @@ When you exit dev (Ctrl+C), `start-dev.sh` will restart the pm2 production backe
 cd /var/www/user-management-app
 ./update-production.sh
 
+# Auto-deploy on git push (see DEPLOY-WEBHOOK.md)
+./scripts/setup-deploy-webhook.sh
+
 # Update system
 sudo apt update && sudo apt upgrade -y
 

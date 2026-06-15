@@ -33,6 +33,11 @@
 
 Follow the detailed steps in `DEPLOYMENT.md`
 
+## Option 3: Auto-deploy on GitHub push
+
+See `DEPLOY-WEBHOOK.md` for the GitHub webhook that runs `./update-production.sh`
+when `main` is updated.
+
 ## Post-Deployment Checklist
 
 - [ ] Update `.env` file with production values
