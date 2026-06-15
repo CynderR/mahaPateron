@@ -24,14 +24,13 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 ENV_FILE="$REPO_ROOT/deploy-webhook/.env"
 ENV_EXAMPLE="$REPO_ROOT/deploy-webhook/.env.example"
 LOG_DIR="/var/log/deploy-webhook"
-NGINX_SNIPPET_SRC="$REPO_ROOT/config/nginx-deploy-webhook.snippet"
-NGINX_SNIPPET_DST="/etc/nginx/snippets/deploy-webhook.conf"
-NGINX_SITE="${NGINX_SITE:-/etc/nginx/sites-available/user-management-app}"
+HOST_HEADER="${HOST_HEADER:-4thstate.ca}"
 
 print_status "Preparing deploy webhook files..."
 chmod +x "$REPO_ROOT/deploy-webhook/trigger-deploy.sh"
 sudo mkdir -p "$LOG_DIR"
 sudo chown "$(whoami):$(whoami)" "$LOG_DIR"
+touch "$LOG_DIR/webhook.log"
 
 if [ ! -f "$ENV_FILE" ]; then
   print_status "Creating deploy-webhook/.env with a new webhook secret..."
@@ -50,19 +49,10 @@ if [ -z "$SECRET" ]; then
   exit 1
 fi
 
-print_status "Installing nginx snippet..."
-sudo cp "$NGINX_SNIPPET_SRC" "$NGINX_SNIPPET_DST"
-
-if ! sudo grep -q 'include snippets/deploy-webhook.conf;' "$NGINX_SITE" 2>/dev/null; then
-  print_warning "Add this line inside the server { } block in $NGINX_SITE:"
-  echo "    include snippets/deploy-webhook.conf;"
-  echo ""
-  print_warning "Then run: sudo nginx -t && sudo systemctl reload nginx"
-else
-  print_status "nginx site already includes deploy-webhook snippet"
-  sudo nginx -t
-  sudo systemctl reload nginx
-fi
+print_status "Patching nginx to expose /hooks/github-deploy..."
+sudo python3 "$REPO_ROOT/scripts/patch-nginx-deploy-webhook.py"
+sudo nginx -t
+sudo systemctl reload nginx
 
 print_status "Starting deploy-webhook with PM2..."
 if pm2 describe deploy-webhook >/dev/null 2>&1; then
@@ -72,8 +62,29 @@ else
 fi
 pm2 save
 
-print_status "Health check (local):"
-curl -sf "http://127.0.0.1:9000/health" && echo ""
+print_status "Health check (local listener):"
+if curl -sf "http://127.0.0.1:9000/health"; then
+  echo ""
+else
+  print_error "deploy-webhook is not responding on 127.0.0.1:9000"
+  print_error "Run: pm2 logs deploy-webhook --lines 30"
+  exit 1
+fi
+
+print_status "Health check (via nginx / HTTPS):"
+HTTPS_STATUS="$(curl -sk -o /dev/null -w '%{http_code}' "https://127.0.0.1/hooks/github-deploy/status" -H "Host: $HOST_HEADER")"
+if [ "$HTTPS_STATUS" = "200" ]; then
+  curl -sk "https://127.0.0.1/hooks/github-deploy/status" -H "Host: $HOST_HEADER"
+  echo ""
+else
+  print_error "nginx returned HTTP $HTTPS_STATUS for /hooks/github-deploy/status"
+  echo ""
+  echo "Debug:"
+  echo "  sudo nginx -T | grep -A8 'hooks/github-deploy'"
+  echo "  pm2 status"
+  echo "  curl -s http://127.0.0.1:9000/hooks/github-deploy/status"
+  exit 1
+fi
 
 echo ""
 echo "=================================================="

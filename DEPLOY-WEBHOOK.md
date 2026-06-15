@@ -28,19 +28,19 @@ The setup script will:
 
 1. Create `/var/log/deploy-webhook`
 2. Generate `deploy-webhook/.env` with a random `GITHUB_WEBHOOK_SECRET`
-3. Install the nginx snippet
+3. Patch nginx automatically (`scripts/patch-nginx-deploy-webhook.py`)
 4. Start `deploy-webhook` via PM2
 
-If nginx does not yet include the snippet, add this inside the `server { }` block
-for `4thstate.ca` in `/etc/nginx/sites-available/user-management-app`:
-
-```nginx
-include snippets/deploy-webhook.conf;
-```
-
-Then reload nginx:
+If auto-detection picks the wrong nginx site, set `NGINX_SITE` and re-run:
 
 ```bash
+NGINX_SITE=/etc/nginx/sites-available/your-site.conf ./scripts/setup-deploy-webhook.sh
+```
+
+Manual nginx patch only:
+
+```bash
+sudo python3 scripts/patch-nginx-deploy-webhook.py
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -84,7 +84,8 @@ Push a small change to `main` and confirm a new `deploy-*.log` file appears.
 
 | Symptom | Check |
 |---------|-------|
-| GitHub shows red delivery | `pm2 logs deploy-webhook`, nginx error log |
+| `404` on `/hooks/github-deploy/status` | Run `sudo python3 scripts/patch-nginx-deploy-webhook.py && sudo nginx -t && sudo systemctl reload nginx` |
+| `webhook.log` missing | Normal before first event; re-run setup to create it, or wait for a GitHub ping/push |
 | `401 Invalid signature` | Secret mismatch between GitHub and `.env` |
 | `Deploy already in progress` | Previous deploy still running; wait or inspect latest log |
 | Deploy fails mid-run | `tail -100 /var/log/deploy-webhook/deploy-*.log` |
