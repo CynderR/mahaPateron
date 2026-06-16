@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { BASE_URL, AUDIO_DIR } = require('../config');
-const { getUserByRssToken, getPublishedPosts } = require('../database');
+const { getUserByRssToken, getPublishedPostsForUser } = require('../database');
 
 const router = express.Router();
 
@@ -103,7 +103,7 @@ router.get('/:token', async (req, res) => {
       return res.send(buildFeed({ description: `${PODCAST_DESCRIPTION} ${reason}`, items: '' }));
     }
 
-    const posts = await getPublishedPosts();
+    const posts = await getPublishedPostsForUser(user);
     const items = posts.map((post) => buildItem(post, req.params.token)).join('\n');
     res.send(buildFeed({ description: PODCAST_DESCRIPTION, items }));
   } catch (error) {

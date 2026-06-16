@@ -18,6 +18,8 @@ const USER_COLUMNS = [
   'ALTER TABLE users ADD COLUMN rss_token TEXT',
   'ALTER TABLE users ADD COLUMN subscription_price REAL',
   'ALTER TABLE users ADD COLUMN deleted_at DATETIME',
+  'ALTER TABLE users ADD COLUMN subscribed_at DATETIME',
+  'ALTER TABLE users ADD COLUMN back_catalog_access INTEGER DEFAULT 0',
 ];
 
 const run = (db, sql, params = []) =>
@@ -100,6 +102,23 @@ const runPodcastMigration = async (db) => {
   const rows = await all(db, "SELECT id FROM users WHERE rss_token IS NULL OR rss_token = ''");
   for (const row of rows) {
     await run(db, 'UPDATE users SET rss_token = ? WHERE id = ?', [uuidv4(), row.id]);
+  }
+
+  // Backfill subscription start and archive access for users who existed before
+  // these columns were added. Only runs while subscribed_at is still NULL.
+  const legacyPaying = await all(
+    db,
+    'SELECT id FROM users WHERE is_paying = 1 AND subscribed_at IS NULL'
+  );
+  if (legacyPaying.length > 0) {
+    await run(
+      db,
+      `UPDATE users SET subscribed_at = created_at
+       WHERE subscribed_at IS NULL AND is_paying = 1`
+    );
+    for (const row of legacyPaying) {
+      await run(db, 'UPDATE users SET back_catalog_access = 1 WHERE id = ?', [row.id]);
+    }
   }
 
   console.log(`Podcast platform migration applied (${rows.length} RSS tokens backfilled)`);

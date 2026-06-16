@@ -64,18 +64,22 @@ const createUser = (userData) => {
   return new Promise((resolve, reject) => {
     const {
       username, email, password, is_free, is_admin,
-      whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying
+      whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying,
+      back_catalog_access
     } = userData;
     const rss_token = userData.rss_token || uuidv4();
+    const subscribed_at = is_paying ? (userData.subscribed_at || new Date().toISOString()) : null;
     const sql = `INSERT INTO users (
                    username, email, password, is_free, is_admin,
-                   whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying, rss_token
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                   whatsapp_id, signal_id, payment_category, access_type, subscription_price,
+                   is_paying, rss_token, subscribed_at, back_catalog_access
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
       username, email, password, is_free || false, is_admin || false,
       whatsapp_id || null, signal_id || null, payment_category || 'full', access_type || 'both',
-      subscription_price != null ? subscription_price : null, is_paying ? 1 : 0, rss_token
+      subscription_price != null ? subscription_price : null, is_paying ? 1 : 0, rss_token,
+      subscribed_at, back_catalog_access ? 1 : 0
     ], function(err) {
       if (err) {
         reject(err);
@@ -218,7 +222,8 @@ const getUserByStripeSubId = (subId) => {
 const USER_UPDATABLE_FIELDS = [
   'username', 'email', 'is_free', 'is_admin',
   'whatsapp_id', 'signal_id', 'payment_category', 'is_paying', 'access_type',
-  'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at'
+  'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at',
+  'subscribed_at', 'back_catalog_access'
 ];
 
 // Dynamic update used by the admin and account routes; only whitelisted
@@ -252,7 +257,8 @@ const softDeleteUser = (id) => {
 
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
-  stripe_customer_id, stripe_sub_id, subscription_price, rss_token, created_at, updated_at`;
+  stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
+  subscribed_at, back_catalog_access, created_at, updated_at`;
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -343,6 +349,38 @@ const getPublishedPosts = () => {
   return new Promise((resolve, reject) => {
     const sql = 'SELECT * FROM posts WHERE deleted_at IS NULL AND is_published = 1 ORDER BY published_at DESC';
     db.all(sql, [], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+};
+
+const userCanAccessPost = (user, post) => {
+  if (!user || !post || !post.is_published || post.deleted_at) return false;
+  if (user.back_catalog_access) return true;
+  const cutoff = user.subscribed_at || user.created_at;
+  if (!cutoff) return true;
+  return new Date(post.published_at) >= new Date(cutoff);
+};
+
+const getPublishedPostsForUser = (user) => {
+  return new Promise((resolve, reject) => {
+    if (user.back_catalog_access) {
+      return getPublishedPosts().then(resolve).catch(reject);
+    }
+    const cutoff = user.subscribed_at || user.created_at;
+    if (!cutoff) {
+      return getPublishedPosts().then(resolve).catch(reject);
+    }
+    const sql = `SELECT * FROM posts
+                   WHERE deleted_at IS NULL AND is_published = 1 AND published_at >= ?
+                   ORDER BY published_at DESC`;
+    db.all(sql, [cutoff], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+};
+
+// Set is_paying and stamp subscribed_at when a user (re)activates.
+const activateUserSubscription = (id) => {
+  return updateUserFields(id, {
+    is_paying: 1,
+    subscribed_at: new Date().toISOString()
   });
 };
 
@@ -453,6 +491,9 @@ module.exports = {
   getPostById,
   getAllPosts,
   getPublishedPosts,
+  getPublishedPostsForUser,
+  userCanAccessPost,
+  activateUserSubscription,
   updatePost,
   softDeletePost,
   countPosts,

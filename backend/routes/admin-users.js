@@ -8,6 +8,7 @@ const {
   getUserById,
   getUsersFiltered,
   updateUserFields,
+  activateUserSubscription,
   softDeleteUser
 } = require('../database');
 
@@ -39,7 +40,8 @@ router.post('/', async (req, res) => {
   try {
     const {
       username, email, password, whatsapp_id, signal_id,
-      payment_category, access_type, subscription_price, is_admin, is_paying
+      payment_category, access_type, subscription_price, is_admin, is_paying,
+      back_catalog_access
     } = req.body;
 
     if (!username || !email) {
@@ -74,7 +76,8 @@ router.post('/', async (req, res) => {
       access_type: access_type || 'both',
       subscription_price: subscription_price !== undefined && subscription_price !== '' ? parseFloat(subscription_price) : null,
       is_admin: !!is_admin,
-      is_paying: !!is_paying
+      is_paying: !!is_paying,
+      back_catalog_access: !!back_catalog_access
     });
 
     const created = await getUserById(newUser.id);
@@ -115,6 +118,9 @@ router.put('/:id', async (req, res) => {
     if (data.is_paying !== undefined) data.is_paying = data.is_paying ? 1 : 0;
     if (data.is_admin !== undefined) data.is_admin = data.is_admin ? 1 : 0;
     if (data.is_free !== undefined) data.is_free = data.is_free ? 1 : 0;
+    if (data.back_catalog_access !== undefined) {
+      data.back_catalog_access = data.back_catalog_access ? 1 : 0;
+    }
     if (data.subscription_price === '' || data.subscription_price === null) {
       data.subscription_price = null;
     } else if (data.subscription_price !== undefined) {
@@ -125,8 +131,20 @@ router.put('/:id', async (req, res) => {
     delete data.password;
     delete data.rss_token;
     delete data.deleted_at;
+    delete data.subscribed_at;
+
+    const existing = await getUserById(id);
+    if (!existing) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const activating =
+      data.is_paying === 1 && !existing.is_paying;
 
     await updateUserFields(id, data);
+    if (activating) {
+      await activateUserSubscription(id);
+    }
     const updated = await getUserById(id);
     res.json({ message: 'User updated', user: sanitizeUser(updated) });
   } catch (error) {

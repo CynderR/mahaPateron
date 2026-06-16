@@ -6,6 +6,7 @@ const {
   getUserByStripeCustomerId,
   getUserByStripeSubId,
   updateUserFields,
+  activateUserSubscription,
   getPlatformSettings
 } = require('../database');
 
@@ -179,9 +180,10 @@ const webhookHandler = async (req, res) => {
         const invoice = event.data.object;
         const user = await getUserByStripeCustomerId(invoice.customer);
         if (user) {
-          const fields = { is_paying: 1 };
-          if (invoice.subscription) fields.stripe_sub_id = invoice.subscription;
-          await updateUserFields(user.id, fields);
+          await activateUserSubscription(user.id);
+          if (invoice.subscription) {
+            await updateUserFields(user.id, { stripe_sub_id: invoice.subscription });
+          }
         }
         break;
       }

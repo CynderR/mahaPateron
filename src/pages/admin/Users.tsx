@@ -19,7 +19,8 @@ const emptyNewUser = {
   payment_category: 'full',
   access_type: 'both',
   subscription_price: '',
-  is_paying: false
+  is_paying: false,
+  back_catalog_access: false
 };
 
 const Users: React.FC = () => {
@@ -148,6 +149,11 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>
                 <input type="checkbox" checked={newUser.is_paying} onChange={(e) => setNewUser({ ...newUser, is_paying: e.target.checked })} /> Mark as paying
+              </label>
+            </div>
+            <div className="pod-form-group">
+              <label>
+                <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Grant access to all prior episodes
               </label>
             </div>
             <button type="submit" className="pod-btn">

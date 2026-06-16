@@ -5,7 +5,7 @@ const {
   getUserById,
   getUserByEmail,
   getUserByUsername,
-  getPublishedPosts,
+  getPublishedPostsForUser,
   updateUserFields,
   softDeleteUser
 } = require('../database');
@@ -26,11 +26,12 @@ router.get('/feed', async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const posts = await getPublishedPosts();
+    const posts = await getPublishedPostsForUser(user);
     const { canStream, canRss } = accessFlags(user);
 
     res.json({
       is_paying: !!user.is_paying,
+      back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
       posts: posts.map((p) => ({

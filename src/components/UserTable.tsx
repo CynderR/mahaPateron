@@ -6,6 +6,7 @@ export interface AdminUser {
   email: string;
   is_admin: boolean | number;
   is_paying: boolean | number;
+  back_catalog_access: boolean | number;
   payment_category: 'full' | 'free' | 'discounted' | 'non_card';
   access_type: 'rss' | 'streaming' | 'both';
   subscription_price: number | null;
@@ -35,6 +36,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
             <th>User</th>
             <th>Category</th>
             <th>Paying</th>
+            <th title="Grants access to all episodes published before the user subscribed">Archive</th>
             <th>Access</th>
             <th>Price</th>
             <th>RSS</th>
@@ -66,6 +68,14 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
                   type="checkbox"
                   checked={!!u.is_paying}
                   onChange={(e) => onUpdate(u.id, 'is_paying', e.target.checked)}
+                />
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={!!u.back_catalog_access}
+                  title="All prior episodes"
+                  onChange={(e) => onUpdate(u.id, 'back_catalog_access', e.target.checked)}
                 />
               </td>
               <td>

@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
-const { getUserByRssToken, getUserById, getPostById, logStreamEvent } = require('../database');
+const { getUserByRssToken, getUserById, getPostById, logStreamEvent, userCanAccessPost } = require('../database');
 
 const router = express.Router();
 
@@ -50,6 +50,9 @@ router.get('/:postId', async (req, res) => {
     const post = await getPostById(req.params.postId);
     if (!post || !post.is_published) {
       return res.status(404).json({ error: 'Episode not found' });
+    }
+    if (!userCanAccessPost(user, post)) {
+      return res.status(403).json({ error: 'This episode is not included in your subscription' });
     }
 
     const filePath = path.join(AUDIO_DIR, post.audio_filename);
