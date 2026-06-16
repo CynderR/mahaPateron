@@ -73,8 +73,19 @@ else
   print_warning "Skipped nginx MIME check (RELOAD_NGINX=0)"
 fi
 
+pm2_restart_or_start() {
+  local name="$1"
+  if pm2 describe "$name" >/dev/null 2>&1; then
+    pm2 restart "$name" --update-env
+  else
+    print_warning "PM2 process '$name' not found — starting from ecosystem.config.js"
+    pm2 start "$SCRIPT_DIR/ecosystem.config.js" --only "$name"
+    pm2 save
+  fi
+}
+
 print_status "Restarting production backend (pm2)..."
-pm2 restart user-management-backend
+pm2_restart_or_start user-management-backend
 
 echo ""
 echo "=================================================="

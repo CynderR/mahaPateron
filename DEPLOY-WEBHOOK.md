@@ -86,6 +86,8 @@ Push a small change to `main` and confirm a new `deploy-*.log` file appears.
 |---------|-------|
 | `404` on `/hooks/github-deploy/status` | Run `sudo python3 scripts/patch-nginx-deploy-webhook.py && sudo nginx -t && sudo systemctl reload nginx` |
 | `webhook.log` missing | Normal before first event; re-run setup to create it, or wait for a GitHub ping/push |
+| `Host key verification failed` in deploy log | Reset `~/.ssh/known_hosts` (hostname only) and add `CheckHostIP no` under `Host github.com` in `~/.ssh/config` |
+| `PM2 ... user-management-backend not found` | `pm2 start ecosystem.config.js --only user-management-backend && pm2 save` (latest `update-production.sh` auto-starts if missing) |
 | `401 Invalid signature` | Secret mismatch between GitHub and `.env` |
 | `Deploy already in progress` | Previous deploy still running; wait or inspect latest log |
 | Deploy fails mid-run | `tail -100 /var/log/deploy-webhook/deploy-*.log` |

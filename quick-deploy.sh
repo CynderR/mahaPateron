@@ -6,5 +6,10 @@ git pull origin main
 npm install
 cd backend && npm install && cd ..
 npm run build
-pm2 restart user-management-backend --update-env
+if pm2 describe user-management-backend >/dev/null 2>&1; then
+  pm2 restart user-management-backend --update-env
+else
+  pm2 start ecosystem.config.js --only user-management-backend
+  pm2 save
+fi
 echo "✅ Deployment complete!"
