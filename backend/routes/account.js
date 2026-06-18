@@ -6,6 +6,7 @@ const {
   getUserByEmail,
   getUserByUsername,
   getPublishedPostsForUser,
+  getLibraryForUser,
   updateUserFields,
   softDeleteUser
 } = require('../database');
@@ -45,6 +46,30 @@ router.get('/feed', async (req, res) => {
     });
   } catch (error) {
     console.error('Account feed error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /library — full episode catalog with per-item access flags.
+router.get('/library', async (req, res) => {
+  try {
+    const user = await getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const entries = await getLibraryForUser(user);
+    const { canStream, canRss } = accessFlags(user);
+
+    res.json({
+      is_paying: !!user.is_paying,
+      back_catalog_access: !!user.back_catalog_access,
+      canStream,
+      canRss,
+      total: entries.length,
+      accessible: entries.filter((e) => e.accessible).length,
+      entries
+    });
+  } catch (error) {
+    console.error('Account library error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

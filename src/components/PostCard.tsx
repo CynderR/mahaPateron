@@ -15,6 +15,7 @@ interface PostCardProps {
   post: FeedPost;
   rssToken?: string;
   canStream: boolean;
+  locked?: boolean;
 }
 
 const formatDuration = (secs?: number | null): string => {
@@ -26,7 +27,7 @@ const formatDuration = (secs?: number | null): string => {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream }) => {
+const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream, locked = false }) => {
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
@@ -46,7 +47,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream }) => {
           {post.duration_secs ? ` · ${formatDuration(post.duration_secs)}` : ''}
         </div>
         {post.description && <p className="pod-post-desc">{post.description}</p>}
-        {canStream ? (
+        {locked ? (
+          <p className="pod-post-meta">This episode is outside your subscription period.</p>
+        ) : canStream ? (
           <AudioPlayer postId={post.id} rssToken={rssToken} />
         ) : (
           <p className="pod-post-meta">Streaming is not included in your plan.</p>

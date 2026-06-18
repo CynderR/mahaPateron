@@ -41,7 +41,7 @@ router.post('/', async (req, res) => {
     const {
       username, email, password, whatsapp_id, signal_id,
       payment_category, access_type, subscription_price, is_admin, is_paying,
-      back_catalog_access
+      back_catalog_access, monthly_payments
     } = req.body;
 
     if (!username || !email) {
@@ -73,11 +73,12 @@ router.post('/', async (req, res) => {
       whatsapp_id: whatsapp_id || null,
       signal_id: signal_id || null,
       payment_category: payment_category || 'full',
-      access_type: access_type || 'both',
+      access_type: access_type || 'streaming',
       subscription_price: subscription_price !== undefined && subscription_price !== '' ? parseFloat(subscription_price) : null,
       is_admin: !!is_admin,
       is_paying: !!is_paying,
-      back_catalog_access: !!back_catalog_access
+      back_catalog_access: !!back_catalog_access,
+      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false'
     });
 
     const created = await getUserById(newUser.id);
@@ -120,6 +121,9 @@ router.put('/:id', async (req, res) => {
     if (data.is_free !== undefined) data.is_free = data.is_free ? 1 : 0;
     if (data.back_catalog_access !== undefined) {
       data.back_catalog_access = data.back_catalog_access ? 1 : 0;
+    }
+    if (data.monthly_payments !== undefined) {
+      data.monthly_payments = data.monthly_payments ? 1 : 0;
     }
     if (data.subscription_price === '' || data.subscription_price === null) {
       data.subscription_price = null;

@@ -65,21 +65,22 @@ const createUser = (userData) => {
     const {
       username, email, password, is_free, is_admin,
       whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying,
-      back_catalog_access
+      back_catalog_access, monthly_payments
     } = userData;
     const rss_token = userData.rss_token || uuidv4();
     const subscribed_at = is_paying ? (userData.subscribed_at || new Date().toISOString()) : null;
     const sql = `INSERT INTO users (
                    username, email, password, is_free, is_admin,
                    whatsapp_id, signal_id, payment_category, access_type, subscription_price,
-                   is_paying, rss_token, subscribed_at, back_catalog_access
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                   is_paying, rss_token, subscribed_at, back_catalog_access, monthly_payments
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
       username, email, password, is_free || false, is_admin || false,
-      whatsapp_id || null, signal_id || null, payment_category || 'full', access_type || 'both',
+      whatsapp_id || null, signal_id || null, payment_category || 'full', access_type || 'streaming',
       subscription_price != null ? subscription_price : null, is_paying ? 1 : 0, rss_token,
-      subscribed_at, back_catalog_access ? 1 : 0
+      subscribed_at, back_catalog_access ? 1 : 0,
+      monthly_payments === false || monthly_payments === 0 ? 0 : 1
     ], function(err) {
       if (err) {
         reject(err);
@@ -223,7 +224,7 @@ const USER_UPDATABLE_FIELDS = [
   'username', 'email', 'is_free', 'is_admin',
   'whatsapp_id', 'signal_id', 'payment_category', 'is_paying', 'access_type',
   'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at',
-  'subscribed_at', 'back_catalog_access'
+  'subscribed_at', 'back_catalog_access', 'monthly_payments'
 ];
 
 // Dynamic update used by the admin and account routes; only whitelisted
@@ -258,7 +259,7 @@ const softDeleteUser = (id) => {
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
   stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
-  subscribed_at, back_catalog_access, created_at, updated_at`;
+  subscribed_at, back_catalog_access, monthly_payments, created_at, updated_at`;
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -317,16 +318,20 @@ const getUserStats = () => {
 const createPost = (postData) => {
   return new Promise((resolve, reject) => {
     const id = postData.id || uuidv4();
-    const { title, description, audio_filename, image_filename, duration_secs, created_by, is_published } = postData;
-    const sql = `INSERT INTO posts (id, title, description, audio_filename, image_filename, duration_secs, created_by, is_published)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+    const { title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at } = postData;
+    const published = is_published === false || is_published === 0 ? 0 : 1;
+    const publishedAt = published_at || new Date().toISOString();
+    const sql = `INSERT INTO posts (id, title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     db.run(sql, [
       id, title, description || null, audio_filename, image_filename || null,
-      duration_secs != null ? duration_secs : null, created_by || null,
-      is_published === false || is_published === 0 ? 0 : 1
+      duration_secs != null ? duration_secs : null, created_by || null, published, publishedAt
     ], function (err) {
-      if (err) reject(err);
-      else resolve({ id, ...postData });
+      if (err) return reject(err);
+      getPostById(id)
+        .then((post) => syncLibraryFromPost(post))
+        .then(() => resolve({ id, ...postData }))
+        .catch(reject);
     });
   });
 };
@@ -384,7 +389,7 @@ const activateUserSubscription = (id) => {
   });
 };
 
-const POST_UPDATABLE_FIELDS = ['title', 'description', 'audio_filename', 'image_filename', 'duration_secs', 'is_published'];
+const POST_UPDATABLE_FIELDS = ['title', 'description', 'audio_filename', 'image_filename', 'duration_secs', 'is_published', 'published_at'];
 
 const updatePost = (id, data) => {
   return new Promise((resolve, reject) => {
@@ -396,8 +401,11 @@ const updatePost = (id, data) => {
     const values = keys.map((k) => data[k]);
     const sql = `UPDATE posts SET ${setClause} WHERE id = ?`;
     db.run(sql, [...values, id], function (err) {
-      if (err) reject(err);
-      else resolve({ id, updated: this.changes > 0 });
+      if (err) return reject(err);
+      getPostById(id)
+        .then((post) => (post ? syncLibraryFromPost(post) : null))
+        .then(() => resolve({ id, updated: this.changes > 0 }))
+        .catch(reject);
     });
   });
 };
@@ -405,8 +413,10 @@ const updatePost = (id, data) => {
 const softDeletePost = (id) => {
   return new Promise((resolve, reject) => {
     db.run('UPDATE posts SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?', [id], function (err) {
-      if (err) reject(err);
-      else resolve({ deleted: this.changes > 0 });
+      if (err) return reject(err);
+      softDeleteLibraryEntry(id)
+        .then(() => resolve({ deleted: this.changes > 0 }))
+        .catch(reject);
     });
   });
 };
@@ -415,6 +425,101 @@ const countPosts = () => {
   return new Promise((resolve, reject) => {
     db.get('SELECT COUNT(*) AS count FROM posts WHERE deleted_at IS NULL', [], (err, row) =>
       err ? reject(err) : resolve(row.count)
+    );
+  });
+};
+
+// ----- Library (canonical catalog of all episodes) -----
+
+const syncLibraryFromPost = (post) => {
+  return new Promise((resolve, reject) => {
+    if (!post) return resolve({ synced: false });
+
+    if (post.deleted_at) {
+      return softDeleteLibraryEntry(post.id).then(resolve).catch(reject);
+    }
+
+    const sql = `INSERT INTO library (
+                   id, post_id, title, description, audio_filename, image_filename,
+                   duration_secs, is_published, published_at, updated_at, deleted_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
+                 ON CONFLICT(post_id) DO UPDATE SET
+                   title = excluded.title,
+                   description = excluded.description,
+                   audio_filename = excluded.audio_filename,
+                   image_filename = excluded.image_filename,
+                   duration_secs = excluded.duration_secs,
+                   is_published = excluded.is_published,
+                   published_at = excluded.published_at,
+                   updated_at = CURRENT_TIMESTAMP,
+                   deleted_at = NULL`;
+
+    db.run(sql, [
+      post.id,
+      post.id,
+      post.title,
+      post.description || null,
+      post.audio_filename,
+      post.image_filename || null,
+      post.duration_secs != null ? post.duration_secs : null,
+      post.is_published ? 1 : 0,
+      post.published_at || new Date().toISOString()
+    ], function (err) {
+      if (err) reject(err);
+      else resolve({ synced: true, id: post.id });
+    });
+  });
+};
+
+const softDeleteLibraryEntry = (postId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'UPDATE library SET deleted_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE post_id = ?',
+      [postId],
+      function (err) {
+        if (err) reject(err);
+        else resolve({ deleted: this.changes > 0 });
+      }
+    );
+  });
+};
+
+const getAllLibraryEntries = () => {
+  return new Promise((resolve, reject) => {
+    const sql = 'SELECT * FROM library WHERE deleted_at IS NULL ORDER BY published_at DESC';
+    db.all(sql, [], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+};
+
+const getPublishedLibraryEntries = () => {
+  return new Promise((resolve, reject) => {
+    const sql = `SELECT * FROM library
+                 WHERE deleted_at IS NULL AND is_published = 1
+                 ORDER BY published_at DESC`;
+    db.all(sql, [], (err, rows) => (err ? reject(err) : resolve(rows)));
+  });
+};
+
+const getLibraryForUser = (user) => {
+  return getPublishedLibraryEntries().then((entries) =>
+    entries.map((entry) => ({
+      id: entry.post_id,
+      title: entry.title,
+      description: entry.description,
+      duration_secs: entry.duration_secs,
+      published_at: entry.published_at,
+      image_filename: entry.image_filename || null,
+      accessible: userCanAccessPost(user, entry)
+    }))
+  );
+};
+
+const countLibraryEntries = () => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT COUNT(*) AS count FROM library WHERE deleted_at IS NULL AND is_published = 1',
+      [],
+      (err, row) => (err ? reject(err) : resolve(row.count))
     );
   });
 };
@@ -497,6 +602,11 @@ module.exports = {
   updatePost,
   softDeletePost,
   countPosts,
+  syncLibraryFromPost,
+  getAllLibraryEntries,
+  getPublishedLibraryEntries,
+  getLibraryForUser,
+  countLibraryEntries,
   getPlatformSettings,
   updatePlatformSettings,
   logStreamEvent,

@@ -3,6 +3,7 @@ const express = require('express');
 const {
   getUserStats,
   countPosts,
+  countLibraryEntries,
   getStreamStats,
   getPlatformSettings,
   updatePlatformSettings
@@ -13,9 +14,10 @@ const router = express.Router();
 // GET /stats — dashboard summary cards.
 router.get('/stats', async (req, res) => {
   try {
-    const [userStats, postCount, streamStats, settings] = await Promise.all([
+    const [userStats, postCount, libraryCount, streamStats, settings] = await Promise.all([
       getUserStats(),
       countPosts(),
+      countLibraryEntries(),
       getStreamStats(),
       getPlatformSettings()
     ]);
@@ -32,6 +34,7 @@ router.get('/stats', async (req, res) => {
       freeUsers: userStats.free || 0,
       mrr: Number(mrr.toFixed(2)),
       totalPosts: postCount || 0,
+      libraryEntries: libraryCount || 0,
       totalStreams: streamStats.total_streams || 0,
       totalStreamHours: Number(((streamStats.total_duration_secs || 0) / 3600).toFixed(1))
     });

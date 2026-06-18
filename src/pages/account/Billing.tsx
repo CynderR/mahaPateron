@@ -12,6 +12,7 @@ interface BillingConfig {
 }
 
 interface Subscription {
+  monthly_payments?: boolean;
   active: boolean;
   status?: string;
   is_paying: boolean;
@@ -81,10 +82,8 @@ const Billing: React.FC = () => {
     try {
       const cfg = await axios.get<BillingConfig>('/payments/config');
       setConfig(cfg.data);
-      if (cfg.data.configured) {
-        const sub = await axios.get<Subscription>('/payments/subscription');
-        setSubscription(sub.data);
-      }
+      const sub = await axios.get<Subscription>('/payments/subscription');
+      setSubscription(sub.data);
     } catch (e) {
       setError('Could not load billing information.');
     } finally {
@@ -152,6 +151,14 @@ const Billing: React.FC = () => {
 
         {loading ? (
           <div className="pod-empty">Loading…</div>
+        ) : subscription && subscription.monthly_payments === false ? (
+          <div className="pod-card">
+            <h3 style={{ marginTop: 0 }}>Billing</h3>
+            <p style={{ margin: 0 }}>
+              Your account is managed by the administrator and is not billed monthly through Stripe.
+              {subscription.is_paying ? ' Your access is currently active.' : ' Contact support if you need access restored.'}
+            </p>
+          </div>
         ) : !config?.configured ? (
           <div className="pod-card">
             <p style={{ margin: 0 }}>Billing is not configured yet. Please check back soon.</p>

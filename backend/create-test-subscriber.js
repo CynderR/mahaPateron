@@ -22,7 +22,8 @@ const SUBSCRIBER_FIELDS = {
   access_type: 'both',
   is_admin: 0,
   is_free: 0,
-  subscription_price: null
+  subscription_price: null,
+  monthly_payments: 0
 };
 
 async function createTestSubscriber() {
@@ -47,7 +48,8 @@ async function createTestSubscriber() {
       is_admin: false,
       is_paying: true,
       payment_category: 'free',
-      access_type: 'both'
+      access_type: 'both',
+      monthly_payments: false
     });
 
     const user = await getUserById(created.id);
@@ -69,6 +71,7 @@ function printDetails(user) {
   console.log('Access:');
   console.log(`  is_paying:         ${!!user.is_paying} (subscribed)`);
   console.log(`  payment_category:  ${user.payment_category} (no Stripe charge)`);
+  console.log(`  monthly_payments:  ${!!user.monthly_payments}`);
   console.log(`  access_type:       ${user.access_type}`);
   console.log('');
   console.log(`RSS feed: ${BASE_URL}/rss/${user.rss_token}`);

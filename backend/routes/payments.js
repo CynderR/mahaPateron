@@ -44,15 +44,36 @@ router.get('/config', async (req, res) => {
 });
 
 // GET /subscription — current plan details pulled from Stripe.
-router.get('/subscription', requireStripe, async (req, res) => {
+router.get('/subscription', async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
-    if (!user || !user.stripe_sub_id) {
-      return res.json({ active: false, is_paying: !!(user && user.is_paying) });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.monthly_payments) {
+      return res.json({
+        monthly_payments: false,
+        active: !!user.is_paying,
+        is_paying: !!user.is_paying
+      });
+    }
+
+    if (!stripe) {
+      return res.json({
+        monthly_payments: true,
+        active: false,
+        is_paying: !!user.is_paying
+      });
+    }
+
+    if (!user.stripe_sub_id) {
+      return res.json({ monthly_payments: true, active: false, is_paying: !!user.is_paying });
     }
     const sub = await stripe.subscriptions.retrieve(user.stripe_sub_id);
     const item = sub.items.data[0];
     res.json({
+      monthly_payments: true,
       active: sub.status === 'active' || sub.status === 'trialing',
       status: sub.status,
       is_paying: !!user.is_paying,
@@ -73,6 +94,9 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
+    }
+    if (!user.monthly_payments) {
+      return res.status(403).json({ error: 'Monthly billing is not enabled for this account' });
     }
 
     let customerId = user.stripe_customer_id;

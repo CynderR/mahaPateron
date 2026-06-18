@@ -10,12 +10,14 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import Feed from './pages/Feed';
+import Library from './pages/Library';
 import RssFeed from './pages/account/RssFeed';
 import Settings from './pages/account/Settings';
 import Billing from './pages/account/Billing';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import AdminPosts from './pages/admin/Posts';
+import AdminLibrary from './pages/admin/Library';
 import './App.css';
 import './styles/themes.css';
 import './styles/podcast.css';
@@ -38,6 +40,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Feed />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/library"
+        element={
+          <ProtectedRoute>
+            <Library />
           </ProtectedRoute>
         }
       />
@@ -87,6 +97,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requireAdmin={true}>
             <AdminPosts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/library"
+        element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminLibrary />
           </ProtectedRoute>
         }
       />

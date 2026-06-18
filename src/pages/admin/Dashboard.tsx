@@ -9,6 +9,7 @@ interface Stats {
   freeUsers: number;
   mrr: number;
   totalPosts: number;
+  libraryEntries: number;
   totalStreams: number;
   totalStreamHours: number;
 }
@@ -45,6 +46,7 @@ const Dashboard: React.FC = () => {
             <StatCard label="Free users" value={stats.freeUsers} />
             <StatCard label="MRR" value={`$${stats.mrr.toFixed(2)}`} />
             <StatCard label="Total posts" value={stats.totalPosts} />
+            <StatCard label="Library episodes" value={stats.libraryEntries} />
             <StatCard label="Stream hours" value={stats.totalStreamHours} />
           </div>
         )}
@@ -57,6 +59,9 @@ const Dashboard: React.FC = () => {
             </Link>
             <Link className="pod-btn" to="/admin/posts">
               Manage Posts
+            </Link>
+            <Link className="pod-btn" to="/admin/library">
+              Manage Library
             </Link>
           </div>
         </div>

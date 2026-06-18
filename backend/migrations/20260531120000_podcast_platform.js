@@ -12,7 +12,7 @@ const USER_COLUMNS = [
   'ALTER TABLE users ADD COLUMN signal_id TEXT',
   "ALTER TABLE users ADD COLUMN payment_category TEXT DEFAULT 'full'",
   'ALTER TABLE users ADD COLUMN is_paying INTEGER DEFAULT 0',
-  "ALTER TABLE users ADD COLUMN access_type TEXT DEFAULT 'both'",
+  "ALTER TABLE users ADD COLUMN access_type TEXT DEFAULT 'streaming'",
   'ALTER TABLE users ADD COLUMN stripe_customer_id TEXT',
   'ALTER TABLE users ADD COLUMN stripe_sub_id TEXT',
   'ALTER TABLE users ADD COLUMN rss_token TEXT',
@@ -20,6 +20,7 @@ const USER_COLUMNS = [
   'ALTER TABLE users ADD COLUMN deleted_at DATETIME',
   'ALTER TABLE users ADD COLUMN subscribed_at DATETIME',
   'ALTER TABLE users ADD COLUMN back_catalog_access INTEGER DEFAULT 0',
+  'ALTER TABLE users ADD COLUMN monthly_payments INTEGER DEFAULT 1',
 ];
 
 const run = (db, sql, params = []) =>
@@ -91,6 +92,47 @@ const runPodcastMigration = async (db) => {
     )`
   );
 
+  await run(
+    db,
+    `CREATE TABLE IF NOT EXISTS library (
+      id TEXT PRIMARY KEY,
+      post_id TEXT UNIQUE NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      audio_filename TEXT NOT NULL,
+      image_filename TEXT,
+      duration_secs INTEGER,
+      is_published INTEGER DEFAULT 1,
+      published_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      deleted_at DATETIME
+    )`
+  );
+
+  // Keep the library catalog in sync with every non-deleted post.
+  await run(
+    db,
+    `INSERT INTO library (
+       id, post_id, title, description, audio_filename, image_filename,
+       duration_secs, is_published, published_at, updated_at, deleted_at
+     )
+     SELECT
+       id, id, title, description, audio_filename, image_filename,
+       duration_secs, is_published, published_at, CURRENT_TIMESTAMP, deleted_at
+     FROM posts
+     ON CONFLICT(post_id) DO UPDATE SET
+       title = excluded.title,
+       description = excluded.description,
+       audio_filename = excluded.audio_filename,
+       image_filename = excluded.image_filename,
+       duration_secs = excluded.duration_secs,
+       is_published = excluded.is_published,
+       published_at = excluded.published_at,
+       updated_at = CURRENT_TIMESTAMP,
+       deleted_at = excluded.deleted_at`
+  );
+
   // Ensure the single configuration row exists.
   const settings = await get(db, 'SELECT id FROM platform_settings WHERE id = 1');
   if (!settings) {
@@ -120,6 +162,13 @@ const runPodcastMigration = async (db) => {
       await run(db, 'UPDATE users SET back_catalog_access = 1 WHERE id = ?', [row.id]);
     }
   }
+
+  // Comped / manual-payment users are not on Stripe monthly billing.
+  await run(
+    db,
+    `UPDATE users SET monthly_payments = 0
+     WHERE payment_category IN ('free', 'non_card')`
+  );
 
   console.log(`Podcast platform migration applied (${rows.length} RSS tokens backfilled)`);
 };

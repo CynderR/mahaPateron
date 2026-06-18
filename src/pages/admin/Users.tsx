@@ -17,10 +17,11 @@ const emptyNewUser = {
   whatsapp_id: '',
   signal_id: '',
   payment_category: 'full',
-  access_type: 'both',
+  access_type: 'streaming',
   subscription_price: '',
   is_paying: false,
-  back_catalog_access: false
+  back_catalog_access: false,
+  monthly_payments: true
 };
 
 const Users: React.FC = () => {
@@ -137,9 +138,9 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Access type</label>
               <select className="pod-select" value={newUser.access_type} onChange={(e) => setNewUser({ ...newUser, access_type: e.target.value })}>
-                <option value="both">both</option>
-                <option value="rss">rss</option>
                 <option value="streaming">streaming</option>
+                <option value="rss">rss</option>
+                <option value="both">both</option>
               </select>
             </div>
             <div className="pod-form-group">
@@ -154,6 +155,11 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>
                 <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Grant access to all prior episodes
+              </label>
+            </div>
+            <div className="pod-form-group">
+              <label>
+                <input type="checkbox" checked={newUser.monthly_payments} onChange={(e) => setNewUser({ ...newUser, monthly_payments: e.target.checked })} /> Require monthly Stripe payments
               </label>
             </div>
             <button type="submit" className="pod-btn">
