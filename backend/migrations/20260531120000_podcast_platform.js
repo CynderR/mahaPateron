@@ -110,17 +110,13 @@ const runPodcastMigration = async (db) => {
     )`
   );
 
-  // Keep the library catalog in sync with every non-deleted post.
-  await run(
-    db,
-    `INSERT INTO library (
+  // Keep the library catalog in sync with every post. SQLite only allows
+  // ON CONFLICT with INSERT ... VALUES, not INSERT ... SELECT.
+  const posts = await all(db, 'SELECT * FROM posts');
+  const upsertLibrarySql = `INSERT INTO library (
        id, post_id, title, description, audio_filename, image_filename,
        duration_secs, is_published, published_at, updated_at, deleted_at
-     )
-     SELECT
-       id, id, title, description, audio_filename, image_filename,
-       duration_secs, is_published, published_at, CURRENT_TIMESTAMP, deleted_at
-     FROM posts
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)
      ON CONFLICT(post_id) DO UPDATE SET
        title = excluded.title,
        description = excluded.description,
@@ -130,8 +126,22 @@ const runPodcastMigration = async (db) => {
        is_published = excluded.is_published,
        published_at = excluded.published_at,
        updated_at = CURRENT_TIMESTAMP,
-       deleted_at = excluded.deleted_at`
-  );
+       deleted_at = excluded.deleted_at`;
+
+  for (const post of posts) {
+    await run(db, upsertLibrarySql, [
+      post.id,
+      post.id,
+      post.title,
+      post.description || null,
+      post.audio_filename,
+      post.image_filename || null,
+      post.duration_secs != null ? post.duration_secs : null,
+      post.is_published ? 1 : 0,
+      post.published_at || null,
+      post.deleted_at || null,
+    ]);
+  }
 
   // Ensure the single configuration row exists.
   const settings = await get(db, 'SELECT id FROM platform_settings WHERE id = 1');
