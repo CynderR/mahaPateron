@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import PodcastNav from '../components/PodcastNav';
-import LibraryAddForm from '../components/LibraryAddForm';
+import PodcastNav from '../../components/PodcastNav';
+import LibraryAddForm from '../../components/LibraryAddForm';
 
 interface LibraryEntry {
   id: string;
