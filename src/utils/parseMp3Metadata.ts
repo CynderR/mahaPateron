@@ -18,6 +18,21 @@ const fallbackFromFilename = (filename: string): Pick<Mp3Metadata, 'title' | 'ye
   return { title: base.trim(), year: '' };
 };
 
+/** Full display title from filename (keeps date prefix, e.g. 2005-09-28 - Be Vigilant). */
+export const titleFromFilename = (filename: string): string =>
+  filename.replace(/\.mp3$/i, '').trim();
+
+/** Parse YYYY-MM-DD from the start of a filename for archive backdating. */
+export const publishedAtFromFilename = (filename: string): string | null => {
+  const match = titleFromFilename(filename).match(/^(\d{4}-\d{2}-\d{2})/);
+  if (!match) return null;
+  const date = new Date(`${match[1]}T12:00:00`);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
+
+const isMp3File = (file: File): boolean =>
+  file.type === 'audio/mpeg' || file.type === 'audio/mp3' || /\.mp3$/i.test(file.name);
+
 const toUint8Array = (data: Uint8Array | number[]): Uint8Array =>
   data instanceof Uint8Array ? data : new Uint8Array(data);
 
@@ -103,3 +118,8 @@ export const buildDescription = (
 
   return lines.join('\n');
 };
+
+export { isMp3File };
+
+export const filterMp3Files = (files: FileList | File[]): File[] =>
+  Array.from(files).filter(isMp3File).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));

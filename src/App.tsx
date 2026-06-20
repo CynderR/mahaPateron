@@ -19,6 +19,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminUsers from './pages/admin/Users';
 import AdminPosts from './pages/admin/Posts';
 import AdminLibrary from './pages/admin/Library';
+import AdminBulkUpload from './pages/admin/BulkUpload';
 import './App.css';
 import './styles/themes.css';
 import './styles/podcast.css';
@@ -114,6 +115,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute requireAdmin={true}>
             <AdminLibrary />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/bulk-upload"
+        element={
+          <ProtectedRoute requireAdmin={true}>
+            <AdminBulkUpload />
           </ProtectedRoute>
         }
       />

@@ -63,6 +63,9 @@ const Dashboard: React.FC = () => {
             <Link className="pod-btn" to="/admin/library">
               Manage Library
             </Link>
+            <Link className="pod-btn" to="/admin/bulk-upload">
+              Bulk Upload
+            </Link>
           </div>
         </div>
       </main>

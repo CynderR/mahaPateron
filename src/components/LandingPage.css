@@ -51,7 +51,7 @@
   pointer-events: auto;
 }
 
-/* Column layout: top bar + full-bleed video */
+/* Top bar over full-bleed background image */
 .landing-layout {
   display: flex;
   flex-direction: column;
@@ -128,45 +128,6 @@ button.sign-in-button {
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
 
-/* Main tutorial video — fills space below top bar */
-.landing-video-shell {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  background: #000;
-}
-
-.landing-main-video {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  border: 0;
-}
-
-/* Title */
-.title-container {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 11;
-  text-align: center;
-}
-
-.main-title {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  font-size: 4rem;
-  font-weight: 300;
-  color: #ffffff;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
-  margin: 0;
-  letter-spacing: 0.1em;
-  animation: fadeIn 1.5s ease-in;
-}
-
 /* Fade In Animation */
 @keyframes fadeIn {
   from {
@@ -191,9 +152,5 @@ button.sign-in-button {
   .sign-in-button {
     padding: 0.6rem 1.5rem;
     font-size: 0.9rem;
-  }
-
-  .main-title {
-    font-size: 2.5rem;
   }
 }

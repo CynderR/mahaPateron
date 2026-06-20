@@ -36,7 +36,9 @@ const storage = multer.diskStorage({
 // Validate MIME type server-side (not just the extension).
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === 'audio') {
-    return cb(null, AUDIO_MIME.includes(file.mimetype));
+    const ok =
+      AUDIO_MIME.includes(file.mimetype) || /\.mp3$/i.test(file.originalname || '');
+    return cb(null, ok);
   }
   if (file.fieldname === 'image') {
     return cb(null, IMAGE_MIME.includes(file.mimetype));
@@ -98,6 +100,13 @@ const saveEmbeddedCover = (metadata) => {
   return filename;
 };
 
+const parsePublishedAt = (value) => {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toISOString();
+};
+
 // GET / — list all posts (including unpublished) for the admin.
 router.get('/', async (req, res) => {
   try {
@@ -112,7 +121,7 @@ router.get('/', async (req, res) => {
 // POST / — multipart upload of a new episode.
 router.post('/', handleUpload, async (req, res) => {
   try {
-    const { title, description, is_published } = req.body;
+    const { title, description, is_published, published_at } = req.body;
     const audioFile = req.files && req.files.audio && req.files.audio[0];
     const imageFile = req.files && req.files.image && req.files.image[0];
 
@@ -127,6 +136,12 @@ router.post('/', handleUpload, async (req, res) => {
     if (imageFile && imageFile.size > MAX_IMAGE_BYTES) {
       removeFiles(req.files);
       return res.status(400).json({ error: 'Image exceeds the 10 MB limit' });
+    }
+
+    const parsedPublishedAt = parsePublishedAt(published_at);
+    if (published_at && !parsedPublishedAt) {
+      removeFiles(req.files);
+      return res.status(400).json({ error: 'Invalid published date' });
     }
 
     const metadata = await parseAudioMetadata(audioFile.path);
@@ -144,7 +159,8 @@ router.post('/', handleUpload, async (req, res) => {
       image_filename: imageFilename,
       duration_secs: duration,
       created_by: req.user.id,
-      is_published: is_published === 'false' || is_published === false ? false : true
+      is_published: is_published === 'false' || is_published === false ? false : true,
+      published_at: parsedPublishedAt || undefined
     });
 
     const created = await getPostById(post.id);

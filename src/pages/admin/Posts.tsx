@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UploadForm from '../../components/UploadForm';
@@ -62,7 +63,12 @@ const Posts: React.FC = () => {
     <div className="podcast-page">
       <PodcastNav />
       <main className="podcast-main">
-        <h2 className="podcast-section-title">Posts</h2>
+        <div className="podcast-section-title-row">
+          <h2 className="podcast-section-title">Posts</h2>
+          <Link to="/admin/bulk-upload" className="pod-btn pod-btn-secondary">
+            Bulk upload
+          </Link>
+        </div>
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <UploadForm onUploaded={load} />

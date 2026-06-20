@@ -24,6 +24,7 @@ const PodcastNav: React.FC = () => {
           <NavLink to="/account/billing">Billing</NavLink>
           <NavLink to="/account/settings">Settings</NavLink>
           {isAdmin && <NavLink to="/admin">Admin</NavLink>}
+          {isAdmin && <NavLink to="/admin/bulk-upload">Bulk Upload</NavLink>}
           <ThemeToggle />
           <button type="button" className="pod-btn pod-btn-secondary pod-btn-sm" onClick={handleLogout}>
             Log out
