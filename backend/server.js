@@ -118,7 +118,7 @@ core.post('/register', async (req, res) => {
 // Login.
 core.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password, rememberMe } = req.body;
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
@@ -133,10 +133,11 @@ core.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    const keepSignedIn = rememberMe !== false && rememberMe !== 'false';
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
       JWT_SECRET,
-      { expiresIn: '24h' }
+      { expiresIn: keepSignedIn ? '30d' : '24h' }
     );
 
     res.json({ message: 'Login successful', user: sanitizeUser(user), token });

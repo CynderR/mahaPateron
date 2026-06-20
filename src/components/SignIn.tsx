@@ -18,6 +18,9 @@ const SignIn: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(
+    () => localStorage.getItem('rememberMe') !== 'false'
+  );
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -29,7 +32,7 @@ const SignIn: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(email, password);
+      await login(email, password, rememberMe);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -85,8 +88,16 @@ const SignIn: React.FC = () => {
             />
           </div>
 
-          <div style={{ textAlign: 'right', marginBottom: '0.75rem' }}>
-            <Link to="/forgot-password" className="auth-link" style={{ fontSize: '0.875rem' }}>
+          <div className="auth-form-options">
+            <label className="auth-remember-label">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+              />
+              Remember me
+            </label>
+            <Link to="/forgot-password" className="auth-link auth-forgot-link">
               Forgot password?
             </Link>
           </div>
