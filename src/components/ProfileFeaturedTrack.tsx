@@ -1,0 +1,76 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { buildImageUrl } from '../config';
+import { FeedPost } from './PostCard';
+import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
+import ProfileWaveform from './ProfileWaveform';
+
+interface ProfileFeaturedTrackProps {
+  post: FeedPost;
+  canStream: boolean;
+}
+
+const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({ post, canStream }) => {
+  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+
+  const cover = coverUrl ? (
+    <img className="ht-featured-cover" src={coverUrl} alt="" />
+  ) : (
+    <div className="ht-featured-cover ht-featured-cover-placeholder" aria-hidden>
+      ♪
+    </div>
+  );
+
+  const body = (
+    <>
+      <div className="ht-featured-top">
+        {canStream ? (
+          <Link to={`/stream/${post.id}`} className="ht-play-btn" aria-label={`Play ${post.title}`}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M8 5v14l11-7z" fill="currentColor" />
+            </svg>
+          </Link>
+        ) : (
+          <span className="ht-play-btn ht-play-btn-disabled" aria-hidden>
+            <svg viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z" fill="currentColor" />
+            </svg>
+          </span>
+        )}
+        <div className="ht-featured-info">
+          {canStream ? (
+            <Link to={`/stream/${post.id}`} className="ht-featured-title-link">
+              <h2 className="ht-featured-title">{post.title}</h2>
+            </Link>
+          ) : (
+            <h2 className="ht-featured-title">{post.title}</h2>
+          )}
+          <p className="ht-featured-artist">
+            <span className="ht-artist-dot" aria-hidden />
+            {PODCAST_AUTHOR}
+          </p>
+        </div>
+      </div>
+      <ProfileWaveform seed={`featured-${post.id}`} barCount={80} className="ht-featured-waveform" />
+      <div className="ht-featured-actions">
+        <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
+        <span className="ht-featured-badge">Members only</span>
+      </div>
+    </>
+  );
+
+  return (
+    <article className="ht-featured">
+      {canStream ? (
+        <Link to={`/stream/${post.id}`} className="ht-featured-cover-link">
+          {cover}
+        </Link>
+      ) : (
+        cover
+      )}
+      <div className="ht-featured-body">{body}</div>
+    </article>
+  );
+};
+
+export default ProfileFeaturedTrack;

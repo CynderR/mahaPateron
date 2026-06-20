@@ -11,6 +11,7 @@ import ResetPassword from './components/ResetPassword';
 import ProtectedRoute from './components/ProtectedRoute';
 import Feed from './pages/Feed';
 import Library from './pages/Library';
+import Stream from './pages/Stream';
 import RssFeed from './pages/account/RssFeed';
 import Settings from './pages/account/Settings';
 import Billing from './pages/account/Billing';
@@ -48,6 +49,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Library />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/stream/:postId"
+        element={
+          <ProtectedRoute>
+            <Stream />
           </ProtectedRoute>
         }
       />

@@ -7,6 +7,8 @@ const {
   getUserByUsername,
   getPublishedPostsForUser,
   getLibraryForUser,
+  getPostById,
+  userCanAccessPost,
   updateUserFields,
   softDeleteUser
 } = require('../database');
@@ -46,6 +48,40 @@ router.get('/feed', async (req, res) => {
     });
   } catch (error) {
     console.error('Account feed error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /episodes/:id — single episode for the streaming page.
+router.get('/episodes/:id', async (req, res) => {
+  try {
+    const user = await getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const post = await getPostById(req.params.id);
+    if (!post || !post.is_published) {
+      return res.status(404).json({ error: 'Episode not found' });
+    }
+
+    const { canStream, canRss } = accessFlags(user);
+    const accessible = userCanAccessPost(user, post);
+
+    res.json({
+      is_paying: !!user.is_paying,
+      canStream,
+      canRss,
+      accessible,
+      post: {
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        duration_secs: post.duration_secs,
+        published_at: post.published_at,
+        image_filename: post.image_filename || null
+      }
+    });
+  } catch (error) {
+    console.error('Account episode error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

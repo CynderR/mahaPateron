@@ -1,5 +1,5 @@
 import React from 'react';
-import AudioPlayer from './AudioPlayer';
+import { Link } from 'react-router-dom';
 import { buildImageUrl } from '../config';
 
 export interface FeedPost {
@@ -33,7 +33,17 @@ const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream, locked =
 
   return (
     <article className="pod-post-card">
-      {coverUrl ? (
+      {canStream && !locked ? (
+        <Link to={`/stream/${post.id}`} className="pod-post-cover-link">
+          {coverUrl ? (
+            <img className="pod-post-cover" src={coverUrl} alt={post.title} />
+          ) : (
+            <div className="pod-post-cover-placeholder" aria-hidden>
+              ♪
+            </div>
+          )}
+        </Link>
+      ) : coverUrl ? (
         <img className="pod-post-cover" src={coverUrl} alt={post.title} />
       ) : (
         <div className="pod-post-cover-placeholder" aria-hidden>
@@ -41,7 +51,13 @@ const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream, locked =
         </div>
       )}
       <div className="pod-post-body">
-        <h3 className="pod-post-title">{post.title}</h3>
+        {canStream && !locked ? (
+          <Link to={`/stream/${post.id}`} className="pod-post-title-link">
+            <h3 className="pod-post-title">{post.title}</h3>
+          </Link>
+        ) : (
+          <h3 className="pod-post-title">{post.title}</h3>
+        )}
         <div className="pod-post-meta">
           {published}
           {post.duration_secs ? ` · ${formatDuration(post.duration_secs)}` : ''}
@@ -50,7 +66,9 @@ const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream, locked =
         {locked ? (
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (
-          <AudioPlayer postId={post.id} rssToken={rssToken} />
+          <Link to={`/stream/${post.id}`} className="pod-btn pod-stream-listen-btn">
+            Listen
+          </Link>
         ) : (
           <p className="pod-post-meta">Streaming is not included in your plan.</p>
         )}

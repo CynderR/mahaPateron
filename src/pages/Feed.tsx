@@ -1,9 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import PodcastNav from '../components/PodcastNav';
-import PostCard, { FeedPost } from '../components/PostCard';
+import HearThisNav from '../components/HearThisNav';
+import ProfileFeaturedTrack from '../components/ProfileFeaturedTrack';
+import ProfileTrackRow from '../components/ProfileTrackRow';
+import { FeedPost } from '../components/PostCard';
+import { buildImageUrl } from '../config';
+import {
+  formatMemberSince,
+  PODCAST_AUTHOR,
+  PODCAST_BANNER_URL,
+  PODCAST_LOCATION,
+  PODCAST_PROFILE_BIO,
+  PODCAST_PROFILE_TITLE
+} from '../podcastMeta';
 
 interface FeedResponse {
   is_paying: boolean;
@@ -32,37 +43,124 @@ const Feed: React.FC = () => {
     load();
   }, []);
 
+  const posts = data?.posts ?? [];
+  const canStream = !!data?.is_paying && !!data?.canStream;
+  const featured = posts[0] ?? null;
+  const listPosts = posts.slice(1);
+
+  const memberSinceSource = useMemo(() => {
+    if (posts.length === 0) return undefined;
+    const oldest = posts.reduce((min, p) => {
+      if (!p.published_at) return min;
+      if (!min) return p.published_at;
+      return new Date(p.published_at) < new Date(min) ? p.published_at : min;
+    }, '' as string);
+    return oldest || undefined;
+  }, [posts]);
+
+  const memberSince = formatMemberSince(memberSinceSource);
+  const soundCount = posts.length;
+
   return (
-    <div className="podcast-page">
-      <PodcastNav />
-      <main className="podcast-main">
-        <h2 className="podcast-section-title">Latest Episodes</h2>
+    <div className="ht-page">
+      <HearThisNav />
 
-        {error && <div className="pod-banner pod-banner-error">{error}</div>}
-
-        {!loading && data && !data.is_paying && (
-          <div className="pod-banner pod-banner-info">
-            Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
+      <section
+        className="ht-profile-banner"
+        style={{ backgroundImage: `url("${PODCAST_BANNER_URL}")` }}
+      >
+        <div className="ht-profile-banner-overlay" />
+        <div className="ht-profile-banner-inner">
+          <img className="ht-profile-avatar" src={PODCAST_BANNER_URL} alt="" />
+          <div className="ht-profile-copy">
+            <h1 className="ht-profile-heading">{PODCAST_PROFILE_TITLE}</h1>
+            <p className="ht-profile-location">{PODCAST_LOCATION}</p>
+            <div className="ht-profile-name-row">
+              <span className="ht-profile-name">{PODCAST_AUTHOR}</span>
+              <span className="ht-profile-plus" aria-hidden>
+                +
+              </span>
+            </div>
+            <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>
+            {memberSince && <p className="ht-profile-since">Member since: {memberSince}</p>}
           </div>
-        )}
+        </div>
+      </section>
 
-        {loading ? (
-          <div className="pod-empty">Loading episodes…</div>
-        ) : data && data.posts.length > 0 ? (
-          <div className="pod-feed-grid">
-            {data.posts.map((post) => (
-              <PostCard
-                key={post.id}
-                post={post}
-                rssToken={user?.rss_token}
-                canStream={!!data.is_paying && data.canStream}
-              />
-            ))}
+      <div className="ht-layout">
+        <main className="ht-main">
+          <div className="ht-tabs-bar">
+            <div className="ht-tabs">
+              <span className="ht-tab ht-tab-active">
+                {soundCount} {soundCount === 1 ? 'Sound' : 'Sounds'}
+              </span>
+              <Link to="/library" className="ht-tab">
+                Library
+              </Link>
+              <Link to="/account/rss" className="ht-tab">
+                RSS
+              </Link>
+            </div>
+            {memberSince && <span className="ht-tabs-since">Member since: {memberSince}</span>}
           </div>
-        ) : (
-          <div className="pod-empty">No episodes have been published yet.</div>
-        )}
-      </main>
+
+          {error && <div className="ht-banner ht-banner-error">{error}</div>}
+
+          {!loading && data && !data.is_paying && (
+            <div className="ht-banner ht-banner-info">
+              Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to
+              episodes.
+            </div>
+          )}
+
+          {loading ? (
+            <div className="ht-empty">Loading sounds…</div>
+          ) : posts.length > 0 ? (
+            <>
+              {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
+              <div className="ht-track-list">
+                {listPosts.map((post, index) => (
+                  <ProfileTrackRow key={post.id} post={post} rank={index + 2} canStream={canStream} />
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="ht-empty">No episodes have been published yet.</div>
+          )}
+        </main>
+
+        <aside className="ht-sidebar">
+          <h4 className="ht-sidebar-title">
+            {soundCount} {soundCount === 1 ? 'Sound' : 'Sounds'}
+          </h4>
+          {posts.length > 0 && (
+            <div className="ht-sidebar-covers">
+              {posts.slice(0, 8).map((post) => {
+                const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+                const thumb = coverUrl ? (
+                  <img src={coverUrl} alt="" />
+                ) : (
+                  <span aria-hidden>♪</span>
+                );
+                return canStream ? (
+                  <Link key={post.id} to={`/stream/${post.id}`} className="ht-sidebar-thumb">
+                    {thumb}
+                  </Link>
+                ) : (
+                  <span key={post.id} className="ht-sidebar-thumb">
+                    {thumb}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          {user && (
+            <p className="ht-sidebar-note">
+              Signed in as <strong>{user.username}</strong>
+            </p>
+          )}
+        </aside>
+      </div>
     </div>
   );
 };
