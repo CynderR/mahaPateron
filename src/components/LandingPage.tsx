@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import './LandingPage.css';
 
 const publicUrl = process.env.PUBLIC_URL || '';
-const LANDING_IMAGE = `${publicUrl}/signal-2026-02-01-105917_002.jpeg`;
+const LANDING_IMAGE = `${publicUrl}/shyam-akaash-landing.png`;
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
