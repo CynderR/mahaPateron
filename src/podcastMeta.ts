@@ -2,11 +2,10 @@ const publicUrl = process.env.PUBLIC_URL || '';
 
 export const PODCAST_AUTHOR = 'Shyam Akaash';
 export const PODCAST_LOCATION = 'Montreal Canada';
-export const PODCAST_PROFILE_TITLE = `Sounds of ${PODCAST_AUTHOR}`;
-export const PODCAST_PROFILE_BIO =
-  'Satsang talks from Swami Shyam. Listen to members-only audio from Shyam Akaash.';
+export const PODCAST_PROFILE_TITLE = PODCAST_AUTHOR;
+export const PODCAST_PROFILE_BIO = 'Satsang talks from Swami Shyam';
 export const PODCAST_GENRE = 'Spiritual';
-export const PODCAST_BANNER_URL = `${publicUrl}/signal-2026-02-01-105917_002.jpeg`;
+export const PODCAST_BANNER_URL = `${publicUrl}/shyam-akaash-landing.png`;
 
 export const formatDuration = (secs?: number | null): string => {
   if (secs === null || secs === undefined) return '';

@@ -1322,8 +1322,8 @@
 .ht-profile-banner {
   position: relative;
   background-size: cover;
-  background-position: center;
-  min-height: 220px;
+  background-position: center 18%;
+  min-height: 240px;
   overflow: hidden;
 }
 
@@ -1349,6 +1349,7 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center 18%;
   border: 3px solid rgba(255, 255, 255, 0.85);
   flex-shrink: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);

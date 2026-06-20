@@ -11,9 +11,7 @@ import {
   formatMemberSince,
   PODCAST_AUTHOR,
   PODCAST_BANNER_URL,
-  PODCAST_LOCATION,
-  PODCAST_PROFILE_BIO,
-  PODCAST_PROFILE_TITLE
+  PODCAST_PROFILE_BIO
 } from '../podcastMeta';
 
 interface FeedResponse {
@@ -73,16 +71,11 @@ const Feed: React.FC = () => {
         <div className="ht-profile-banner-inner">
           <img className="ht-profile-avatar" src={PODCAST_BANNER_URL} alt="" />
           <div className="ht-profile-copy">
-            <h1 className="ht-profile-heading">{PODCAST_PROFILE_TITLE}</h1>
-            <p className="ht-profile-location">{PODCAST_LOCATION}</p>
-            <div className="ht-profile-name-row">
-              <span className="ht-profile-name">{PODCAST_AUTHOR}</span>
-              <span className="ht-profile-plus" aria-hidden>
-                +
-              </span>
-            </div>
+            <h1 className="ht-profile-heading">{PODCAST_AUTHOR}</h1>
             <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>
-            {memberSince && <p className="ht-profile-since">Member since: {memberSince}</p>}
+            <p className="ht-profile-since">
+              Member since:{memberSince ? ` ${memberSince}` : ''}
+            </p>
           </div>
         </div>
       </section>
