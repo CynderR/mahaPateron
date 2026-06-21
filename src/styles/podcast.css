@@ -950,11 +950,10 @@
 
 .podcast-audio-element {
   position: fixed;
-  left: 0;
+  left: -9999px;
   bottom: 0;
-  width: 1px;
-  height: 1px;
-  opacity: 0.001;
+  width: 100px;
+  height: 32px;
   pointer-events: none;
 }
 

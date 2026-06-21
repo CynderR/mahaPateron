@@ -69,6 +69,10 @@ const readReplayMode = (): ReplayMode => {
 
 const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) === 'true';
 
+// Minimal silent WAV — unlocks Chromium/Brave mobile audio in a user-gesture handler.
+const SILENT_WAV =
+  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+
 const audioHasEpisode = (audio: HTMLAudioElement, postId: string): boolean => {
   const src = audio.currentSrc || audio.src || '';
   return src.includes(postId);
@@ -89,6 +93,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const assignedSourceRef = useRef<{ postId: string; url: string } | null>(null);
   const loadedPostIdRef = useRef<string | null>(null);
   const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
+  const audioUnlockedRef = useRef(false);
+  const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
@@ -107,6 +113,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     replayModeRef.current = replayMode;
   }, [replayMode]);
+
+  useEffect(() => {
+    playbackErrorRef.current = playbackError;
+  }, [playbackError]);
 
   const clearPendingPlay = useCallback(() => {
     pendingPlayCleanupRef.current?.();
@@ -167,57 +177,68 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return true;
   }, [clearPendingPlay]);
 
+  const playAssignedSource = useCallback(() => {
+    const audio = audioRef.current;
+    if (!audio || !assignedSourceRef.current) return;
+
+    primeAudioSource(false);
+
+    const attempt = audio.play();
+    if (!attempt) {
+      syncPlayingState();
+      return;
+    }
+
+    attempt
+      .then(() => {
+        syncPlayingState();
+        setPlaybackError(null);
+      })
+      .catch((err: DOMException) => {
+        loadedPostIdRef.current = null;
+        setPlaying(false);
+        if (err.name === 'NotAllowedError') {
+          audioUnlockedRef.current = false;
+          setPlaybackError('Playback blocked by the browser. Tap play again.');
+        } else {
+          setPlaybackError('Could not start playback. Tap play again.');
+        }
+      });
+  }, [primeAudioSource, syncPlayingState]);
+
   const requestPlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !assignedSourceRef.current) return;
 
     clearPendingPlay();
-    primeAudioSource(false);
     setPlaybackError(null);
 
-    const startPlayback = () => {
-      const attempt = audio.play();
-      if (!attempt) {
-        syncPlayingState();
-        return;
-      }
-      attempt
-        .then(() => {
-          syncPlayingState();
-          setPlaybackError(null);
-        })
-        .catch(() => {
-          setPlaybackError('Could not start playback. Tap play again.');
-          setPlaying(false);
-        });
-    };
-
-    if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
-      startPlayback();
+    // Brave/Chrome require play() in the user-gesture stack — never defer to canplay.
+    if (audioUnlockedRef.current) {
+      playAssignedSource();
       return;
     }
 
-    const onCanPlay = () => {
-      cleanup();
-      startPlayback();
-    };
-    const onError = () => {
-      cleanup();
-      setPlaying(false);
-      loadedPostIdRef.current = null;
-      setPlaybackError(describeMediaError(audio));
-    };
-    const cleanup = () => {
-      audio.removeEventListener('canplay', onCanPlay);
-      audio.removeEventListener('error', onError);
-      pendingPlayCleanupRef.current = null;
-    };
-
-    pendingPlayCleanupRef.current = cleanup;
-    audio.addEventListener('canplay', onCanPlay);
-    audio.addEventListener('error', onError, { once: true });
+    audio.src = SILENT_WAV;
     audio.load();
-  }, [clearPendingPlay, primeAudioSource, syncPlayingState]);
+    const unlockAttempt = audio.play();
+    if (!unlockAttempt) {
+      playAssignedSource();
+      return;
+    }
+
+    unlockAttempt
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+        audioUnlockedRef.current = true;
+        playAssignedSource();
+      })
+      .catch(() => {
+        audioUnlockedRef.current = false;
+        playAssignedSource();
+      });
+  }, [clearPendingPlay, playAssignedSource]);
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
@@ -241,13 +262,17 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!audio || !assignedSourceRef.current) return;
 
     if (audio.paused) {
+      if (playbackErrorRef.current) {
+        loadedPostIdRef.current = null;
+        primeAudioSource(true);
+      }
       requestPlay();
     } else {
       clearPendingPlay();
       audio.pause();
       setPlaying(false);
     }
-  }, [clearPendingPlay, requestPlay]);
+  }, [clearPendingPlay, primeAudioSource, requestPlay]);
 
   const seekTo = useCallback((time: number) => {
     const audio = audioRef.current;
@@ -271,6 +296,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const audio = audioRef.current;
     if (!audio) return;
     audio.setAttribute('playsinline', '');
+    audio.setAttribute('webkit-playsinline', 'true');
     audio.volume = 1;
     audio.muted = false;
   }, []);

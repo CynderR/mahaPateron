@@ -21,12 +21,12 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { playEpisode } = usePlayer();
+  const { prepareEpisode } = usePlayer();
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const handlePlay = () => {
     if (!user?.rss_token || !canStream) return;
-    playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
     navigate(`/stream/${post.id}`, { state: { post } });
   };
 

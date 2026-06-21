@@ -23,7 +23,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { playEpisode } = usePlayer();
+  const { prepareEpisode } = usePlayer();
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -37,7 +37,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
     e.preventDefault();
     e.stopPropagation();
     if (!user?.rss_token || !canStream) return;
-    playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
     navigate(`/stream/${post.id}`, { state: { post } });
   };
 
