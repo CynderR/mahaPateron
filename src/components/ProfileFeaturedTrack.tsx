@@ -8,9 +8,16 @@ import ProfileWaveform from './ProfileWaveform';
 interface ProfileFeaturedTrackProps {
   post: FeedPost;
   canStream: boolean;
+  selected?: boolean;
+  onSelectChange?: (postId: string, selected: boolean) => void;
 }
 
-const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({ post, canStream }) => {
+const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
+  post,
+  canStream,
+  selected = false,
+  onSelectChange
+}) => {
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const cover = coverUrl ? (
@@ -61,6 +68,17 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({ post, canSt
 
   return (
     <article className="ht-featured">
+      {onSelectChange && (
+        <label className="member-episode-checkbox-wrap ht-featured-select">
+          <input
+            type="checkbox"
+            className="member-episode-checkbox"
+            checked={selected}
+            onChange={(e) => onSelectChange(post.id, e.target.checked)}
+            aria-label={`Select ${post.title}`}
+          />
+        </label>
+      )}
       {canStream ? (
         <Link to={`/stream/${post.id}`} className="ht-featured-cover-link">
           {cover}

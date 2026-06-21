@@ -16,6 +16,8 @@ interface PostCardProps {
   rssToken?: string;
   canStream: boolean;
   locked?: boolean;
+  selected?: boolean;
+  onSelectChange?: (postId: string, selected: boolean) => void;
 }
 
 const formatDuration = (secs?: number | null): string => {
@@ -27,12 +29,30 @@ const formatDuration = (secs?: number | null): string => {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
 };
 
-const PostCard: React.FC<PostCardProps> = ({ post, rssToken, canStream, locked = false }) => {
+const PostCard: React.FC<PostCardProps> = ({
+  post,
+  rssToken,
+  canStream,
+  locked = false,
+  selected = false,
+  onSelectChange
+}) => {
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   return (
     <article className="pod-post-card">
+      {onSelectChange && (
+        <label className="member-episode-checkbox-wrap pod-post-select">
+          <input
+            type="checkbox"
+            className="member-episode-checkbox"
+            checked={selected}
+            onChange={(e) => onSelectChange(post.id, e.target.checked)}
+            aria-label={`Select ${post.title}`}
+          />
+        </label>
+      )}
       {canStream && !locked ? (
         <Link to={`/stream/${post.id}`} className="pod-post-cover-link">
           {coverUrl ? (

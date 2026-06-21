@@ -8,14 +8,12 @@ import ProfileTrackRow from '../components/ProfileTrackRow';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import PodcastFeaturedEpisode from '../components/mobile/PodcastFeaturedEpisode';
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
+import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import { FeedPost } from '../components/PostCard';
 import { buildImageUrl } from '../config';
-import {
-  formatMemberSince,
-  PODCAST_AUTHOR,
-  PODCAST_BANNER_URL,
-  PODCAST_PROFILE_BIO
-} from '../podcastMeta';
+import { PODCAST_AUTHOR, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../podcastMeta';
+import { filterAdminItems } from '../utils/adminTableHelpers';
+import { useEpisodeSelection } from '../utils/episodeListHelpers';
 
 interface FeedResponse {
   is_paying: boolean;
@@ -29,6 +27,8 @@ const Feed: React.FC = () => {
   const [data, setData] = useState<FeedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
 
   useEffect(() => {
     const load = async () => {
@@ -46,21 +46,32 @@ const Feed: React.FC = () => {
 
   const posts = data?.posts ?? [];
   const canStream = !!data?.is_paying && !!data?.canStream;
-  const featured = posts[0] ?? null;
-  const listPosts = posts.slice(1);
 
-  const memberSinceSource = useMemo(() => {
-    if (posts.length === 0) return undefined;
-    const oldest = posts.reduce((min, p) => {
-      if (!p.published_at) return min;
-      if (!min) return p.published_at;
-      return new Date(p.published_at) < new Date(min) ? p.published_at : min;
-    }, '' as string);
-    return oldest || undefined;
-  }, [posts]);
+  const visiblePosts = useMemo(() => filterAdminItems(posts, searchQuery), [posts, searchQuery]);
+  const featured = visiblePosts[0] ?? null;
+  const listPosts = visiblePosts.slice(1);
 
-  const memberSince = formatMemberSince(memberSinceSource);
   const soundCount = posts.length;
+
+  const selectionProps = {
+    onSelectChange: toggleSelect
+  };
+
+  const toolbar = !loading && posts.length > 0 && (
+    <MemberEpisodeToolbar
+      onSearch={setSearchQuery}
+      resultCount={visiblePosts.length}
+      totalCount={posts.length}
+      selectedCount={selectedIds.size}
+      selectableCount={visiblePosts.length}
+      onSelectAll={(checked) => selectAll(visiblePosts.map((p) => p.id), checked)}
+    />
+  );
+
+  const emptyMessage =
+    posts.length > 0 && visiblePosts.length === 0
+      ? 'No episodes match your search.'
+      : 'No episodes have been published yet.';
 
   return (
     <div className="ht-page">
@@ -81,26 +92,39 @@ const Feed: React.FC = () => {
           </div>
         )}
 
+        {toolbar}
+
         {loading ? (
           <div className="pod-empty">Loading episodes…</div>
-        ) : posts.length > 0 ? (
+        ) : visiblePosts.length > 0 ? (
           <>
             {featured && (
-              <PodcastFeaturedEpisode post={featured} canStream={canStream} memberSince={memberSince} />
+              <PodcastFeaturedEpisode
+                post={featured}
+                canStream={canStream}
+                selected={selectedIds.has(featured.id)}
+                onSelectChange={selectionProps.onSelectChange}
+              />
             )}
             {listPosts.length > 0 && (
               <>
                 <p className="pod-feed-section-label">All episodes</p>
                 <div className="pod-feed-list">
                   {listPosts.map((post) => (
-                    <PodcastEpisodeCard key={post.id} post={post} canStream={canStream} />
+                    <PodcastEpisodeCard
+                      key={post.id}
+                      post={post}
+                      canStream={canStream}
+                      selected={selectedIds.has(post.id)}
+                      onSelectChange={selectionProps.onSelectChange}
+                    />
                   ))}
                 </div>
               </>
             )}
           </>
         ) : (
-          <div className="pod-empty">No episodes have been published yet.</div>
+          <div className="pod-empty">{emptyMessage}</div>
         )}
 
         <PodcastMobileNav />
@@ -116,9 +140,6 @@ const Feed: React.FC = () => {
           <div className="ht-profile-copy">
             <h1 className="ht-profile-heading">{PODCAST_AUTHOR}</h1>
             <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>
-            <p className="ht-profile-since">
-              Member since:{memberSince ? ` ${memberSince}` : ''}
-            </p>
           </div>
         </div>
       </section>
@@ -137,7 +158,6 @@ const Feed: React.FC = () => {
                 RSS
               </Link>
             </div>
-            {memberSince && <span className="ht-tabs-since">Member since: {memberSince}</span>}
           </div>
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
@@ -149,19 +169,35 @@ const Feed: React.FC = () => {
             </div>
           )}
 
+          {toolbar}
+
           {loading ? (
             <div className="ht-empty">Loading sounds…</div>
-          ) : posts.length > 0 ? (
+          ) : visiblePosts.length > 0 ? (
             <>
-              {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
+              {featured && (
+                <ProfileFeaturedTrack
+                  post={featured}
+                  canStream={canStream}
+                  selected={selectedIds.has(featured.id)}
+                  onSelectChange={selectionProps.onSelectChange}
+                />
+              )}
               <div className="ht-track-list">
                 {listPosts.map((post, index) => (
-                  <ProfileTrackRow key={post.id} post={post} rank={index + 2} canStream={canStream} />
+                  <ProfileTrackRow
+                    key={post.id}
+                    post={post}
+                    rank={index + 2}
+                    canStream={canStream}
+                    selected={selectedIds.has(post.id)}
+                    onSelectChange={selectionProps.onSelectChange}
+                  />
                 ))}
               </div>
             </>
           ) : (
-            <div className="ht-empty">No episodes have been published yet.</div>
+            <div className="ht-empty">{emptyMessage}</div>
           )}
         </main>
 

@@ -9,9 +9,17 @@ interface ProfileTrackRowProps {
   post: FeedPost;
   rank: number;
   canStream: boolean;
+  selected?: boolean;
+  onSelectChange?: (postId: string, selected: boolean) => void;
 }
 
-const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({ post, rank, canStream }) => {
+const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
+  post,
+  rank,
+  canStream,
+  selected = false,
+  onSelectChange
+}) => {
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -31,6 +39,17 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({ post, rank, canStream
 
   return (
     <article className="ht-track-row">
+      {onSelectChange && (
+        <label className="member-episode-checkbox-wrap">
+          <input
+            type="checkbox"
+            className="member-episode-checkbox"
+            checked={selected}
+            onChange={(e) => onSelectChange(post.id, e.target.checked)}
+            aria-label={`Select ${post.title}`}
+          />
+        </label>
+      )}
       <div className="ht-track-rank">#{rank}</div>
       <div className="ht-track-cover-wrap">
         {canStream ? (

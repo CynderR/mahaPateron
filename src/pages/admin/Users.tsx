@@ -154,7 +154,7 @@ const Users: React.FC = () => {
             </div>
             <div className="pod-form-group">
               <label>
-                <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Grant access to all prior episodes
+                <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Archive access
               </label>
             </div>
             <div className="pod-form-group">

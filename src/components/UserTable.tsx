@@ -37,7 +37,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
             <th>User</th>
             <th>Category</th>
             <th>Paying</th>
-            <th title="Grants access to all episodes published before the user subscribed">Archive</th>
+            <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th title="User is billed monthly via Stripe">Monthly</th>
             <th>Access</th>
             <th>Price</th>
@@ -76,7 +76,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
                 <input
                   type="checkbox"
                   checked={!!u.back_catalog_access}
-                  title="All prior episodes"
+                  title="Archive access — all prior episodes"
                   onChange={(e) => onUpdate(u.id, 'back_catalog_access', e.target.checked)}
                 />
               </td>

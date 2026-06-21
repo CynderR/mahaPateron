@@ -149,12 +149,6 @@
     color: rgba(255, 255, 255, 0.65);
   }
 
-  .pod-featured-since {
-    margin-top: 0.5rem !important;
-    font-size: 0.78rem !important;
-    color: rgba(255, 255, 255, 0.45) !important;
-  }
-
   .pod-featured-latest {
     margin-top: 1rem;
     padding: 1rem;
@@ -620,6 +614,35 @@
 
   .playlists-page .podcast-section-title {
     padding-top: 0.5rem;
+  }
+
+  .pod-feed-mobile-only .member-episode-toolbar {
+    padding: 0 1rem 0.75rem;
+  }
+
+  .pod-feed-mobile-only .member-select-all,
+  .pod-feed-mobile-only .member-episode-count {
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .pod-feed-mobile-only .member-sort-label {
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .pod-feed-mobile-only .member-sort-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.75);
+  }
+
+  .pod-feed-mobile-only .member-sort-btn-active {
+    border-color: #e53e3e;
+    color: #fff;
+    background: rgba(229, 62, 62, 0.35);
+  }
+
+  .pod-episode-select {
+    align-self: center;
   }
 
   .pod-feed-grid {

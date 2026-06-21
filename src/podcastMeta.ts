@@ -16,17 +16,6 @@ export const formatDuration = (secs?: number | null): string => {
   return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 };
 
-export const formatMemberSince = (iso?: string): string => {
-  if (!iso) return '';
-  const diff = Date.now() - new Date(iso).getTime();
-  const months = Math.floor(diff / (86400000 * 30));
-  if (months < 1) return 'less than a month';
-  if (months === 1) return '1 month';
-  if (months < 12) return `${months} months`;
-  const years = Math.floor(months / 12);
-  return years === 1 ? '1 year' : `${years} years`;
-};
-
 export const seedHeights = (seedStr: string, count: number): number[] => {
   let seed = seedStr.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
   return Array.from({ length: count }, () => {

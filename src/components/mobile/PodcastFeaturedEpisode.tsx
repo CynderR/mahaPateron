@@ -9,10 +9,16 @@ import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podca
 interface PodcastFeaturedEpisodeProps {
   post: FeedPost;
   canStream: boolean;
-  memberSince?: string;
+  selected?: boolean;
+  onSelectChange?: (postId: string, selected: boolean) => void;
 }
 
-const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({ post, canStream, memberSince }) => {
+const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
+  post,
+  canStream,
+  selected = false,
+  onSelectChange
+}) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { playEpisode } = usePlayer();
@@ -29,10 +35,22 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({ post, c
       <div className="pod-featured-show">
         <h2>{PODCAST_AUTHOR}</h2>
         <p>{PODCAST_PROFILE_BIO}</p>
-        <p className="pod-featured-since">Member since:{memberSince ? ` ${memberSince}` : ''}</p>
       </div>
       <article className="pod-featured-latest">
-        <p className="pod-featured-label">Latest episode</p>
+        <div className="pod-featured-latest-head">
+          <p className="pod-featured-label">Latest episode</p>
+          {onSelectChange && (
+            <label className="member-episode-checkbox-wrap">
+              <input
+                type="checkbox"
+                className="member-episode-checkbox"
+                checked={selected}
+                onChange={(e) => onSelectChange(post.id, e.target.checked)}
+                aria-label={`Select ${post.title}`}
+              />
+            </label>
+          )}
+        </div>
         {coverUrl ? (
           <img className="pod-featured-art" src={coverUrl} alt="" />
         ) : (

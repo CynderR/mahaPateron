@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +6,15 @@ import PodcastNav from '../components/PodcastNav';
 import PostCard, { FeedPost } from '../components/PostCard';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
+import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
+import {
+  AdminSortDir,
+  AdminSortField,
+  filterAdminItems,
+  nextSortState,
+  sortAdminItems
+} from '../utils/adminTableHelpers';
+import { useEpisodeSelection } from '../utils/episodeListHelpers';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -25,6 +34,10 @@ const Library: React.FC = () => {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<AdminSortField>('date');
+  const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
+  const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
 
   useEffect(() => {
     const load = async () => {
@@ -42,6 +55,42 @@ const Library: React.FC = () => {
 
   const lockedCount = data ? data.total - data.accessible : 0;
   const entries = data?.entries ?? [];
+
+  const visibleEntries = useMemo(
+    () => sortAdminItems(filterAdminItems(entries, searchQuery), sortField, sortDir),
+    [entries, searchQuery, sortField, sortDir]
+  );
+
+  const handleSort = (field: AdminSortField) => {
+    const next = nextSortState(field, sortField, sortDir);
+    setSortField(next.field);
+    setSortDir(next.dir);
+  };
+
+  const selectionProps = {
+    selectedIds,
+    onSelectChange: toggleSelect
+  };
+
+  const toolbar = !loading && entries.length > 0 && (
+    <MemberEpisodeToolbar
+      onSearch={setSearchQuery}
+      resultCount={visibleEntries.length}
+      totalCount={entries.length}
+      showSort
+      sortField={sortField}
+      sortDir={sortDir}
+      onSort={handleSort}
+      selectedCount={selectedIds.size}
+      selectableCount={visibleEntries.length}
+      onSelectAll={(checked) => selectAll(visibleEntries.map((e) => e.id), checked)}
+    />
+  );
+
+  const emptyMessage =
+    entries.length > 0 && visibleEntries.length === 0
+      ? 'No episodes match your search.'
+      : 'No episodes in the library yet.';
 
   return (
     <div className="podcast-page">
@@ -69,20 +118,24 @@ const Library: React.FC = () => {
           </div>
         )}
 
+        {toolbar}
+
         {loading ? (
           <div className="pod-empty">Loading library…</div>
-        ) : entries.length > 0 ? (
+        ) : visibleEntries.length > 0 ? (
           <div className="pod-feed-list">
-            {entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <PodcastEpisodeCard
                 key={entry.id}
                 post={entry}
                 canStream={!!data?.is_paying && !!data.canStream && entry.accessible}
+                selected={selectedIds.has(entry.id)}
+                onSelectChange={selectionProps.onSelectChange}
               />
             ))}
           </div>
         ) : (
-          <div className="pod-empty">No episodes in the library yet.</div>
+          <div className="pod-empty">{emptyMessage}</div>
         )}
 
         <PodcastMobileNav />
@@ -106,22 +159,26 @@ const Library: React.FC = () => {
           </div>
         )}
 
+        {toolbar}
+
         {loading ? (
           <div className="pod-empty">Loading library…</div>
-        ) : entries.length > 0 ? (
+        ) : visibleEntries.length > 0 ? (
           <div className="pod-feed-grid">
-            {entries.map((entry) => (
+            {visibleEntries.map((entry) => (
               <PostCard
                 key={entry.id}
                 post={entry}
                 rssToken={user?.rss_token}
                 canStream={!!data?.is_paying && data.canStream && entry.accessible}
                 locked={!entry.accessible}
+                selected={selectedIds.has(entry.id)}
+                onSelectChange={selectionProps.onSelectChange}
               />
             ))}
           </div>
         ) : (
-          <div className="pod-empty">No episodes in the library yet.</div>
+          <div className="pod-empty">{emptyMessage}</div>
         )}
       </main>
     </div>

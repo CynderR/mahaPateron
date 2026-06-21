@@ -10,9 +10,16 @@ import FavoriteButton from '../FavoriteButton';
 interface PodcastEpisodeCardProps {
   post: FeedPost;
   canStream: boolean;
+  selected?: boolean;
+  onSelectChange?: (postId: string, selected: boolean) => void;
 }
 
-const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({ post, canStream }) => {
+const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
+  post,
+  canStream,
+  selected = false,
+  onSelectChange
+}) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { playEpisode } = usePlayer();
@@ -43,6 +50,21 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({ post, canStream
 
   return (
     <article className="pod-episode-card">
+      {onSelectChange && (
+        <label className="member-episode-checkbox-wrap pod-episode-select">
+          <input
+            type="checkbox"
+            className="member-episode-checkbox"
+            checked={selected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelectChange(post.id, e.target.checked);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Select ${post.title}`}
+          />
+        </label>
+      )}
       {canStream ? (
         <Link to={`/stream/${post.id}`} className="pod-episode-card-main">
           {cover}
