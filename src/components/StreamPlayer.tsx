@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { buildStreamUrl } from '../config';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -60,51 +60,29 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   canStream
 }) => {
   const navigate = useNavigate();
-  const { replayMode, getNextPostId, getPrevPostId } = usePlayer();
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(post.duration_secs ?? 0);
-  const [volume, setVolume] = useState(1);
+  const {
+    playing,
+    currentTime,
+    duration,
+    playbackError,
+    getNextPostId,
+    getPrevPostId,
+    prepareEpisode,
+    togglePlayback,
+    seekTo,
+    skipBy,
+    registerTrackEndedHandler
+  } = usePlayer();
 
   const streamUrl = buildStreamUrl(post.id, rssToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);
   const mobileBarHeights = useMemo(() => seedHeights(`${post.id}-m`, 60), [post.id]);
-  const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const effectiveDuration = duration || post.duration_secs || 0;
+  const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
   const playable = accessible && canStream;
 
   const nextId = getNextPostId();
   const prevId = getPrevPostId();
-
-  const seekTo = useCallback(
-    (time: number) => {
-      const audio = audioRef.current;
-      if (!audio || !playable) return;
-      const max = duration || audio.duration || 0;
-      audio.currentTime = Math.max(0, Math.min(time, max));
-    },
-    [playable, duration]
-  );
-
-  const skipBy = useCallback(
-    (delta: number) => {
-      const audio = audioRef.current;
-      if (!audio || !playable) return;
-      const max = duration || audio.duration || 0;
-      audio.currentTime = Math.max(0, Math.min(audio.currentTime + delta, max));
-    },
-    [playable, duration]
-  );
-
-  const togglePlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !playable) return;
-    if (audio.paused) {
-      audio.play().catch(() => {});
-    } else {
-      audio.pause();
-    }
-  }, [playable]);
 
   const goNext = useCallback(() => {
     if (nextId) navigate(`/stream/${nextId}`);
@@ -115,67 +93,25 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   }, [navigate, prevId]);
 
   const handleEnded = useCallback(() => {
-    if (replayMode === 'one') {
-      const audio = audioRef.current;
-      if (audio) {
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      }
-      return;
+    if (nextId) navigate(`/stream/${nextId}`);
+  }, [nextId, navigate]);
+
+  useEffect(() => {
+    registerTrackEndedHandler(handleEnded);
+    return () => registerTrackEndedHandler(null);
+  }, [handleEnded, registerTrackEndedHandler]);
+
+  useEffect(() => {
+    if (playable) {
+      prepareEpisode(post.id, streamUrl, post.duration_secs);
     }
-    if (nextId) {
-      navigate(`/stream/${nextId}`);
-    }
-  }, [replayMode, nextId, navigate]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-    const onDurationChange = () => {
-      if (Number.isFinite(audio.duration)) setDuration(audio.duration);
-    };
-    const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
-    const onEnded = () => {
-      setPlaying(false);
-      handleEnded();
-    };
-
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('durationchange', onDurationChange);
-    audio.addEventListener('loadedmetadata', onDurationChange);
-    audio.addEventListener('play', onPlay);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('ended', onEnded);
-
-    return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('durationchange', onDurationChange);
-      audio.removeEventListener('loadedmetadata', onDurationChange);
-      audio.removeEventListener('play', onPlay);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('ended', onEnded);
-    };
-  }, [streamUrl, handleEnded]);
-
-  useEffect(() => {
-    if (audioRef.current) audioRef.current.volume = volume;
-  }, [volume]);
-
-  useEffect(() => {
-    setCurrentTime(0);
-    setDuration(post.duration_secs ?? 0);
-    setPlaying(false);
-  }, [post.id, post.duration_secs]);
+  }, [playable, post.id, post.duration_secs, streamUrl, prepareEpisode]);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
-    const audio = audioRef.current;
-    if (!audio || !playable || !duration) return;
+    if (!playable || !effectiveDuration) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-    audio.currentTime = ratio * duration;
+    seekTo(ratio * effectiveDuration);
   };
 
   const PlayIcon = ({ large = false, filled = false }: { large?: boolean; filled?: boolean }) => (
@@ -201,12 +137,12 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       onClick={seekFromWaveform}
       role={playable ? 'slider' : undefined}
       aria-valuenow={playable ? Math.round(currentTime) : undefined}
-      aria-valuemax={playable ? Math.round(duration) : undefined}
+      aria-valuemax={playable ? Math.round(effectiveDuration) : undefined}
       tabIndex={playable ? 0 : -1}
       onKeyDown={(e) => {
-        if (!playable || !audioRef.current) return;
-        if (e.key === 'ArrowRight') audioRef.current.currentTime += 5;
-        if (e.key === 'ArrowLeft') audioRef.current.currentTime -= 5;
+        if (!playable) return;
+        if (e.key === 'ArrowRight') skipBy(5);
+        if (e.key === 'ArrowLeft') skipBy(-5);
       }}
     >
       <div className="stream-waveform-bars">
@@ -220,17 +156,11 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
 
   return (
     <>
-      {playable && (
-        <audio ref={audioRef} preload="metadata" src={streamUrl} key={post.id}>
-          <track kind="captions" />
-        </audio>
-      )}
-
       <div className="stream-header stream-desktop-only">
         <button
           type="button"
           className="stream-play-btn stream-play-btn-header"
-          onClick={togglePlay}
+          onClick={() => togglePlayback()}
           disabled={!playable}
           aria-label={playing ? 'Pause' : 'Play'}
         >
@@ -261,13 +191,13 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <button
           type="button"
           className="stream-play-btn stream-play-btn-mobile"
-          onClick={togglePlay}
+          onClick={() => togglePlayback()}
           disabled={!playable}
           aria-label={playing ? 'Pause' : 'Play'}
         >
           <PlayIcon filled />
         </button>
-        <span className="stream-mobile-duration">{formatTime(duration || post.duration_secs || 0)}</span>
+        <span className="stream-mobile-duration">{formatTime(effectiveDuration)}</span>
         <span className="stream-mobile-actions-spacer" aria-hidden />
         <FavoriteButton postId={post.id} className="stream-mobile-favorite" />
         <Link to="/account/rss" className="stream-mobile-icon-btn stream-mobile-share" aria-label="RSS feed">
@@ -282,7 +212,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
 
       <div className="stream-waveform-wrap">
         <span className="stream-duration-label stream-desktop-only">
-          {formatTime(duration || post.duration_secs || 0)}
+          {formatTime(effectiveDuration)}
         </span>
         {waveform(barHeights, 'stream-waveform-desktop stream-desktop-only')}
         {waveform(mobileBarHeights, 'stream-waveform-mobile stream-ht-mobile-only')}
@@ -334,7 +264,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <button
           type="button"
           className="stream-play-btn stream-play-btn-bar"
-          onClick={togglePlay}
+          onClick={() => togglePlayback()}
           disabled={!playable}
           aria-label={playing ? 'Pause' : 'Play'}
         >
@@ -348,24 +278,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           canNext={!!nextId}
         />
         <FavoriteButton postId={post.id} />
-        <div className="stream-volume">
-          <svg className="stream-volume-icon" viewBox="0 0 24 24" aria-hidden>
-            <path
-              fill="currentColor"
-              d="M3 10v4h4l5 5V5L7 10H3zm13.5 2a4.5 4.5 0 00-2.47-4.01v8.02A4.5 4.5 0 0016.5 12z"
-            />
-          </svg>
-          <input
-            type="range"
-            className="stream-volume-slider"
-            min={0}
-            max={1}
-            step={0.05}
-            value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            aria-label="Volume"
-          />
-        </div>
       </footer>
 
       <PodcastStreamMobile
@@ -373,9 +285,10 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         coverUrl={coverUrl}
         playing={playing}
         currentTime={currentTime}
-        duration={duration}
+        duration={effectiveDuration}
         playable={playable}
-        onTogglePlay={togglePlay}
+        playbackError={playbackError}
+        onTogglePlay={() => togglePlayback()}
         onSeek={seekTo}
         onSkip={skipBy}
         onPrevious={goPrev}
@@ -405,7 +318,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
             <button
               type="button"
               className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
-              onClick={togglePlay}
+              onClick={() => togglePlayback()}
               disabled={!playable}
               aria-label={playing ? 'Pause' : 'Play'}
             >

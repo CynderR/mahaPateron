@@ -13,6 +13,7 @@ interface PodcastStreamMobileProps {
   currentTime: number;
   duration: number;
   playable: boolean;
+  playbackError?: string | null;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSkip: (delta: number) => void;
@@ -38,6 +39,7 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   currentTime,
   duration,
   playable,
+  playbackError,
   onTogglePlay,
   onSeek,
   onSkip,
@@ -78,10 +80,10 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         <input
           type="range"
           min={0}
-          max={duration || 0}
+          max={duration || 1}
           step={1}
           value={Math.min(currentTime, duration || 0)}
-          disabled={!playable || !duration}
+          disabled={!playable}
           onChange={(e) => onSeek(parseFloat(e.target.value))}
           aria-label="Seek"
           className="pod-stream-range"
@@ -129,6 +131,10 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
           +15
         </button>
       </div>
+
+      {playbackError && playable && (
+        <p className="pod-stream-error">{playbackError}</p>
+      )}
 
       <div className="pod-stream-tools">
         <PlayerControls
