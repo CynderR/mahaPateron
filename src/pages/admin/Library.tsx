@@ -4,6 +4,7 @@ import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import SortableTableHeader from '../../components/SortableTableHeader';
+import { buildImageUrl } from '../../config';
 import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
 import {
   AdminSortDir,
@@ -20,6 +21,7 @@ interface LibraryEntry {
   duration_secs?: number;
   is_published: boolean;
   published_at?: string;
+  image_filename?: string | null;
 }
 
 interface LibraryResponse {
@@ -143,15 +145,27 @@ const AdminLibrary: React.FC = () => {
             <tbody>
               {visibleEntries.map((entry) => {
                 const displayDescription = stripFeedMetadataFromDescription(entry.description);
+                const coverUrl = entry.image_filename ? buildImageUrl(entry.image_filename) : null;
                 return (
                 <tr key={entry.id}>
                   <td>
-                    <div style={{ fontWeight: 600 }}>{entry.title}</div>
-                    {displayDescription && (
-                      <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>
-                        {displayDescription}
+                    <div className="pod-library-entry-title">
+                      {coverUrl ? (
+                        <img className="pod-library-cover" src={coverUrl} alt="" />
+                      ) : (
+                        <div className="pod-library-cover pod-library-cover-placeholder" aria-hidden>
+                          ♪
+                        </div>
+                      )}
+                      <div className="pod-library-entry-copy">
+                        <div style={{ fontWeight: 600 }}>{entry.title}</div>
+                        {displayDescription && (
+                          <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>
+                            {displayDescription}
+                          </div>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </td>
                   <td>{formatDuration(entry.duration_secs)}</td>
                   <td>

@@ -14,8 +14,18 @@ export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000'
 
 // Build the streaming URL for a post, authenticated with the user's RSS token.
 // Use an absolute URL in the browser so mobile audio elements resolve correctly under /shyam_akaash.
-export const buildStreamUrl = (postId: string, rssToken: string): string => {
-  const path = `${MEDIA_BASE_URL}/stream/${postId}?token=${encodeURIComponent(rssToken)}`;
+const getStoredAuthToken = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem('token') || sessionStorage.getItem('token');
+};
+
+export const buildStreamUrl = (postId: string, rssToken: string, jwtToken?: string | null): string => {
+  const params = new URLSearchParams({ token: rssToken });
+  const jwt = jwtToken ?? getStoredAuthToken();
+  if (jwt) {
+    params.set('jwt', jwt);
+  }
+  const path = `${MEDIA_BASE_URL}/stream/${postId}?${params.toString()}`;
   if (path.startsWith('http')) return path;
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}${path}`;

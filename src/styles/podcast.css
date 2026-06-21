@@ -486,6 +486,34 @@
   min-width: 200px;
 }
 
+.pod-library-entry-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.pod-library-entry-copy {
+  min-width: 0;
+}
+
+.pod-library-cover {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  border-radius: 0.35rem;
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+  border: 1px solid var(--border-primary);
+}
+
+.pod-library-cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 1.25rem;
+}
+
 /* Badges */
 .pod-badge {
   display: inline-block;
@@ -926,9 +954,8 @@
   bottom: 0;
   width: 1px;
   height: 1px;
-  opacity: 0.01;
+  opacity: 0.001;
   pointer-events: none;
-  z-index: -1;
 }
 
 .stream-play-icon {

@@ -55,7 +55,7 @@ const PostCard: React.FC<PostCardProps> = ({
         </label>
       )}
       {canStream && !locked ? (
-        <Link to={`/stream/${post.id}`} className="pod-post-cover-link">
+        <Link to={`/stream/${post.id}`} state={{ post }} className="pod-post-cover-link">
           {coverUrl ? (
             <img className="pod-post-cover" src={coverUrl} alt={post.title} />
           ) : (
@@ -73,7 +73,7 @@ const PostCard: React.FC<PostCardProps> = ({
       )}
       <div className="pod-post-body">
         {canStream && !locked ? (
-          <Link to={`/stream/${post.id}`} className="pod-post-title-link">
+          <Link to={`/stream/${post.id}`} state={{ post }} className="pod-post-title-link">
             <h3 className="pod-post-title">{post.title}</h3>
           </Link>
         ) : (

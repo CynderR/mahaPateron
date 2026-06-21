@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FeedPost } from '../PostCard';
 import { PODCAST_AUTHOR } from '../../podcastMeta';
+import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
 import PlayerControls from '../PlayerControls';
 import PlaylistPicker from '../PlaylistPicker';
@@ -57,6 +58,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
     : '';
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const remaining = Math.max(0, duration - currentTime);
+
+  const displayDescription = stripFeedMetadataFromDescription(post.description);
 
   return (
     <div className="pod-stream pod-mobile-only">
@@ -150,10 +153,10 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         </Link>
       </div>
 
-      {post.description && (
+      {displayDescription && (
         <section className="pod-stream-notes">
           <h2>Show notes</h2>
-          <p>{post.description}</p>
+          <p>{displayDescription}</p>
         </section>
       )}
     </div>

@@ -69,11 +69,26 @@ const readReplayMode = (): ReplayMode => {
 
 const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) === 'true';
 
+const audioHasEpisode = (audio: HTMLAudioElement, postId: string): boolean => {
+  const src = audio.currentSrc || audio.src || '';
+  return src.includes(postId);
+};
+
+const describeMediaError = (audio: HTMLAudioElement): string => {
+  const code = audio.error?.code;
+  if (code === MediaError.MEDIA_ERR_NETWORK) return 'Network error while loading audio.';
+  if (code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) return 'This episode could not be loaded.';
+  if (code === MediaError.MEDIA_ERR_ABORTED) return 'Playback was interrupted.';
+  return 'Could not load this episode.';
+};
+
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement>(null);
   const activePostIdRef = useRef<string | null>(null);
   const assignedSourceRef = useRef<{ postId: string; url: string } | null>(null);
+  const loadedPostIdRef = useRef<string | null>(null);
+  const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
@@ -93,62 +108,132 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     replayModeRef.current = replayMode;
   }, [replayMode]);
 
-  const assignSource = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
+  const clearPendingPlay = useCallback(() => {
+    pendingPlayCleanupRef.current?.();
+    pendingPlayCleanupRef.current = null;
+  }, []);
+
+  const syncPlayingState = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio) return false;
+    if (!audio) return;
+    setPlaying(!audio.paused && !audio.ended);
+  }, []);
 
-    const assigned = assignedSourceRef.current;
-    const needsUpdate = assigned?.postId !== postId || assigned?.url !== streamUrl;
+  const assignEpisode = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
+    const changed = assignedSourceRef.current?.postId !== postId || assignedSourceRef.current?.url !== streamUrl;
 
-    if (needsUpdate) {
-      if (!audio.paused) {
-        audio.pause();
-      }
-      audio.src = streamUrl;
-      assignedSourceRef.current = { postId, url: streamUrl };
-      activePostIdRef.current = postId;
-      setActivePostId(postId);
+    assignedSourceRef.current = { postId, url: streamUrl };
+    activePostIdRef.current = postId;
+    setActivePostId(postId);
+    setPlaybackError(null);
+
+    if (changed) {
       setCurrentTime(0);
       setDuration(durationSecs ?? 0);
       setPlaying(false);
-      setPlaybackError(null);
+      clearPendingPlay();
+
+      const audio = audioRef.current;
+      if (audio && loadedPostIdRef.current && loadedPostIdRef.current !== postId) {
+        audio.pause();
+        loadedPostIdRef.current = null;
+      }
+    } else if (durationSecs != null) {
+      setDuration((prev) => prev || durationSecs);
     }
 
     return true;
-  }, []);
+  }, [clearPendingPlay]);
+
+  const primeAudioSource = useCallback((force = false) => {
+    const audio = audioRef.current;
+    const assigned = assignedSourceRef.current;
+    if (!audio || !assigned) return false;
+
+    if (!force && loadedPostIdRef.current === assigned.postId && audioHasEpisode(audio, assigned.postId)) {
+      return true;
+    }
+
+    clearPendingPlay();
+    audio.pause();
+    audio.src = assigned.url;
+    audio.preload = 'auto';
+    audio.volume = 1;
+    audio.muted = false;
+    audio.load();
+    loadedPostIdRef.current = assigned.postId;
+    setCurrentTime(0);
+    setPlaybackError(null);
+    return true;
+  }, [clearPendingPlay]);
 
   const requestPlay = useCallback(() => {
     const audio = audioRef.current;
-    const assigned = assignedSourceRef.current;
-    if (!audio || !assigned) return;
+    if (!audio || !assignedSourceRef.current) return;
 
-    if (!audio.src) {
-      audio.src = assigned.url;
-    }
-
+    clearPendingPlay();
+    primeAudioSource(false);
     setPlaybackError(null);
-    const attempt = audio.play();
-    if (attempt) {
-      attempt.catch(() => {
-        setPlaybackError('Could not start playback. Tap play again.');
-        setPlaying(false);
-      });
+
+    const startPlayback = () => {
+      const attempt = audio.play();
+      if (!attempt) {
+        syncPlayingState();
+        return;
+      }
+      attempt
+        .then(() => {
+          syncPlayingState();
+          setPlaybackError(null);
+        })
+        .catch(() => {
+          setPlaybackError('Could not start playback. Tap play again.');
+          setPlaying(false);
+        });
+    };
+
+    if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+      startPlayback();
+      return;
     }
-  }, []);
+
+    const onCanPlay = () => {
+      cleanup();
+      startPlayback();
+    };
+    const onError = () => {
+      cleanup();
+      setPlaying(false);
+      loadedPostIdRef.current = null;
+      setPlaybackError(describeMediaError(audio));
+    };
+    const cleanup = () => {
+      audio.removeEventListener('canplay', onCanPlay);
+      audio.removeEventListener('error', onError);
+      pendingPlayCleanupRef.current = null;
+    };
+
+    pendingPlayCleanupRef.current = cleanup;
+    audio.addEventListener('canplay', onCanPlay);
+    audio.addEventListener('error', onError, { once: true });
+    audio.load();
+  }, [clearPendingPlay, primeAudioSource, syncPlayingState]);
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      assignSource(postId, streamUrl, durationSecs);
+      assignEpisode(postId, streamUrl, durationSecs);
+      primeAudioSource(true);
     },
-    [assignSource]
+    [assignEpisode, primeAudioSource]
   );
 
   const playEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      if (!assignSource(postId, streamUrl, durationSecs)) return;
+      assignEpisode(postId, streamUrl, durationSecs);
+      primeAudioSource(true);
       requestPlay();
     },
-    [assignSource, requestPlay]
+    [assignEpisode, primeAudioSource, requestPlay]
   );
 
   const togglePlayback = useCallback(() => {
@@ -158,9 +243,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (audio.paused) {
       requestPlay();
     } else {
+      clearPendingPlay();
       audio.pause();
+      setPlaying(false);
     }
-  }, [requestPlay]);
+  }, [clearPendingPlay, requestPlay]);
 
   const seekTo = useCallback((time: number) => {
     const audio = audioRef.current;
@@ -184,7 +271,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const audio = audioRef.current;
     if (!audio) return;
     audio.setAttribute('playsinline', '');
-    audio.setAttribute('webkit-playsinline', '');
+    audio.volume = 1;
+    audio.muted = false;
   }, []);
 
   useEffect(() => {
@@ -197,11 +285,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setDuration(audio.duration);
       }
     };
-    const onPlay = () => {
-      setPlaying(true);
-      setPlaybackError(null);
-    };
-    const onPause = () => setPlaying(false);
+    const onPlay = () => syncPlayingState();
+    const onPause = () => syncPlayingState();
     const onEnded = () => {
       setPlaying(false);
       if (replayModeRef.current === 'one') {
@@ -212,8 +297,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       onTrackEndedRef.current?.();
     };
     const onError = () => {
+      clearPendingPlay();
       setPlaying(false);
-      setPlaybackError('Could not load this episode.');
+      loadedPostIdRef.current = null;
+      setPlaybackError(describeMediaError(audio));
     };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
@@ -233,7 +320,37 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, []);
+  }, [clearPendingPlay, syncPlayingState]);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+
+    let lastTime = audio.currentTime;
+    let stalledChecks = 0;
+
+    const intervalId = window.setInterval(() => {
+      if (!audio || audio.paused) return;
+
+      if (audio.currentTime > lastTime + 0.05) {
+        lastTime = audio.currentTime;
+        stalledChecks = 0;
+        return;
+      }
+
+      stalledChecks += 1;
+      if (stalledChecks >= 2) {
+        setPlaying(false);
+        audio.pause();
+        loadedPostIdRef.current = null;
+        setPlaybackError('Playback stalled. Tap play to try again.');
+      }
+    }, 2000);
+
+    return () => window.clearInterval(intervalId);
+  }, [playing]);
 
   const loadFavorites = useCallback(async () => {
     if (!user) {
