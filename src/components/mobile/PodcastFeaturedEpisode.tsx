@@ -27,7 +27,7 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
   const handlePlay = () => {
     if (!user?.rss_token || !canStream) return;
     playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
-    navigate(`/stream/${post.id}`);
+    navigate(`/stream/${post.id}`, { state: { post } });
   };
 
   return (

@@ -4,6 +4,7 @@ import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import SortableTableHeader from '../../components/SortableTableHeader';
+import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
 import {
   AdminSortDir,
   AdminSortField,
@@ -140,12 +141,16 @@ const AdminLibrary: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {visibleEntries.map((entry) => (
+              {visibleEntries.map((entry) => {
+                const displayDescription = stripFeedMetadataFromDescription(entry.description);
+                return (
                 <tr key={entry.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{entry.title}</div>
-                    {entry.description && (
-                      <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{entry.description}</div>
+                    {displayDescription && (
+                      <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>
+                        {displayDescription}
+                      </div>
                     )}
                   </td>
                   <td>{formatDuration(entry.duration_secs)}</td>
@@ -174,7 +179,8 @@ const AdminLibrary: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {data && entries.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>

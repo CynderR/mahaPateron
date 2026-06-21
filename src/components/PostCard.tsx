@@ -1,4 +1,4 @@
-import React from 'react';
+import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
 import { Link } from 'react-router-dom';
 import { buildImageUrl } from '../config';
 
@@ -39,6 +39,7 @@ const PostCard: React.FC<PostCardProps> = ({
 }) => {
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const displayDescription = stripFeedMetadataFromDescription(post.description);
 
   return (
     <article className="pod-post-card">
@@ -82,7 +83,7 @@ const PostCard: React.FC<PostCardProps> = ({
           {published}
           {post.duration_secs ? ` · ${formatDuration(post.duration_secs)}` : ''}
         </div>
-        {post.description && <p className="pod-post-desc">{post.description}</p>}
+        {displayDescription && <p className="pod-post-desc">{displayDescription}</p>}
         {locked ? (
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (

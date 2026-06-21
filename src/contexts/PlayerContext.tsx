@@ -73,6 +73,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement>(null);
   const activePostIdRef = useRef<string | null>(null);
+  const assignedSourceRef = useRef<{ postId: string; url: string } | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
@@ -96,11 +97,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const audio = audioRef.current;
     if (!audio) return false;
 
-    const currentSrc = audio.currentSrc || audio.src || '';
-    const needsUpdate = activePostIdRef.current !== postId || !currentSrc.includes(postId);
+    const assigned = assignedSourceRef.current;
+    const needsUpdate = assigned?.postId !== postId || assigned?.url !== streamUrl;
 
     if (needsUpdate) {
+      if (!audio.paused) {
+        audio.pause();
+      }
       audio.src = streamUrl;
+      assignedSourceRef.current = { postId, url: streamUrl };
       activePostIdRef.current = postId;
       setActivePostId(postId);
       setCurrentTime(0);
@@ -114,7 +119,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const requestPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !(audio.currentSrc || audio.src)) return;
+    const assigned = assignedSourceRef.current;
+    if (!audio || !assigned) return;
+
+    if (!audio.src) {
+      audio.src = assigned.url;
+    }
 
     setPlaybackError(null);
     const attempt = audio.play();
@@ -143,7 +153,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !(audio.currentSrc || audio.src)) return;
+    if (!audio || !assignedSourceRef.current) return;
 
     if (audio.paused) {
       requestPlay();
@@ -154,20 +164,27 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const seekTo = useCallback((time: number) => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio || !assignedSourceRef.current) return;
     const max = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : duration;
     audio.currentTime = Math.max(0, Math.min(time, max || time));
   }, [duration]);
 
   const skipBy = useCallback((delta: number) => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio || !assignedSourceRef.current) return;
     const max = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : duration;
     audio.currentTime = Math.max(0, Math.min(audio.currentTime + delta, max || audio.currentTime + delta));
   }, [duration]);
 
   const registerTrackEndedHandler = useCallback((handler: (() => void) | null) => {
     onTrackEndedRef.current = handler;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    audio.setAttribute('playsinline', '');
+    audio.setAttribute('webkit-playsinline', '');
   }, []);
 
   useEffect(() => {

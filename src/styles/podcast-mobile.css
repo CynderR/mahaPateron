@@ -171,7 +171,8 @@
     max-width: 220px;
     aspect-ratio: 1;
     border-radius: 0.65rem;
-    object-fit: cover;
+    object-fit: contain;
+    background: rgba(255, 255, 255, 0.06);
     margin-bottom: 0.85rem;
   }
 
@@ -261,8 +262,9 @@
     width: 4.25rem;
     height: 4.25rem;
     border-radius: 0.5rem;
-    object-fit: cover;
+    object-fit: contain;
     flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .pod-episode-cover-placeholder {

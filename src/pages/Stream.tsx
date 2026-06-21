@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -18,12 +18,17 @@ interface EpisodeResponse {
 
 const Stream: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
+  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
   const { setQueue } = usePlayer();
   const [data, setData] = useState<EpisodeResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+
+  const navPost = (location.state as { post?: FeedPost } | null)?.post;
+  const playerPost =
+    data?.post ?? (navPost && navPost.id === postId ? navPost : null);
 
   useEffect(() => {
     if (!postId) return;
@@ -49,7 +54,7 @@ const Stream: React.FC = () => {
       .catch(() => {});
   }, [postId, user, setQueue]);
 
-  const coverUrl = data?.post.image_filename ? buildImageUrl(data.post.image_filename) : null;
+  const coverUrl = playerPost?.image_filename ? buildImageUrl(playerPost.image_filename) : null;
   const bgStyle = coverUrl
     ? ({ '--stream-cover-url': `url("${coverUrl}")` } as React.CSSProperties)
     : undefined;
@@ -119,8 +124,8 @@ const Stream: React.FC = () => {
       </header>
 
       <main className="stream-main">
-        {loading && <div className="stream-loading">Loading…</div>}
-        {error && (
+        {loading && !playerPost && <div className="stream-loading">Loading…</div>}
+        {!loading && error && (
           <div className="stream-card">
             <div className="pod-banner pod-banner-error">{error}</div>
             <Link to="/feed" className="pod-btn">
@@ -129,7 +134,7 @@ const Stream: React.FC = () => {
           </div>
         )}
 
-        {!loading && data && user?.rss_token && (
+        {user?.rss_token && playerPost && (
           <article className="stream-card">
             <div className="stream-mobile-hero stream-ht-mobile-only">
               {coverNode}
@@ -137,18 +142,18 @@ const Stream: React.FC = () => {
                 <span>{PODCAST_AUTHOR}</span>
                 <span className="stream-mobile-plus" aria-hidden>+</span>
               </div>
-              <h1 className="stream-mobile-title">{data.post.title}</h1>
+              <h1 className="stream-mobile-title">{playerPost.title}</h1>
             </div>
 
             <div className="stream-desktop-only">{coverNode}</div>
 
             <div className="stream-card-body">
               <StreamPlayer
-                post={data.post}
+                post={playerPost}
                 rssToken={user.rss_token}
                 coverUrl={coverUrl}
-                accessible={data.accessible && data.is_paying}
-                canStream={data.canStream}
+                accessible={data ? data.accessible && data.is_paying : true}
+                canStream={data ? data.canStream : true}
               />
             </div>
           </article>

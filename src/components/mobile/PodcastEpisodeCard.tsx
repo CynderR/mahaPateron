@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePlayer } from '../../contexts/PlayerContext';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../../podcastMeta';
+import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
 
 interface PodcastEpisodeCardProps {
@@ -37,8 +38,10 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
     e.stopPropagation();
     if (!user?.rss_token || !canStream) return;
     playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
-    navigate(`/stream/${post.id}`);
+    navigate(`/stream/${post.id}`, { state: { post } });
   };
+
+  const displayDescription = feedDescriptionPreview(post.description);
 
   const cover = coverUrl ? (
     <img className="pod-episode-cover" src={coverUrl} alt="" />
@@ -66,7 +69,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </label>
       )}
       {canStream ? (
-        <Link to={`/stream/${post.id}`} className="pod-episode-card-main">
+        <Link to={`/stream/${post.id}`} state={{ post }} className="pod-episode-card-main">
           {cover}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>
@@ -75,7 +78,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
               {published && <span>{published}</span>}
               {post.duration_secs != null && <span>{formatDuration(post.duration_secs)}</span>}
             </div>
-            {post.description && <p className="pod-episode-desc">{post.description.split('\n')[0]}</p>}
+            {displayDescription && <p className="pod-episode-desc">{displayDescription}</p>}
           </div>
         </Link>
       ) : (
@@ -88,7 +91,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
               {published && <span>{published}</span>}
               {post.duration_secs != null && <span>{formatDuration(post.duration_secs)}</span>}
             </div>
-            {post.description && <p className="pod-episode-desc">{post.description.split('\n')[0]}</p>}
+            {displayDescription && <p className="pod-episode-desc">{displayDescription}</p>}
           </div>
         </>
       )}
