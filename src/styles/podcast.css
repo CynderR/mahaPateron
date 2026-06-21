@@ -1372,7 +1372,7 @@
 .ht-profile-banner {
   position: relative;
   background-size: cover;
-  background-position: center 18%;
+  background-position: 72% 35%;
   min-height: 240px;
   overflow: hidden;
 }
@@ -1399,7 +1399,7 @@
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  object-position: center 18%;
+  object-position: 72% 28%;
   border: 3px solid rgba(255, 255, 255, 0.85);
   flex-shrink: 0;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);

@@ -5,7 +5,7 @@ export const PODCAST_LOCATION = 'Montreal Canada';
 export const PODCAST_PROFILE_TITLE = PODCAST_AUTHOR;
 export const PODCAST_PROFILE_BIO = 'Satsang talks from Swami Shyam';
 export const PODCAST_GENRE = 'Spiritual';
-export const PODCAST_BANNER_URL = `${publicUrl}/shyam-akaash-landing.png`;
+export const PODCAST_BANNER_URL = `${publicUrl}/shyam-akaash-banner.png`;
 
 export const formatDuration = (secs?: number | null): string => {
   if (secs === null || secs === undefined) return '';
