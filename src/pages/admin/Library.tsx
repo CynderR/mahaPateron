@@ -1,7 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
+import AdminTableToolbar from '../../components/AdminTableToolbar';
+import SortableTableHeader from '../../components/SortableTableHeader';
+import {
+  AdminSortDir,
+  AdminSortField,
+  filterAdminItems,
+  nextSortState,
+  sortAdminItems
+} from '../../utils/adminTableHelpers';
 
 interface LibraryEntry {
   id: string;
@@ -29,6 +38,9 @@ const AdminLibrary: React.FC = () => {
   const [data, setData] = useState<LibraryResponse | null>(null);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortField, setSortField] = useState<AdminSortField | null>('date');
+  const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
 
   const load = async () => {
     setError('');
@@ -44,6 +56,18 @@ const AdminLibrary: React.FC = () => {
     load();
   }, []);
 
+  const entries = data?.entries ?? [];
+  const visibleEntries = useMemo(
+    () => sortAdminItems(filterAdminItems(entries, searchQuery), sortField, sortDir),
+    [entries, searchQuery, sortField, sortDir]
+  );
+
+  const handleSort = (field: AdminSortField) => {
+    const next = nextSortState(field, sortField, sortDir);
+    setSortField(next.field);
+    setSortDir(next.dir);
+  };
+
   const togglePublished = async (entry: LibraryEntry) => {
     try {
       const form = new FormData();
@@ -57,10 +81,10 @@ const AdminLibrary: React.FC = () => {
     }
   };
 
-  const deleteEntry = async (id: string) => {
-    if (!window.confirm('Remove this episode from the library?')) return;
+  const deleteEntry = async (entry: LibraryEntry) => {
+    if (!window.confirm(`Delete "${entry.title}"? This cannot be undone.`)) return;
     try {
-      await axios.delete(`/admin/library/${id}`);
+      await axios.delete(`/admin/library/${entry.id}`);
       setMessage('Library entry removed.');
       load();
     } catch (e: any) {
@@ -86,19 +110,37 @@ const AdminLibrary: React.FC = () => {
           }}
         />
 
-        <div className="pod-table-wrap" style={{ marginTop: '1.5rem' }}>
+        <AdminTableToolbar
+          onSearch={setSearchQuery}
+          totalCount={entries.length}
+          resultCount={visibleEntries.length}
+        />
+
+        <div className="pod-table-wrap" style={{ marginTop: '0.75rem' }}>
           <table className="pod-table">
             <thead>
               <tr>
                 <th>Title</th>
-                <th>Duration</th>
+                <SortableTableHeader
+                  label="Duration"
+                  field="duration"
+                  activeField={sortField}
+                  activeDir={sortDir}
+                  onSort={handleSort}
+                />
                 <th>Published</th>
-                <th>Date</th>
-                <th></th>
+                <SortableTableHeader
+                  label="Date"
+                  field="date"
+                  activeField={sortField}
+                  activeDir={sortDir}
+                  onSort={handleSort}
+                />
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {data?.entries.map((entry) => (
+              {visibleEntries.map((entry) => (
                 <tr key={entry.id}>
                   <td>
                     <div style={{ fontWeight: 600 }}>{entry.title}</div>
@@ -125,7 +167,7 @@ const AdminLibrary: React.FC = () => {
                       <button
                         type="button"
                         className="pod-btn pod-btn-danger pod-btn-sm"
-                        onClick={() => deleteEntry(entry.id)}
+                        onClick={() => deleteEntry(entry)}
                       >
                         Delete
                       </button>
@@ -133,10 +175,17 @@ const AdminLibrary: React.FC = () => {
                   </td>
                 </tr>
               ))}
-              {data && data.entries.length === 0 && (
+              {data && entries.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
                     No library entries yet.
+                  </td>
+                </tr>
+              )}
+              {data && entries.length > 0 && visibleEntries.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                    No library entries match your search.
                   </td>
                 </tr>
               )}
