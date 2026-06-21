@@ -1,3 +1,6 @@
+const express = require('express');
+
+const { BASE_URL } = require('../config');
 const {
   getUserById,
   getPostById,
