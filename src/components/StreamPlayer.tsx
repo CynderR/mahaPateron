@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { buildStreamUrl } from '../config';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -101,7 +101,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     return () => registerTrackEndedHandler(null);
   }, [handleEnded, registerTrackEndedHandler]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (playable) {
       prepareEpisode(post.id, streamUrl, post.duration_secs);
     }

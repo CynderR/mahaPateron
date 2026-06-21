@@ -18,9 +18,9 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({ post, c
   const { playEpisode } = usePlayer();
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
-  const handlePlay = async () => {
+  const handlePlay = () => {
     if (!user?.rss_token || !canStream) return;
-    await playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+    playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
     navigate(`/stream/${post.id}`);
   };
 

@@ -13,8 +13,15 @@ export const API_BASE_URL = isProd ? '/shyam_akaash/api' : 'http://localhost:500
 export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000';
 
 // Build the streaming URL for a post, authenticated with the user's RSS token.
-export const buildStreamUrl = (postId: string, rssToken: string): string =>
-  `${MEDIA_BASE_URL}/stream/${postId}?token=${encodeURIComponent(rssToken)}`;
+// Use an absolute URL in the browser so mobile audio elements resolve correctly under /shyam_akaash.
+export const buildStreamUrl = (postId: string, rssToken: string): string => {
+  const path = `${MEDIA_BASE_URL}/stream/${postId}?token=${encodeURIComponent(rssToken)}`;
+  if (path.startsWith('http')) return path;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+};
 
 export const buildDownloadUrl = (postId: string, rssToken: string): string =>
   `${buildStreamUrl(postId, rssToken)}&download=1`;

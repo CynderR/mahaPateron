@@ -49,8 +49,8 @@ interface PlayerContextType {
   removeFromPlaylist: (playlistId: string, postId: string) => Promise<void>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   prepareEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
-  playEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => Promise<void>;
-  togglePlayback: () => Promise<void>;
+  playEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
+  togglePlayback: () => void;
   seekTo: (time: number) => void;
   skipBy: (delta: number) => void;
   registerTrackEndedHandler: (handler: (() => void) | null) => void;
@@ -72,6 +72,7 @@ const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) ===
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const audioRef = useRef<HTMLAudioElement>(null);
+  const activePostIdRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
@@ -91,59 +92,65 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     replayModeRef.current = replayMode;
   }, [replayMode]);
 
-  const setAudioSource = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
+  const assignSource = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) return false;
 
-    if (activePostId !== postId) {
+    const currentSrc = audio.currentSrc || audio.src || '';
+    const needsUpdate = activePostIdRef.current !== postId || !currentSrc.includes(postId);
+
+    if (needsUpdate) {
       audio.src = streamUrl;
-      audio.load();
+      activePostIdRef.current = postId;
       setActivePostId(postId);
       setCurrentTime(0);
       setDuration(durationSecs ?? 0);
       setPlaying(false);
       setPlaybackError(null);
     }
-  }, [activePostId]);
 
-  const startPlayback = useCallback(async () => {
+    return true;
+  }, []);
+
+  const requestPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio || !(audio.currentSrc || audio.src)) return;
 
     setPlaybackError(null);
-    try {
-      await audio.play();
-    } catch {
-      setPlaybackError('Playback was blocked. Tap play again.');
-      setPlaying(false);
+    const attempt = audio.play();
+    if (attempt) {
+      attempt.catch(() => {
+        setPlaybackError('Could not start playback. Tap play again.');
+        setPlaying(false);
+      });
     }
   }, []);
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      setAudioSource(postId, streamUrl, durationSecs);
+      assignSource(postId, streamUrl, durationSecs);
     },
-    [setAudioSource]
+    [assignSource]
   );
 
   const playEpisode = useCallback(
-    async (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      setAudioSource(postId, streamUrl, durationSecs);
-      await startPlayback();
+    (postId: string, streamUrl: string, durationSecs?: number | null) => {
+      if (!assignSource(postId, streamUrl, durationSecs)) return;
+      requestPlay();
     },
-    [setAudioSource, startPlayback]
+    [assignSource, requestPlay]
   );
 
-  const togglePlayback = useCallback(async () => {
+  const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !audio.src) return;
+    if (!audio || !(audio.currentSrc || audio.src)) return;
 
     if (audio.paused) {
-      await startPlayback();
+      requestPlay();
     } else {
       audio.pause();
     }
-  }, [startPlayback]);
+  }, [requestPlay]);
 
   const seekTo = useCallback((time: number) => {
     const audio = audioRef.current;
@@ -425,7 +432,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   return (
     <PlayerContext.Provider value={value}>
-      <audio ref={audioRef} className="podcast-audio-element" playsInline preload="metadata" />
+      <audio ref={audioRef} className="podcast-audio-element" playsInline preload="auto" />
       {children}
     </PlayerContext.Provider>
   );

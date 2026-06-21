@@ -25,11 +25,11 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({ post, canStream
       })
     : '';
 
-  const handlePlay = async (e: React.MouseEvent) => {
+  const handlePlay = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!user?.rss_token || !canStream) return;
-    await playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+    playEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
     navigate(`/stream/${post.id}`);
   };
 
