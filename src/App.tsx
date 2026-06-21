@@ -20,9 +20,12 @@ import AdminUsers from './pages/admin/Users';
 import AdminPosts from './pages/admin/Posts';
 import AdminLibrary from './pages/admin/Library';
 import AdminBulkUpload from './pages/admin/BulkUpload';
+import Playlists from './pages/Playlists';
+import { PlayerProvider } from './contexts/PlayerContext';
 import './App.css';
 import './styles/themes.css';
 import './styles/podcast.css';
+import './styles/podcast-mobile.css';
 
 const AppRoutes: React.FC = () => {
   const { isAdmin } = useAuth();
@@ -50,6 +53,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Library />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/playlists"
+        element={
+          <ProtectedRoute>
+            <Playlists />
           </ProtectedRoute>
         }
       />
@@ -136,11 +147,13 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router basename={ROUTER_BASENAME}>
-          <div className="App">
-            <AppRoutes />
-          </div>
-        </Router>
+        <PlayerProvider>
+          <Router basename={ROUTER_BASENAME}>
+            <div className="App">
+              <AppRoutes />
+            </div>
+          </Router>
+        </PlayerProvider>
       </AuthProvider>
     </ThemeProvider>
   );

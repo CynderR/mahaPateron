@@ -5,6 +5,9 @@ import { useAuth } from '../contexts/AuthContext';
 import HearThisNav from '../components/HearThisNav';
 import ProfileFeaturedTrack from '../components/ProfileFeaturedTrack';
 import ProfileTrackRow from '../components/ProfileTrackRow';
+import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
+import PodcastFeaturedEpisode from '../components/mobile/PodcastFeaturedEpisode';
+import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import { FeedPost } from '../components/PostCard';
 import { buildImageUrl } from '../config';
 import {
@@ -63,8 +66,48 @@ const Feed: React.FC = () => {
     <div className="ht-page">
       <HearThisNav />
 
+      <div className="pod-feed-mobile-only">
+        <PodcastMobileHeader
+          title={PODCAST_AUTHOR}
+          subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
+        />
+
+        {error && <div className="pod-banner pod-banner-error">{error}</div>}
+
+        {!loading && data && !data.is_paying && (
+          <div className="pod-banner pod-banner-info">
+            Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to
+            episodes.
+          </div>
+        )}
+
+        {loading ? (
+          <div className="pod-empty">Loading episodes…</div>
+        ) : posts.length > 0 ? (
+          <>
+            {featured && (
+              <PodcastFeaturedEpisode post={featured} canStream={canStream} memberSince={memberSince} />
+            )}
+            {listPosts.length > 0 && (
+              <>
+                <p className="pod-feed-section-label">All episodes</p>
+                <div className="pod-feed-list">
+                  {listPosts.map((post) => (
+                    <PodcastEpisodeCard key={post.id} post={post} canStream={canStream} />
+                  ))}
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="pod-empty">No episodes have been published yet.</div>
+        )}
+
+        <PodcastMobileNav />
+      </div>
+
       <section
-        className="ht-profile-banner"
+        className="ht-profile-banner feed-ht-desktop-only"
         style={{ backgroundImage: `url("${PODCAST_BANNER_URL}")` }}
       >
         <div className="ht-profile-banner-overlay" />
@@ -80,7 +123,7 @@ const Feed: React.FC = () => {
         </div>
       </section>
 
-      <div className="ht-layout">
+      <div className="ht-layout feed-ht-desktop-only">
         <main className="ht-main">
           <div className="ht-tabs-bar">
             <div className="ht-tabs">

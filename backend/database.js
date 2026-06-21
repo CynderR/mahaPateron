@@ -2,6 +2,7 @@ const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { runPodcastMigration } = require('./migrations/20260531120000_podcast_platform');
+const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_player_features');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -56,7 +57,7 @@ const initDatabase = () => {
         }
       });
     });
-  }).then(() => runPodcastMigration(db));
+  }).then(() => runPodcastMigration(db)).then(() => runPlayerFeaturesMigration(db));
 };
 
 // User CRUD operations
@@ -572,6 +573,155 @@ const getStreamStats = () => {
   });
 };
 
+// ----- Favorites & playlists -----
+
+const getUserFavorites = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT post_id, created_at FROM user_favorites WHERE user_id = ? ORDER BY created_at DESC',
+      [userId],
+      (err, rows) => (err ? reject(err) : resolve(rows))
+    );
+  });
+};
+
+const addUserFavorite = (userId, postId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'INSERT OR IGNORE INTO user_favorites (user_id, post_id) VALUES (?, ?)',
+      [userId, postId],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ added: this.changes > 0 });
+      }
+    );
+  });
+};
+
+const removeUserFavorite = (userId, postId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'DELETE FROM user_favorites WHERE user_id = ? AND post_id = ?',
+      [userId, postId],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ removed: this.changes > 0 });
+      }
+    );
+  });
+};
+
+const getUserPlaylists = (userId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      'SELECT * FROM playlists WHERE user_id = ? ORDER BY updated_at DESC, name ASC',
+      [userId],
+      (err, rows) => (err ? reject(err) : resolve(rows))
+    );
+  });
+};
+
+const getPlaylistById = (playlistId, userId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM playlists WHERE id = ? AND user_id = ?',
+      [playlistId, userId],
+      (err, row) => (err ? reject(err) : resolve(row))
+    );
+  });
+};
+
+const createPlaylist = (userId, name) => {
+  return new Promise((resolve, reject) => {
+    const id = uuidv4();
+    db.run(
+      'INSERT INTO playlists (id, user_id, name) VALUES (?, ?, ?)',
+      [id, userId, name],
+      function (err) {
+        if (err) return reject(err);
+        resolve({ id, user_id: userId, name });
+      }
+    );
+  });
+};
+
+const deletePlaylist = (playlistId, userId) => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.run('DELETE FROM playlist_items WHERE playlist_id = ?', [playlistId]);
+      db.run(
+        'DELETE FROM playlists WHERE id = ? AND user_id = ?',
+        [playlistId, userId],
+        function (err) {
+          if (err) return reject(err);
+          resolve({ deleted: this.changes > 0 });
+        }
+      );
+    });
+  });
+};
+
+const getPlaylistItems = (playlistId) => {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT pi.id, pi.post_id, pi.position, p.title, p.duration_secs, p.published_at, p.image_filename
+       FROM playlist_items pi
+       JOIN posts p ON p.id = pi.post_id
+       WHERE pi.playlist_id = ? AND p.deleted_at IS NULL
+       ORDER BY pi.position ASC, pi.created_at ASC`,
+      [playlistId],
+      (err, rows) => (err ? reject(err) : resolve(rows))
+    );
+  });
+};
+
+const addPlaylistItem = (playlistId, postId) => {
+  return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM playlist_items WHERE playlist_id = ?',
+      [playlistId],
+      (err, row) => {
+        if (err) return reject(err);
+        const id = uuidv4();
+        const position = row?.next_pos ?? 0;
+        db.run(
+          'INSERT OR IGNORE INTO playlist_items (id, playlist_id, post_id, position) VALUES (?, ?, ?, ?)',
+          [id, playlistId, postId, position],
+          function (insertErr) {
+            if (insertErr) return reject(insertErr);
+            db.run(
+              'UPDATE playlists SET updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+              [playlistId],
+              () => resolve({ added: this.changes > 0, id })
+            );
+          }
+        );
+      }
+    );
+  });
+};
+
+const removePlaylistItem = (playlistId, postId) => {
+  return new Promise((resolve, reject) => {
+    db.run(
+      'DELETE FROM playlist_items WHERE playlist_id = ? AND post_id = ?',
+      [playlistId, postId],
+      function (err) {
+        if (err) return reject(err);
+        db.run(
+          'UPDATE playlists SET updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+          [playlistId],
+          () => resolve({ removed: this.changes > 0 })
+        );
+      }
+    );
+  });
+};
+
+const getLatestAccessiblePostForUser = (user) => {
+  return getPublishedPostsForUser(user).then((posts) => posts[0] || null);
+};
+
 module.exports = {
   db,
   initDatabase,
@@ -610,7 +760,18 @@ module.exports = {
   getPlatformSettings,
   updatePlatformSettings,
   logStreamEvent,
-  getStreamStats
+  getStreamStats,
+  getUserFavorites,
+  addUserFavorite,
+  removeUserFavorite,
+  getUserPlaylists,
+  getPlaylistById,
+  createPlaylist,
+  deletePlaylist,
+  getPlaylistItems,
+  addPlaylistItem,
+  removePlaylistItem,
+  getLatestAccessiblePostForUser
 };
 
 

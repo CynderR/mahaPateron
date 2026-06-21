@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { buildStreamUrl } from '../config';
+import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
+import FavoriteButton from './FavoriteButton';
+import PlayerControls from './PlayerControls';
+import PlaylistPicker from './PlaylistPicker';
+import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -54,6 +59,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   accessible,
   canStream
 }) => {
+  const navigate = useNavigate();
+  const { replayMode, getNextPostId, getPrevPostId } = usePlayer();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -66,6 +73,29 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const playable = accessible && canStream;
 
+  const nextId = getNextPostId();
+  const prevId = getPrevPostId();
+
+  const seekTo = useCallback(
+    (time: number) => {
+      const audio = audioRef.current;
+      if (!audio || !playable) return;
+      const max = duration || audio.duration || 0;
+      audio.currentTime = Math.max(0, Math.min(time, max));
+    },
+    [playable, duration]
+  );
+
+  const skipBy = useCallback(
+    (delta: number) => {
+      const audio = audioRef.current;
+      if (!audio || !playable) return;
+      const max = duration || audio.duration || 0;
+      audio.currentTime = Math.max(0, Math.min(audio.currentTime + delta, max));
+    },
+    [playable, duration]
+  );
+
   const togglePlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !playable) return;
@@ -75,6 +105,28 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       audio.pause();
     }
   }, [playable]);
+
+  const goNext = useCallback(() => {
+    if (nextId) navigate(`/stream/${nextId}`);
+  }, [navigate, nextId]);
+
+  const goPrev = useCallback(() => {
+    if (prevId) navigate(`/stream/${prevId}`);
+  }, [navigate, prevId]);
+
+  const handleEnded = useCallback(() => {
+    if (replayMode === 'one') {
+      const audio = audioRef.current;
+      if (audio) {
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      }
+      return;
+    }
+    if (nextId) {
+      navigate(`/stream/${nextId}`);
+    }
+  }, [replayMode, nextId, navigate]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -86,7 +138,10 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     };
     const onPlay = () => setPlaying(true);
     const onPause = () => setPlaying(false);
-    const onEnded = () => setPlaying(false);
+    const onEnded = () => {
+      setPlaying(false);
+      handleEnded();
+    };
 
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.addEventListener('durationchange', onDurationChange);
@@ -103,11 +158,17 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
     };
-  }, [streamUrl]);
+  }, [streamUrl, handleEnded]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume;
   }, [volume]);
+
+  useEffect(() => {
+    setCurrentTime(0);
+    setDuration(post.duration_secs ?? 0);
+    setPlaying(false);
+  }, [post.id, post.duration_secs]);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
@@ -160,12 +221,11 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   return (
     <>
       {playable && (
-        <audio ref={audioRef} preload="metadata" src={streamUrl}>
+        <audio ref={audioRef} preload="metadata" src={streamUrl} key={post.id}>
           <track kind="captions" />
         </audio>
       )}
 
-      {/* Desktop header: play + title */}
       <div className="stream-header stream-desktop-only">
         <button
           type="button"
@@ -186,8 +246,18 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <span className="stream-author-name">{PODCAST_AUTHOR}</span>
       </div>
 
-      {/* Mobile action row */}
-      <div className="stream-mobile-actions stream-mobile-only">
+      <div className="stream-player-tools stream-desktop-only">
+        <PlayerControls
+          onPrevious={goPrev}
+          onNext={goNext}
+          canPrevious={!!prevId}
+          canNext={!!nextId}
+        />
+        <FavoriteButton postId={post.id} />
+        <PlaylistPicker postId={post.id} />
+      </div>
+
+      <div className="stream-mobile-actions stream-ht-mobile-only">
         <button
           type="button"
           className="stream-play-btn stream-play-btn-mobile"
@@ -199,14 +269,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         </button>
         <span className="stream-mobile-duration">{formatTime(duration || post.duration_secs || 0)}</span>
         <span className="stream-mobile-actions-spacer" aria-hidden />
-        <button type="button" className="stream-mobile-icon-btn stream-mobile-more" aria-label="More options">
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <path
-              fill="currentColor"
-              d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"
-            />
-          </svg>
-        </button>
+        <FavoriteButton postId={post.id} className="stream-mobile-favorite" />
         <Link to="/account/rss" className="stream-mobile-icon-btn stream-mobile-share" aria-label="RSS feed">
           <svg viewBox="0 0 24 24" aria-hidden>
             <path
@@ -222,10 +285,20 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           {formatTime(duration || post.duration_secs || 0)}
         </span>
         {waveform(barHeights, 'stream-waveform-desktop stream-desktop-only')}
-        {waveform(mobileBarHeights, 'stream-waveform-mobile stream-mobile-only')}
+        {waveform(mobileBarHeights, 'stream-waveform-mobile stream-ht-mobile-only')}
       </div>
 
-      <div className="stream-description-block stream-mobile-only">
+      <div className="stream-player-tools stream-ht-mobile-only stream-player-tools-mobile">
+        <PlayerControls
+          onPrevious={goPrev}
+          onNext={goNext}
+          canPrevious={!!prevId}
+          canNext={!!nextId}
+        />
+        <PlaylistPicker postId={post.id} />
+      </div>
+
+      <div className="stream-description-block stream-ht-mobile-only">
         <p className="stream-description-label">Profile description of {PODCAST_AUTHOR}:</p>
         <p className="stream-description">{post.description || 'Members-only audio from Shyam Akaash.'}</p>
       </div>
@@ -257,7 +330,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         </p>
       )}
 
-      {/* Desktop bottom bar */}
       <footer className="stream-global-bar stream-desktop-only">
         <button
           type="button"
@@ -268,6 +340,14 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         >
           <PlayIcon />
         </button>
+        <PlayerControls
+          className="stream-global-bar-controls"
+          onPrevious={goPrev}
+          onNext={goNext}
+          canPrevious={!!prevId}
+          canNext={!!nextId}
+        />
+        <FavoriteButton postId={post.id} />
         <div className="stream-volume">
           <svg className="stream-volume-icon" viewBox="0 0 24 24" aria-hidden>
             <path
@@ -288,8 +368,23 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         </div>
       </footer>
 
-      {/* Mobile sticky player */}
-      <footer className="stream-mobile-bar stream-mobile-only">
+      <PodcastStreamMobile
+        post={post}
+        coverUrl={coverUrl}
+        playing={playing}
+        currentTime={currentTime}
+        duration={duration}
+        playable={playable}
+        onTogglePlay={togglePlay}
+        onSeek={seekTo}
+        onSkip={skipBy}
+        onPrevious={goPrev}
+        onNext={goNext}
+        canPrevious={!!prevId}
+        canNext={!!nextId}
+      />
+
+      <footer className="stream-mobile-bar stream-ht-mobile-only">
         <div className="stream-mobile-bar-progress">
           <div className="stream-mobile-bar-progress-fill" style={{ width: `${progress}%` }} />
         </div>
@@ -306,16 +401,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
             <p className="stream-mobile-bar-artist">{PODCAST_AUTHOR}</p>
           </div>
           <div className="stream-mobile-bar-controls">
-            <button type="button" className="stream-mobile-bar-icon" aria-label="Favorite">
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
-                />
-              </svg>
-            </button>
+            <FavoriteButton postId={post.id} className="stream-mobile-bar-icon-wrap" />
             <button
               type="button"
               className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
@@ -325,16 +411,22 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
             >
               <PlayIcon filled />
             </button>
-            <button type="button" className="stream-mobile-bar-icon" aria-label="Next" disabled>
+            <button
+              type="button"
+              className="stream-mobile-bar-icon"
+              aria-label="Next"
+              onClick={goNext}
+              disabled={!nextId}
+            >
               <svg viewBox="0 0 24 24" aria-hidden>
                 <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
               </svg>
             </button>
-            <button type="button" className="stream-mobile-bar-icon" aria-label="Queue">
+            <Link to="/playlists" className="stream-mobile-bar-icon" aria-label="Playlists">
               <svg viewBox="0 0 24 24" aria-hidden>
                 <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
               </svg>
-            </button>
+            </Link>
           </div>
         </div>
       </footer>

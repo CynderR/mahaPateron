@@ -1,0 +1,568 @@
+/* Podcast-optimized mobile layout (≤768px). HearThis mobile clone kept in markup but hidden. */
+
+.pod-mobile-only,
+.pod-feed-mobile-only {
+  display: none;
+}
+
+.feed-ht-desktop-only {
+  display: block;
+}
+
+@media (max-width: 768px) {
+  .pod-mobile-only,
+  .pod-feed-mobile-only {
+    display: block;
+  }
+
+  .feed-ht-desktop-only,
+  .ht-nav,
+  .stream-mobile-only,
+  .stream-ht-mobile-only {
+    display: none !important;
+  }
+
+  .ht-page,
+  .podcast-page,
+  .stream-page {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .podcast-page .podcast-nav,
+  .podcast-page > .podcast-nav {
+    display: none;
+  }
+
+  /* ----- Bottom tab bar ----- */
+
+  .pod-mobile-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 0.25rem;
+    padding: 0.35rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(12, 12, 12, 0.96);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(12px);
+  }
+
+  .pod-mobile-nav-link {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
+    padding: 0.35rem 0.25rem;
+    border-radius: 0.5rem;
+    color: rgba(255, 255, 255, 0.55);
+    text-decoration: none;
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+
+  .pod-mobile-nav-link svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .pod-mobile-nav-link.active,
+  .pod-mobile-nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  /* ----- Feed / library header ----- */
+
+  .pod-mobile-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1rem 0.75rem;
+    background: #0a0a0a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .pod-mobile-header-title {
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .pod-mobile-header-subtitle {
+    margin: 0.25rem 0 0;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .pod-feed-mobile-only {
+    background: #0a0a0a;
+    min-height: calc(100vh - 4.75rem);
+    color: #fff;
+  }
+
+  .pod-feed-mobile-only .pod-banner {
+    margin: 0.75rem 1rem 0;
+  }
+
+  .pod-feed-list {
+    padding: 0.5rem 0 1rem;
+  }
+
+  .pod-feed-section-label {
+    margin: 0;
+    padding: 0.85rem 1rem 0.35rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  /* ----- Featured latest episode ----- */
+
+  .pod-featured {
+    padding: 0 1rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .pod-featured-show h2 {
+    margin: 0 0 0.35rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .pod-featured-show p {
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: rgba(255, 255, 255, 0.65);
+  }
+
+  .pod-featured-since {
+    margin-top: 0.5rem !important;
+    font-size: 0.78rem !important;
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+
+  .pod-featured-latest {
+    margin-top: 1rem;
+    padding: 1rem;
+    border-radius: 0.85rem;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .pod-featured-label {
+    margin: 0 0 0.75rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #e53e3e;
+  }
+
+  .pod-featured-art {
+    width: 100%;
+    max-width: 220px;
+    aspect-ratio: 1;
+    border-radius: 0.65rem;
+    object-fit: cover;
+    margin-bottom: 0.85rem;
+  }
+
+  .pod-featured-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.35;
+  }
+
+  .pod-featured-meta {
+    margin: 0 0 0.85rem;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .pod-featured-play {
+    display: inline-flex;
+    width: 100%;
+    justify-content: center;
+    text-decoration: none;
+  }
+
+  .pod-featured-locked {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  /* ----- Episode list cards ----- */
+
+  .pod-episode-card,
+  .pod-episode-card-link {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.85rem;
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .pod-episode-card-link:active {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .pod-episode-cover {
+    width: 4.25rem;
+    height: 4.25rem;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+
+  .pod-episode-cover-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #2d3748, #1a202c);
+    color: rgba(255, 255, 255, 0.35);
+    font-size: 1.25rem;
+  }
+
+  .pod-episode-body {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pod-episode-show {
+    margin: 0 0 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.45);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .pod-episode-title {
+    margin: 0 0 0.35rem;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.35;
+    color: #fff;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pod-episode-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .pod-episode-meta span + span::before {
+    content: '·';
+    margin-right: 0.5rem;
+    opacity: 0.6;
+  }
+
+  .pod-episode-desc {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.45);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pod-episode-fav {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+
+  /* ----- Stream / now playing ----- */
+
+  .stream-page {
+    background: #0a0a0a;
+    padding-bottom: 1.5rem;
+  }
+
+  .stream-main {
+    padding: 0;
+    align-items: stretch;
+    min-height: auto;
+  }
+
+  .stream-card {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+  }
+
+  .stream-waveform-wrap {
+    display: none;
+  }
+
+  .pod-stream-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: rgba(10, 10, 10, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .pod-stream-topbar-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .pod-stream-topbar-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border: none;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    text-decoration: none;
+  }
+
+  .pod-stream-topbar-btn svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .pod-stream {
+    padding: 1.25rem 1rem 2rem;
+  }
+
+  .pod-stream-art-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 1.25rem;
+  }
+
+  .pod-stream-art {
+    width: min(280px, 72vw);
+    aspect-ratio: 1;
+    border-radius: 0.75rem;
+    object-fit: cover;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .pod-stream-copy {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+
+  .pod-stream-show {
+    margin: 0 0 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #e53e3e;
+  }
+
+  .pod-stream-title {
+    margin: 0 0 0.35rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+  }
+
+  .pod-stream-date {
+    margin: 0;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  .pod-stream-scrubber {
+    margin-bottom: 1.25rem;
+  }
+
+  .pod-stream-range {
+    width: 100%;
+    height: 4px;
+    appearance: none;
+    background: linear-gradient(
+      to right,
+      #e53e3e 0%,
+      #e53e3e var(--pod-progress, 0%),
+      rgba(255, 255, 255, 0.15) var(--pod-progress, 0%),
+      rgba(255, 255, 255, 0.15) 100%
+    );
+    border-radius: 2px;
+    cursor: pointer;
+    accent-color: #e53e3e;
+  }
+
+  .pod-stream-range:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  .pod-stream-times {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.45rem;
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .pod-stream-transport {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .pod-stream-skip {
+    min-width: 2.75rem;
+    padding: 0.45rem 0.35rem;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.72rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .pod-stream-skip:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .pod-stream-transport-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: none;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+  }
+
+  .pod-stream-transport-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
+  }
+
+  .pod-stream-transport-btn svg {
+    width: 1.65rem;
+    height: 1.65rem;
+  }
+
+  .pod-stream-play {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 4.25rem;
+    height: 4.25rem;
+    border: none;
+    border-radius: 50%;
+    background: #e53e3e;
+    color: #fff;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(229, 62, 62, 0.35);
+  }
+
+  .pod-stream-play:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+
+  .pod-stream-play svg {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .pod-stream-tools {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    padding: 0.75rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 1.25rem;
+  }
+
+  .pod-stream-back-link {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.65);
+    text-decoration: none;
+  }
+
+  .pod-stream-back-link:hover {
+    color: #fff;
+  }
+
+  .pod-stream-notes {
+    padding-top: 0.25rem;
+  }
+
+  .pod-stream-notes h2 {
+    margin: 0 0 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .pod-stream-notes p {
+    margin: 0;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.72);
+    white-space: pre-wrap;
+  }
+
+  /* Playlists page mobile padding */
+  .playlists-page {
+    padding: 0 1rem 1rem;
+  }
+
+  .playlists-page .podcast-section-title {
+    padding-top: 0.5rem;
+  }
+
+  .pod-feed-grid {
+    display: none;
+  }
+}

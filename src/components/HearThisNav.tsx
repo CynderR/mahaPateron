@@ -2,6 +2,7 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PODCAST_AUTHOR } from '../podcastMeta';
+import DownloadLatestButton from './DownloadLatestButton';
 
 const HearThisNav: React.FC = () => {
   const { isAdmin, logout } = useAuth();
@@ -23,7 +24,9 @@ const HearThisNav: React.FC = () => {
             Sounds
           </NavLink>
           <NavLink to="/library">Library</NavLink>
+          <NavLink to="/playlists">Playlists</NavLink>
           <NavLink to="/account/rss">RSS</NavLink>
+          <DownloadLatestButton compact />
           <NavLink to="/account/billing">Billing</NavLink>
           <NavLink to="/account/settings">Settings</NavLink>
           {isAdmin && <NavLink to="/admin">Admin</NavLink>}

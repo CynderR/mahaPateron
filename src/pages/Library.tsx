@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import PodcastNav from '../components/PodcastNav';
 import PostCard, { FeedPost } from '../components/PostCard';
+import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
+import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -39,11 +41,54 @@ const Library: React.FC = () => {
   }, []);
 
   const lockedCount = data ? data.total - data.accessible : 0;
+  const entries = data?.entries ?? [];
 
   return (
     <div className="podcast-page">
-      <PodcastNav />
-      <main className="podcast-main">
+      <div className="feed-ht-desktop-only">
+        <PodcastNav />
+      </div>
+
+      <div className="pod-feed-mobile-only">
+        <PodcastMobileHeader
+          title="Library"
+          subtitle={data ? `${data.accessible} of ${data.total} episodes available` : undefined}
+        />
+
+        {error && <div className="pod-banner pod-banner-error">{error}</div>}
+
+        {!loading && data && !data.is_paying && (
+          <div className="pod-banner pod-banner-info">
+            Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
+          </div>
+        )}
+
+        {!loading && data && data.is_paying && lockedCount > 0 && !data.back_catalog_access && (
+          <div className="pod-banner pod-banner-info">
+            {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
+          </div>
+        )}
+
+        {loading ? (
+          <div className="pod-empty">Loading library…</div>
+        ) : entries.length > 0 ? (
+          <div className="pod-feed-list">
+            {entries.map((entry) => (
+              <PodcastEpisodeCard
+                key={entry.id}
+                post={entry}
+                canStream={!!data?.is_paying && !!data.canStream && entry.accessible}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="pod-empty">No episodes in the library yet.</div>
+        )}
+
+        <PodcastMobileNav />
+      </div>
+
+      <main className="podcast-main feed-ht-desktop-only">
         <h2 className="podcast-section-title">Episode Library</h2>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
@@ -63,14 +108,14 @@ const Library: React.FC = () => {
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
-        ) : data && data.entries.length > 0 ? (
+        ) : entries.length > 0 ? (
           <div className="pod-feed-grid">
-            {data.entries.map((entry) => (
+            {entries.map((entry) => (
               <PostCard
                 key={entry.id}
                 post={entry}
                 rssToken={user?.rss_token}
-                canStream={!!data.is_paying && data.canStream && entry.accessible}
+                canStream={!!data?.is_paying && data.canStream && entry.accessible}
                 locked={!entry.accessible}
               />
             ))}

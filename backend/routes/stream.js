@@ -69,6 +69,14 @@ router.get('/:postId', async (req, res) => {
     res.set('Accept-Ranges', 'bytes');
     res.set('Content-Type', 'audio/mpeg');
 
+    if (req.query.download === '1') {
+      const safeTitle = String(post.title || 'episode')
+        .replace(/[^\w\s.-]+/g, '')
+        .trim()
+        .slice(0, 120) || 'episode';
+      res.set('Content-Disposition', `attachment; filename="${safeTitle}.mp3"`);
+    }
+
     if (range) {
       const match = /bytes=(\d*)-(\d*)/.exec(range);
       const start = match && match[1] ? parseInt(match[1], 10) : 0;

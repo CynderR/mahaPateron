@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
+import { usePlayer } from '../contexts/PlayerContext';
 import { buildImageUrl } from '../config';
 import StreamPlayer from '../components/StreamPlayer';
 import { FeedPost } from '../components/PostCard';
@@ -19,6 +20,7 @@ const Stream: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { setQueue } = usePlayer();
   const [data, setData] = useState<EpisodeResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -38,6 +40,14 @@ const Stream: React.FC = () => {
     };
     load();
   }, [postId]);
+
+  useEffect(() => {
+    if (!postId || !user) return;
+    axios
+      .get<{ posts: FeedPost[] }>('/account/feed')
+      .then((res) => setQueue(res.data.posts, postId))
+      .catch(() => {});
+  }, [postId, user, setQueue]);
 
   const coverUrl = data?.post.image_filename ? buildImageUrl(data.post.image_filename) : null;
   const bgStyle = coverUrl
@@ -67,7 +77,21 @@ const Stream: React.FC = () => {
         </svg>
       </button>
 
-      <header className="stream-mobile-topbar stream-mobile-only">
+      <header className="pod-stream-topbar pod-mobile-only">
+        <button type="button" className="pod-stream-topbar-btn" onClick={() => navigate(-1)} aria-label="Back">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
+          </svg>
+        </button>
+        <span className="pod-stream-topbar-title">Now playing</span>
+        <Link to="/feed" className="pod-stream-topbar-btn" aria-label="All episodes">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+          </svg>
+        </Link>
+      </header>
+
+      <header className="stream-mobile-topbar stream-ht-mobile-only">
         <span className="stream-mobile-brand">{PODCAST_AUTHOR}</span>
         <div className="stream-mobile-topbar-actions">
           <Link to="/account/settings" className="stream-mobile-icon-btn" aria-label="Account">
@@ -107,7 +131,7 @@ const Stream: React.FC = () => {
 
         {!loading && data && user?.rss_token && (
           <article className="stream-card">
-            <div className="stream-mobile-hero stream-mobile-only">
+            <div className="stream-mobile-hero stream-ht-mobile-only">
               {coverNode}
               <div className="stream-mobile-artist">
                 <span>{PODCAST_AUTHOR}</span>

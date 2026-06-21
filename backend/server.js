@@ -28,6 +28,7 @@ const { ensureDirs, IMAGE_DIR } = require('./config');
 const adminUsersRouter = require('./routes/admin-users');
 const adminPostsRouter = require('./routes/admin-posts');
 const adminLibraryRouter = require('./routes/admin-library');
+const accountPlayerRouter = require('./routes/account-player');
 const adminRouter = require('./routes/admin');
 const accountRouter = require('./routes/account');
 const rssRouter = require('./routes/rss');
@@ -298,6 +299,7 @@ API_PREFIXES.forEach((prefix) => {
   app.use(`${prefix}/admin/library`, authenticateToken, requireAdmin, adminLibraryRouter);
   app.use(`${prefix}/admin`, authenticateToken, requireAdmin, adminRouter);
   app.use(`${prefix}/account`, authenticateToken, accountRouter);
+  app.use(`${prefix}/account/player`, authenticateToken, accountPlayerRouter);
   app.use(`${prefix}/payments`, authenticateToken, paymentsRouter);
 });
 
