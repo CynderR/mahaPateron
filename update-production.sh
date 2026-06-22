@@ -62,10 +62,42 @@ npm install
 print_status "Installing backend dependencies..."
 (cd backend && npm install --omit=dev)
 
-print_status "Building React app (homepage /shyam_akaash)..."
-npm run build
+build_frontend() {
+  local backup_dir=""
+  if [ -f build/index.html ]; then
+    backup_dir="$(mktemp -d)"
+    print_status "Backing up current build to $backup_dir ..."
+    cp -a build "$backup_dir/"
+  fi
 
-print_status "Linking build/ and verifying nginx static serving..."
+  print_status "Building React app (homepage /shyam_akaash)..."
+  # Webhook shells may set CI=1, which turns ESLint warnings into build failures.
+  if ! CI=false npm run build; then
+    if [ -n "$backup_dir" ] && [ -f "$backup_dir/build/index.html" ]; then
+      print_warning "Build failed — restoring previous build so the site stays online"
+      rm -rf build
+      cp -a "$backup_dir/build" .
+    fi
+    rm -rf "$backup_dir"
+    print_error "Frontend build failed"
+    return 1
+  fi
+
+  rm -rf "$backup_dir"
+
+  if ! ls build/static/js/main.*.js >/dev/null 2>&1; then
+    print_error "Build finished but main.*.js is missing"
+    return 1
+  fi
+  if [ ! -f build/index.html ]; then
+    print_error "Build finished but build/index.html is missing"
+    return 1
+  fi
+}
+
+build_frontend
+
+print_status "Verifying nginx static serving..."
 if [ "$RELOAD_NGINX" = "1" ]; then
   bash "$SCRIPT_DIR/fix-nginx.sh"
 else

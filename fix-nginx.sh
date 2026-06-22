@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# Ensure the shyam_akaash symlink exists and nginx serves JS/CSS with the correct
-# MIME type. Run on the server after git pull:
+# Ensure nginx serves the CRA build with correct MIME types.
+# Run on the server after git pull:
 #   ./fix-nginx.sh
 #
-# If nginx config is still wrong, apply the automated patch first:
-#   sudo python3 scripts/patch-nginx-frontend.py
-#   ./fix-nginx.sh
+# Applies scripts/patch-nginx-frontend.py automatically when the site config
+# is missing the shyam-akaash snippet include.
 
 set -e
 
@@ -24,34 +23,40 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 NGINX_SITE="${NGINX_SITE:-/etc/nginx/sites-available/user-management-app}"
 HOST_HEADER="${HOST_HEADER:-4thstate.ca}"
-APPLY_NGINX_PATCH="${APPLY_NGINX_PATCH:-0}"
-
-print_status "Linking build/ → shyam_akaash/ (required for root+try_files)..."
-ln -sfn "$SCRIPT_DIR/build" "$SCRIPT_DIR/shyam_akaash"
+APPLY_NGINX_PATCH="${APPLY_NGINX_PATCH:-1}"
 
 if ! ls build/static/js/main.*.js >/dev/null 2>&1; then
   print_error "No build/static/js/main.*.js — run npm run build first"
   exit 1
 fi
 
-MAIN_JS="$(basename "$(ls build/static/js/main.*.js | head -1)")"
-DISK_PATH="$SCRIPT_DIR/shyam_akaash/static/js/$MAIN_JS"
-print_status "JS bundle on disk: shyam_akaash/static/js/$MAIN_JS"
-
-if [ ! -f "$DISK_PATH" ]; then
-  print_error "Symlink broken — $DISK_PATH not found"
+if [ ! -f build/index.html ]; then
+  print_error "build/index.html is missing — run npm run build first"
   exit 1
 fi
 
-if [ "$APPLY_NGINX_PATCH" = "1" ]; then
+MAIN_JS="$(basename "$(ls build/static/js/main.*.js | head -1)")"
+DISK_PATH="$SCRIPT_DIR/build/static/js/$MAIN_JS"
+print_status "JS bundle on disk: build/static/js/$MAIN_JS"
+
+if [ ! -f "$DISK_PATH" ]; then
+  print_error "Build output incomplete — $DISK_PATH not found"
+  exit 1
+fi
+
+# Optional legacy symlink (nginx now aliases build/ directly).
+ln -sfn "$SCRIPT_DIR/build" "$SCRIPT_DIR/shyam_akaash"
+
+apply_nginx_patch() {
   print_status "Applying nginx patch (scripts/patch-nginx-frontend.py)..."
   sudo python3 "$SCRIPT_DIR/scripts/patch-nginx-frontend.py"
-fi
+}
 
 needs_patch=0
 if [ -f "$NGINX_SITE" ]; then
-  if grep -q 'alias /var/www/user-management-app/build' "$NGINX_SITE" 2>/dev/null; then
-    print_warning "Old alias /var/www/user-management-app/build still in $NGINX_SITE"
+  # Legacy inline SPA block used alias .../build; (not .../build/static/)
+  if grep -q 'alias /var/www/user-management-app/build;' "$NGINX_SITE" 2>/dev/null; then
+    print_warning "Legacy inline SPA alias still in $NGINX_SITE"
     needs_patch=1
   fi
   if ! grep -q 'include snippets/shyam-akaash.conf' "$NGINX_SITE" 2>/dev/null \
@@ -61,14 +66,14 @@ if [ -f "$NGINX_SITE" ]; then
   fi
 fi
 
-if [ "$needs_patch" = "1" ]; then
+if [ "$APPLY_NGINX_PATCH" = "1" ] && [ "$needs_patch" = "1" ]; then
+  apply_nginx_patch
+elif [ "$needs_patch" = "1" ]; then
   print_error "nginx frontend config is not patched yet."
   echo ""
   echo "Run on the server:"
-  echo "  sudo python3 scripts/patch-nginx-frontend.py"
-  echo "  ./fix-nginx.sh"
+  echo "  APPLY_NGINX_PATCH=1 ./fix-nginx.sh"
   echo ""
-  echo "Or edit manually: sudo nano $NGINX_SITE"
   cat "$SCRIPT_DIR/config/nginx-frontend-locations.conf"
   exit 1
 fi
@@ -92,7 +97,16 @@ fetch_status() {
 print_status "Active nginx shyam_akaash locations:"
 sudo nginx -T 2>/dev/null | grep -A6 'shyam_akaash/static' | head -20 || true
 
-print_status "Checking MIME type (HTTPS — same path browsers use)..."
+print_status "Checking index.html..."
+INDEX_STATUS="$(fetch_status "https://127.0.0.1/shyam_akaash/index.html")"
+print_status "HTTPS index.html status: ${INDEX_STATUS:-<empty>}"
+if [ "$INDEX_STATUS" != "200" ]; then
+  print_error "index.html is not being served (HTTP $INDEX_STATUS)"
+  print_error "Check: ls -la build/index.html && sudo nginx -T | grep -A8 'shyam_akaash/'"
+  exit 1
+fi
+
+print_status "Checking JS MIME type (HTTPS)..."
 JS_URL="/shyam_akaash/static/js/$MAIN_JS"
 HTTPS_CT="$(fetch_content_type "https://127.0.0.1$JS_URL")"
 HTTPS_STATUS="$(fetch_status "https://127.0.0.1$JS_URL")"
@@ -109,16 +123,18 @@ fi
 if echo "$CONTENT_TYPE" | grep -qi 'javascript'; then
   print_status "OK: JS served as $CONTENT_TYPE"
 else
-  print_error "Still wrong Content-Type: ${CONTENT_TYPE:-<empty>}"
-  print_error "nginx is serving index.html instead of the JS file."
-  echo ""
-  print_status "Disk file type: $(file -b "$DISK_PATH")"
-  echo ""
-  echo "Fix:"
-  echo "  sudo python3 scripts/patch-nginx-frontend.py"
-  echo "  sudo nginx -t && sudo systemctl reload nginx"
-  echo "  ./fix-nginx.sh"
-  exit 1
+  print_warning "JS Content-Type is ${CONTENT_TYPE:-<empty>} — applying nginx patch and retrying..."
+  apply_nginx_patch
+  sudo nginx -t
+  sudo systemctl reload nginx
+  HTTPS_CT="$(fetch_content_type "https://127.0.0.1$JS_URL")"
+  if echo "$HTTPS_CT" | grep -qi 'javascript'; then
+    print_status "OK after patch: JS served as $HTTPS_CT"
+  else
+    print_error "Still wrong Content-Type: ${HTTPS_CT:-<empty>}"
+    print_error "nginx may be serving index.html instead of the JS bundle."
+    exit 1
+  fi
 fi
 
 print_status "✅ nginx static serving is fixed"

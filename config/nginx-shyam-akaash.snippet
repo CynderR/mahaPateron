@@ -15,9 +15,9 @@ location = /shyam_akaash {
     return 301 /shyam_akaash/;
 }
 
-# React SPA (requires: ln -sfn build shyam_akaash in app root)
+# React SPA — serve directly from build/ (no shyam_akaash symlink required)
 location /shyam_akaash/ {
-    root /var/www/user-management-app;
+    alias /var/www/user-management-app/build/;
     try_files $uri $uri/ /shyam_akaash/index.html;
 }
 
