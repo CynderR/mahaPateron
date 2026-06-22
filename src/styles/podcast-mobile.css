@@ -332,6 +332,19 @@
     margin-top: 0.15rem;
   }
 
+  .pod-episode-share {
+    flex-shrink: 0;
+    margin-top: 0.15rem;
+  }
+
+  .pod-featured-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+    margin-top: 0.75rem;
+  }
+
   /* ----- Stream / now playing ----- */
 
   .stream-page {

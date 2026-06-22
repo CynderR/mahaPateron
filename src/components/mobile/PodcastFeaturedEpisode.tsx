@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePlayer } from '../../contexts/PlayerContext';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
+import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastFeaturedEpisodeProps {
@@ -64,13 +65,16 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
         <p className="pod-featured-meta">
           {post.duration_secs != null && formatDuration(post.duration_secs)}
         </p>
-        {canStream ? (
-          <button type="button" className="pod-btn pod-featured-play" onClick={handlePlay}>
-            Play latest episode
-          </button>
-        ) : (
-          <span className="pod-featured-locked">Subscribe to listen</span>
-        )}
+        <div className="pod-featured-actions">
+          {canStream ? (
+            <button type="button" className="pod-btn pod-featured-play" onClick={handlePlay}>
+              Play latest episode
+            </button>
+          ) : (
+            <span className="pod-featured-locked">Subscribe to listen</span>
+          )}
+          <AdminFeedShareAction postId={post.id} className="pod-featured-share" />
+        </div>
       </article>
     </section>
   );

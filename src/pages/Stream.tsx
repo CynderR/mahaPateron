@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePlayer } from '../contexts/PlayerContext';
 import { buildImageUrl } from '../config';
 import StreamPlayer from '../components/StreamPlayer';
+import AdminFeedShareAction from '../components/admin/AdminFeedShareAction';
 import { FeedPost } from '../components/PostCard';
 import { resolveStreamBackTarget, StreamLocationState } from '../utils/streamNavigation';
 
@@ -21,7 +22,7 @@ const Stream: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { setQueue, queue } = usePlayer();
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -160,6 +161,11 @@ const Stream: React.FC = () => {
             <div className="stream-desktop-only">{coverNode}</div>
 
             <div className="stream-card-body">
+              {isAdmin && (
+                <div className="stream-admin-share">
+                  <AdminFeedShareAction postId={playerPost.id} />
+                </div>
+              )}
               <StreamPlayer
                 post={playerPost}
                 rssToken={user.rss_token}

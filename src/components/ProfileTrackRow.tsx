@@ -4,6 +4,7 @@ import { buildImageUrl } from '../config';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_GENRE, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
+import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileTrackRowProps {
@@ -99,6 +100,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
         <div className="ht-track-meta">
           <span className="ht-track-meta-item">Members only</span>
           {published && <span className="ht-track-meta-item">on {published}</span>}
+          <AdminFeedShareAction postId={post.id} className="ht-track-share" />
         </div>
       </div>
     </article>

@@ -4,6 +4,7 @@ import { buildImageUrl } from '../config';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
+import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileFeaturedTrackProps {
@@ -64,6 +65,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
       <div className="ht-featured-actions">
         <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
         <span className="ht-featured-badge">Members only</span>
+        <AdminFeedShareAction postId={post.id} className="ht-featured-share" />
       </div>
     </>
   );

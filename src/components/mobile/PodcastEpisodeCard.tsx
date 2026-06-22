@@ -7,6 +7,7 @@ import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../../podcastMeta';
 import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
+import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastEpisodeCardProps {
@@ -105,6 +106,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </button>
       )}
       {canStream && <FavoriteButton postId={post.id} className="pod-episode-fav" />}
+      <AdminFeedShareAction postId={post.id} className="pod-episode-share" />
     </article>
   );
 };
