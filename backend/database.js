@@ -402,6 +402,19 @@ const getShareTokensForPostIds = (postIds = []) => {
   });
 };
 
+const ensurePostShareToken = (postId) =>
+  getPostById(postId).then((post) => {
+    if (!post) return null;
+    if (post.share_token) return post.share_token;
+    const token = uuidv4();
+    return new Promise((resolve, reject) => {
+      db.run('UPDATE posts SET share_token = ? WHERE id = ?', [token, postId], (err) => {
+        if (err) reject(err);
+        else resolve(token);
+      });
+    });
+  });
+
 const getAllPosts = () => {
   return new Promise((resolve, reject) => {
     const sql = 'SELECT * FROM posts WHERE deleted_at IS NULL ORDER BY published_at DESC';
@@ -955,6 +968,7 @@ module.exports = {
   getPostById,
   getPostByShareToken,
   getShareTokensForPostIds,
+  ensurePostShareToken,
   getAllPosts,
   getPublishedPosts,
   getPublishedPostsForUser,

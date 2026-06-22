@@ -10,6 +10,7 @@ const {
   createPost,
   getAllPosts,
   getPostById,
+  ensurePostShareToken,
   updatePost,
   softDeletePost
 } = require('../database');
@@ -115,6 +116,20 @@ router.get('/', async (req, res) => {
     res.json({ posts });
   } catch (error) {
     console.error('Admin list posts error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /:id/share-link — ensure a public share token exists for this post.
+router.get('/:id/share-link', async (req, res) => {
+  try {
+    const share_token = await ensurePostShareToken(req.params.id);
+    if (!share_token) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json({ share_token });
+  } catch (error) {
+    console.error('Admin post share-link error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

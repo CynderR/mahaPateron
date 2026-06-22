@@ -99,7 +99,7 @@ build_frontend
 
 print_status "Verifying nginx static serving..."
 if [ "$RELOAD_NGINX" = "1" ]; then
-  bash "$SCRIPT_DIR/fix-nginx.sh"
+  bash "$SCRIPT_DIR/fix-nginx.sh" || print_warning "fix-nginx failed — continuing with backend restart"
 else
   ln -sfn "$SCRIPT_DIR/build" "$SCRIPT_DIR/shyam_akaash"
   print_warning "Skipped nginx MIME check (RELOAD_NGINX=0)"

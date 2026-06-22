@@ -141,6 +141,7 @@ const Posts: React.FC = () => {
                   <td>
                     <div className="pod-inline-actions">
                       <AdminFeedPostShareButton
+                        postId={post.id}
                         shareToken={post.share_token}
                         isPublished={!!post.is_published}
                       />

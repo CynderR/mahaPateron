@@ -669,6 +669,11 @@
   display: flex;
   gap: 0.5rem;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.pod-table .pod-inline-actions {
+  min-width: 16rem;
 }
 
 .pod-image-preview {
