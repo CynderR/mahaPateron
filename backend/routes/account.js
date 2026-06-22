@@ -93,7 +93,7 @@ router.get('/library/filters', async (req, res) => {
     const filters = await getLibraryMetadataFilters({ publishedOnly: true });
     res.json(filters);
   } catch (error) {
-    console.error('Account library filters error:', error);
+    console.error('Account library filters error:', error.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -131,7 +131,7 @@ router.get('/library', async (req, res) => {
       entries: result.entries
     });
   } catch (error) {
-    console.error('Account library error:', error);
+    console.error('Account library error:', error.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -129,7 +129,7 @@ router.get('/filters', async (req, res) => {
     const filters = await getLibraryMetadataFilters({ publishedOnly: false });
     res.json(filters);
   } catch (error) {
-    console.error('Admin library filters error:', error);
+    console.error('Admin library filters error:', error.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -164,7 +164,7 @@ router.get('/', async (req, res) => {
       entries: result.entries.map(mapLibraryEntry)
     });
   } catch (error) {
-    console.error('Admin library list error:', error);
+    console.error('Admin library list error:', error.message || error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -3,12 +3,22 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { runPodcastMigration } = require('./migrations/20260531120000_podcast_platform');
 const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_player_features');
-const { runLibraryAudioMetadataMigration } = require('./migrations/20260617120000_library_audio_metadata');
+const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
 const dbPath = process.env.DATABASE_URL || path.join(__dirname, 'users.db');
 const db = new sqlite3.Database(dbPath);
+
+let libraryMetadataReady = false;
+const ensureLibraryMetadataReady = () => {
+  if (libraryMetadataReady) return Promise.resolve();
+  return ensureMetadataColumns(db)
+    .then(() => syncLibraryMetadataFromPosts(db))
+    .then(() => {
+      libraryMetadataReady = true;
+    });
+};
 
 // Initialize database with users table
 const initDatabase = () => {
@@ -61,7 +71,10 @@ const initDatabase = () => {
   })
     .then(() => runPodcastMigration(db))
     .then(() => runPlayerFeaturesMigration(db))
-    .then(() => runLibraryAudioMetadataMigration(db));
+    .then(() => runLibraryAudioMetadataMigration(db))
+    .then(() => {
+      libraryMetadataReady = true;
+    });
 };
 
 // User CRUD operations
@@ -325,7 +338,7 @@ const getUserStats = () => {
 // ----- Posts -----
 
 const createPost = (postData) => {
-  return new Promise((resolve, reject) => {
+  return ensureLibraryMetadataReady().then(() => new Promise((resolve, reject) => {
     const id = postData.id || uuidv4();
     const {
       title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at,
@@ -349,7 +362,7 @@ const createPost = (postData) => {
         .then(() => resolve({ id, ...postData }))
         .catch(reject);
     });
-  });
+  }));
 };
 
 const getPostById = (id, { includeDeleted = false } = {}) => {
@@ -411,7 +424,7 @@ const POST_UPDATABLE_FIELDS = [
 ];
 
 const updatePost = (id, data) => {
-  return new Promise((resolve, reject) => {
+  return ensureLibraryMetadataReady().then(() => new Promise((resolve, reject) => {
     const keys = Object.keys(data).filter((k) => POST_UPDATABLE_FIELDS.includes(k));
     if (keys.length === 0) {
       return resolve({ id, updated: false });
@@ -426,7 +439,7 @@ const updatePost = (id, data) => {
         .then(() => resolve({ id, updated: this.changes > 0 }))
         .catch(reject);
     });
-  });
+  }));
 };
 
 const softDeletePost = (id) => {
@@ -451,7 +464,7 @@ const countPosts = () => {
 // ----- Library (canonical catalog of all episodes) -----
 
 const syncLibraryFromPost = (post) => {
-  return new Promise((resolve, reject) => {
+  return ensureLibraryMetadataReady().then(() => new Promise((resolve, reject) => {
     if (!post) return resolve({ synced: false });
 
     if (post.deleted_at) {
@@ -496,7 +509,7 @@ const syncLibraryFromPost = (post) => {
       if (err) reject(err);
       else resolve({ synced: true, id: post.id });
     });
-  });
+  }));
 };
 
 const softDeleteLibraryEntry = (postId) => {
@@ -580,7 +593,7 @@ const getLibraryEntriesPaginated = (options = {}) => {
   applyLibraryMetadataFilters(where, params, options);
   const whereSql = `WHERE ${where.join(' AND ')}`;
 
-  return new Promise((resolve, reject) => {
+  return ensureLibraryMetadataReady().then(() => new Promise((resolve, reject) => {
     db.all(
       `SELECT * FROM library ${whereSql} ORDER BY ${orderCol} ${sortDir}, post_id DESC LIMIT ? OFFSET ?`,
       [...params, limit, offset],
@@ -592,7 +605,7 @@ const getLibraryEntriesPaginated = (options = {}) => {
         });
       }
     );
-  });
+  }));
 };
 
 const countAllLibraryEntries = () => {
@@ -658,12 +671,14 @@ const getLibraryMetadataFilters = ({ publishedOnly = false } = {}) => {
       );
     });
 
-  return Promise.all([
-    distinctValues('artist'),
-    distinctValues('album'),
-    distinctValues('year'),
-    distinctValues('genre')
-  ]).then(([artists, albums, years, genres]) => ({ artists, albums, years, genres }));
+  return ensureLibraryMetadataReady().then(() =>
+    Promise.all([
+      distinctValues('artist'),
+      distinctValues('album'),
+      distinctValues('year'),
+      distinctValues('genre')
+    ]).then(([artists, albums, years, genres]) => ({ artists, albums, years, genres }))
+  );
 };
 
 const getLibraryForUser = (user) => {

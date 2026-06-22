@@ -1,12 +1,9 @@
-const path = require('path');
-const fs = require('fs');
-const mm = require('music-metadata');
-const { AUDIO_DIR } = require('../config');
 const {
-  extractTagsFromMetadata,
   parseMetadataFromDescription,
   buildDescriptionFromTags
 } = require('../utils/audioMetadata');
+
+const METADATA_COLUMNS = ['artist', 'album', 'year', 'genre'];
 
 const run = (db, sql, params = []) =>
   new Promise((resolve, reject) => {
@@ -23,79 +20,79 @@ const all = (db, sql, params = []) =>
     db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)));
   });
 
-const runLibraryAudioMetadataMigration = async (db) => {
-  const columns = ['artist TEXT', 'album TEXT', 'year TEXT', 'genre TEXT'];
-  for (const column of columns) {
-    await run(db, `ALTER TABLE posts ADD COLUMN ${column}`);
-    await run(db, `ALTER TABLE library ADD COLUMN ${column}`);
-  }
+const tableHasColumn = (db, table, column) =>
+  new Promise((resolve, reject) => {
+    db.all(`PRAGMA table_info(${table})`, [], (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows.some((row) => row.name === column));
+    });
+  });
 
+const ensureMetadataColumns = async (db) => {
+  for (const column of METADATA_COLUMNS) {
+    const onPosts = await tableHasColumn(db, 'posts', column);
+    if (!onPosts) {
+      await run(db, `ALTER TABLE posts ADD COLUMN ${column} TEXT`);
+    }
+    const onLibrary = await tableHasColumn(db, 'library', column);
+    if (!onLibrary) {
+      await run(db, `ALTER TABLE library ADD COLUMN ${column} TEXT`);
+    }
+  }
+};
+
+const syncLibraryMetadataFromPosts = (db) =>
+  run(
+    db,
+    `UPDATE library SET
+       artist = (SELECT artist FROM posts WHERE posts.id = library.post_id),
+       album = (SELECT album FROM posts WHERE posts.id = library.post_id),
+       year = (SELECT year FROM posts WHERE posts.id = library.post_id),
+       genre = (SELECT genre FROM posts WHERE posts.id = library.post_id)
+     WHERE deleted_at IS NULL`
+  );
+
+const backfillPostMetadataFromDescription = async (db) => {
   const posts = await all(
     db,
-    `SELECT id, description, audio_filename, artist, album, year, genre FROM posts
+    `SELECT id, description, artist, album, year, genre FROM posts
      WHERE deleted_at IS NULL
        AND COALESCE(artist, '') = ''
        AND COALESCE(album, '') = ''
        AND COALESCE(year, '') = ''
        AND COALESCE(genre, '') = ''`
   );
-  let descriptionBackfill = 0;
-  let audioBackfill = 0;
 
+  let updated = 0;
   for (const post of posts) {
-    const fromDescription = parseMetadataFromDescription(post.description);
-    let tags = {
-      artist: post.artist || fromDescription.artist,
-      album: post.album || fromDescription.album,
-      year: post.year || fromDescription.year,
-      genre: post.genre || fromDescription.genre
-    };
+    const tags = parseMetadataFromDescription(post.description);
+    if (!tags.artist && !tags.album && !tags.year && !tags.genre) continue;
 
-    const needsAudioParse = !tags.artist && !tags.album && !tags.year && !tags.genre && post.audio_filename;
-    if (needsAudioParse) {
-      const audioPath = path.join(AUDIO_DIR, post.audio_filename);
-      if (fs.existsSync(audioPath)) {
-        try {
-          const metadata = await mm.parseFile(audioPath);
-          tags = extractTagsFromMetadata(metadata);
-          audioBackfill += 1;
-        } catch (e) {
-          console.warn(`Could not parse audio metadata for post ${post.id}:`, e.message);
-        }
-      }
-    } else if (fromDescription.artist || fromDescription.album || fromDescription.year || fromDescription.genre) {
-      descriptionBackfill += 1;
-    }
-
-    const hasTags = tags.artist || tags.album || tags.year || tags.genre;
-    const description =
-      post.description?.trim() || (hasTags ? buildDescriptionFromTags(tags, '') : null);
-
+    const description = post.description?.trim() || buildDescriptionFromTags(tags, '');
     await run(
       db,
-      `UPDATE posts SET artist = ?, album = ?, year = ?, genre = ?, description = COALESCE(description, ?)
+      `UPDATE posts
+       SET artist = ?, album = ?, year = ?, genre = ?, description = COALESCE(description, ?)
        WHERE id = ?`,
       [tags.artist, tags.album, tags.year, tags.genre, description, post.id]
     );
+    updated += 1;
   }
+  return updated;
+};
 
-  if (posts.length > 0) {
-    await run(
-      db,
-      `UPDATE library SET
-         artist = (SELECT artist FROM posts WHERE posts.id = library.post_id),
-         album = (SELECT album FROM posts WHERE posts.id = library.post_id),
-         year = (SELECT year FROM posts WHERE posts.id = library.post_id),
-         genre = (SELECT genre FROM posts WHERE posts.id = library.post_id)
-       WHERE deleted_at IS NULL`
-    );
-  }
+const runLibraryAudioMetadataMigration = async (db) => {
+  await ensureMetadataColumns(db);
+  const updated = await backfillPostMetadataFromDescription(db);
+  await syncLibraryMetadataFromPosts(db);
 
-  if (posts.length > 0) {
-    console.log(
-      `Library audio metadata migration applied (${descriptionBackfill} from description, ${audioBackfill} from audio files)`
-    );
+  if (updated > 0) {
+    console.log(`Library audio metadata migration applied (${updated} posts backfilled from description)`);
   }
 };
 
-module.exports = { runLibraryAudioMetadataMigration };
+module.exports = {
+  runLibraryAudioMetadataMigration,
+  ensureMetadataColumns,
+  syncLibraryMetadataFromPosts
+};
