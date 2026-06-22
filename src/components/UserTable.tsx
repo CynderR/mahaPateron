@@ -30,12 +30,13 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
   };
 
   return (
-    <div className="pod-table-wrap">
+    <div className="pod-table-wrap pod-table-wrap-users">
       <table className="pod-table">
         <thead>
           <tr>
             <th>User</th>
-            <th>Category</th>
+            <th>Role</th>
+            <th>Payment</th>
             <th>Paying</th>
             <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th title="User is billed monthly via Stripe">Monthly</th>
@@ -51,6 +52,16 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
               <td>
                 <div style={{ fontWeight: 600 }}>{u.username}</div>
                 <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{u.email}</div>
+              </td>
+              <td>
+                <select
+                  className="pod-select"
+                  value={u.is_admin ? 'admin' : 'user'}
+                  onChange={(e) => onUpdate(u.id, 'is_admin', e.target.value === 'admin')}
+                >
+                  <option value="user">user</option>
+                  <option value="admin">admin</option>
+                </select>
               </td>
               <td>
                 <select

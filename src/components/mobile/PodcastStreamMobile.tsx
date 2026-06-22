@@ -14,7 +14,9 @@ interface PodcastStreamMobileProps {
   currentTime: number;
   duration: number;
   playable: boolean;
+  canPlay?: boolean;
   playbackError?: string | null;
+  mediaLoading?: boolean;
   onTogglePlay: () => void;
   onSeek: (time: number) => void;
   onSkip: (delta: number) => void;
@@ -40,7 +42,9 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   currentTime,
   duration,
   playable,
+  canPlay,
   playbackError,
+  mediaLoading = false,
   onTogglePlay,
   onSeek,
   onSkip,
@@ -58,6 +62,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
     : '';
   const progress = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   const remaining = Math.max(0, duration - currentTime);
+
+  const readyToPlay = canPlay ?? playable;
 
   const displayDescription = stripFeedMetadataFromDescription(post.description);
 
@@ -111,8 +117,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
           type="button"
           className="pod-stream-play"
           onClick={onTogglePlay}
-          disabled={!playable}
-          aria-label={playing ? 'Pause' : 'Play'}
+          disabled={!readyToPlay}
+          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           {playing ? (
             <svg viewBox="0 0 24 24" aria-hidden>
@@ -135,7 +141,11 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         </button>
       </div>
 
-      {playbackError && playable && (
+      {mediaLoading && playable && (
+        <p className="pod-stream-error">Loading audio…</p>
+      )}
+
+      {playbackError && playable && !mediaLoading && (
         <p className="pod-stream-error">{playbackError}</p>
       )}
 

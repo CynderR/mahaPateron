@@ -65,6 +65,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     currentTime,
     duration,
     playbackError,
+    mediaLoading,
+    mediaReady,
     getNextPostId,
     getPrevPostId,
     prepareEpisode,
@@ -80,6 +82,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const effectiveDuration = duration || post.duration_secs || 0;
   const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
   const playable = accessible && canStream;
+  const canPlay = playable && mediaReady && !mediaLoading;
 
   const nextId = getNextPostId();
   const prevId = getPrevPostId();
@@ -161,8 +164,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           type="button"
           className="stream-play-btn stream-play-btn-header"
           onClick={() => togglePlayback()}
-          disabled={!playable}
-          aria-label={playing ? 'Pause' : 'Play'}
+          disabled={!canPlay}
+          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           <PlayIcon large />
         </button>
@@ -192,8 +195,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           type="button"
           className="stream-play-btn stream-play-btn-mobile"
           onClick={() => togglePlayback()}
-          disabled={!playable}
-          aria-label={playing ? 'Pause' : 'Play'}
+          disabled={!canPlay}
+          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           <PlayIcon filled />
         </button>
@@ -265,8 +268,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           type="button"
           className="stream-play-btn stream-play-btn-bar"
           onClick={() => togglePlayback()}
-          disabled={!playable}
-          aria-label={playing ? 'Pause' : 'Play'}
+          disabled={!canPlay}
+          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           <PlayIcon />
         </button>
@@ -287,7 +290,9 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         currentTime={currentTime}
         duration={effectiveDuration}
         playable={playable}
+        canPlay={canPlay}
         playbackError={playbackError}
+        mediaLoading={mediaLoading}
         onTogglePlay={() => togglePlayback()}
         onSeek={seekTo}
         onSkip={skipBy}
@@ -319,8 +324,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
               type="button"
               className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
               onClick={() => togglePlayback()}
-              disabled={!playable}
-              aria-label={playing ? 'Pause' : 'Play'}
+              disabled={!canPlay}
+              aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
             >
               <PlayIcon filled />
             </button>

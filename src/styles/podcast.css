@@ -65,6 +65,12 @@
   padding: 2rem;
 }
 
+.podcast-main-wide {
+  max-width: min(100%, 1680px);
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
 .podcast-section-title {
   font-size: 1.5rem;
   font-weight: 700;
@@ -273,6 +279,16 @@
   border: 1px solid var(--border-primary);
   border-radius: 0.75rem;
   background: var(--bg-card);
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pod-table-wrap-users {
+  width: 100%;
+}
+
+.pod-table-wrap-users .pod-table {
+  min-width: 1280px;
 }
 
 .pod-table {
@@ -644,6 +660,11 @@
 @media (max-width: 768px) {
   .podcast-main {
     padding: 1.25rem;
+  }
+
+  .podcast-main-wide {
+    padding-left: 1rem;
+    padding-right: 1rem;
   }
   .podcast-header-inner {
     padding: 1rem 1.25rem;

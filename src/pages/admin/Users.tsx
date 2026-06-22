@@ -20,13 +20,14 @@ const emptyNewUser = {
   access_type: 'streaming',
   subscription_price: '',
   is_paying: false,
+  is_admin: false,
   back_catalog_access: false,
   monthly_payments: true
 };
 
 const Users: React.FC = () => {
   const [data, setData] = useState<UsersResponse | null>(null);
-  const [filters, setFilters] = useState({ is_paying: '', payment_category: '', access_type: '' });
+  const [filters, setFilters] = useState({ is_paying: '', payment_category: '', access_type: '', is_admin: '' });
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -43,6 +44,7 @@ const Users: React.FC = () => {
       if (filters.is_paying) params.is_paying = filters.is_paying;
       if (filters.payment_category) params.payment_category = filters.payment_category;
       if (filters.access_type) params.access_type = filters.access_type;
+      if (filters.is_admin) params.is_admin = filters.is_admin;
       const res = await axios.get<UsersResponse>('/admin/users', { params });
       setData(res.data);
     } catch (e) {
@@ -94,7 +96,7 @@ const Users: React.FC = () => {
   return (
     <div className="podcast-page">
       <PodcastNav />
-      <main className="podcast-main">
+      <main className="podcast-main podcast-main-wide">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <h2 className="podcast-section-title" style={{ marginBottom: 0 }}>
             Users {data ? `(${data.total})` : ''}
@@ -125,6 +127,13 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Signal ID</label>
               <input className="pod-input" value={newUser.signal_id} onChange={(e) => setNewUser({ ...newUser, signal_id: e.target.value })} />
+            </div>
+            <div className="pod-form-group">
+              <label>Role</label>
+              <select className="pod-select" value={newUser.is_admin ? 'admin' : 'user'} onChange={(e) => setNewUser({ ...newUser, is_admin: e.target.value === 'admin' })}>
+                <option value="user">user</option>
+                <option value="admin">admin</option>
+              </select>
             </div>
             <div className="pod-form-group">
               <label>Payment category</label>
@@ -179,7 +188,15 @@ const Users: React.FC = () => {
               </select>
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Category</label>
+              <label>Role</label>
+              <select className="pod-select" value={filters.is_admin} onChange={(e) => { setPage(1); setFilters({ ...filters, is_admin: e.target.value }); }}>
+                <option value="">All</option>
+                <option value="true">admin</option>
+                <option value="false">user</option>
+              </select>
+            </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label>Payment</label>
               <select className="pod-select" value={filters.payment_category} onChange={(e) => { setPage(1); setFilters({ ...filters, payment_category: e.target.value }); }}>
                 <option value="">All</option>
                 <option value="full">full</option>

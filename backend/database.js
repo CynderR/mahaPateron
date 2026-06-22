@@ -264,7 +264,7 @@ const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
-    const { is_paying, payment_category, access_type, includeDeleted = false } = filters;
+    const { is_paying, payment_category, access_type, is_admin, includeDeleted = false } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 20));
     const where = [];
@@ -282,6 +282,10 @@ const getUsersFiltered = (filters = {}) => {
     if (access_type) {
       where.push('access_type = ?');
       params.push(access_type);
+    }
+    if (is_admin !== undefined && is_admin !== null && is_admin !== '') {
+      where.push('is_admin = ?');
+      params.push(is_admin === true || is_admin === 'true' || is_admin === 1 || is_admin === '1' ? 1 : 0);
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

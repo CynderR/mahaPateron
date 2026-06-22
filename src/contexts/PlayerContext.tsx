@@ -9,6 +9,12 @@ import {
   resolveNextIndex,
   resolvePrevIndex
 } from '../utils/playerQueue';
+import {
+  clearStreamBlob,
+  getCachedStreamBlob,
+  loadStreamBlob,
+  prefersBlobPlayback
+} from '../utils/streamLoader';
 
 export interface PlaylistSummary {
   id: string;
@@ -35,6 +41,8 @@ interface PlayerContextType {
   currentTime: number;
   duration: number;
   playbackError: string | null;
+  mediaLoading: boolean;
+  mediaReady: boolean;
   cycleReplay: () => void;
   toggleShuffle: () => void;
   setQueue: (posts: QueuePost[], currentPostId: string) => void;
@@ -69,13 +77,17 @@ const readReplayMode = (): ReplayMode => {
 
 const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) === 'true';
 
-// Minimal silent WAV — unlocks Chromium/Brave mobile audio in a user-gesture handler.
-const SILENT_WAV =
-  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
-
-const audioHasEpisode = (audio: HTMLAudioElement, postId: string): boolean => {
+const audioHasEpisode = (audio: HTMLAudioElement, postId: string, blobUrl: string | null): boolean => {
   const src = audio.currentSrc || audio.src || '';
+  if (blobUrl && src === blobUrl) return true;
   return src.includes(postId);
+};
+
+const playbackSourceUrl = (postId: string, streamUrl: string, blobUrl: string | null): string | null => {
+  if (prefersBlobPlayback()) {
+    return blobUrl ?? getCachedStreamBlob(postId);
+  }
+  return streamUrl;
 };
 
 const describeMediaError = (audio: HTMLAudioElement): string => {
@@ -93,7 +105,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const assignedSourceRef = useRef<{ postId: string; url: string } | null>(null);
   const loadedPostIdRef = useRef<string | null>(null);
   const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
-  const audioUnlockedRef = useRef(false);
+  const blobUrlRef = useRef<string | null>(null);
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
@@ -109,6 +121,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const [mediaLoading, setMediaLoading] = useState(false);
+  const [mediaReady, setMediaReady] = useState(!prefersBlobPlayback());
 
   useEffect(() => {
     replayModeRef.current = replayMode;
@@ -143,9 +157,20 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setPlaying(false);
       clearPendingPlay();
 
+      const previousPostId = loadedPostIdRef.current;
+      if (previousPostId && previousPostId !== postId) {
+        clearStreamBlob(previousPostId);
+      }
+
+      blobUrlRef.current = null;
+      setMediaLoading(prefersBlobPlayback());
+      setMediaReady(!prefersBlobPlayback());
+
       const audio = audioRef.current;
-      if (audio && loadedPostIdRef.current && loadedPostIdRef.current !== postId) {
+      if (audio && previousPostId && previousPostId !== postId) {
         audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
         loadedPostIdRef.current = null;
       }
     } else if (durationSecs != null) {
@@ -160,28 +185,45 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const assigned = assignedSourceRef.current;
     if (!audio || !assigned) return false;
 
-    if (!force && loadedPostIdRef.current === assigned.postId && audioHasEpisode(audio, assigned.postId)) {
+    const src = playbackSourceUrl(assigned.postId, assigned.url, blobUrlRef.current);
+    if (!src) return false;
+
+    if (
+      !force &&
+      loadedPostIdRef.current === assigned.postId &&
+      audioHasEpisode(audio, assigned.postId, blobUrlRef.current)
+    ) {
       return true;
     }
 
     clearPendingPlay();
     audio.pause();
-    audio.src = assigned.url;
+    audio.src = src;
     audio.preload = 'auto';
     audio.volume = 1;
     audio.muted = false;
     audio.load();
     loadedPostIdRef.current = assigned.postId;
-    setCurrentTime(0);
     setPlaybackError(null);
     return true;
   }, [clearPendingPlay]);
 
-  const playAssignedSource = useCallback(() => {
+  const requestPlay = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !assignedSourceRef.current) return;
 
-    primeAudioSource(false);
+    clearPendingPlay();
+    setPlaybackError(null);
+
+    if (prefersBlobPlayback() && !blobUrlRef.current) {
+      setPlaybackError('Still loading audio…');
+      return;
+    }
+
+    if (!primeAudioSource(false)) {
+      setPlaybackError('Could not load this episode.');
+      return;
+    }
 
     const attempt = audio.play();
     if (!attempt) {
@@ -198,63 +240,69 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         loadedPostIdRef.current = null;
         setPlaying(false);
         if (err.name === 'NotAllowedError') {
-          audioUnlockedRef.current = false;
           setPlaybackError('Playback blocked by the browser. Tap play again.');
         } else {
           setPlaybackError('Could not start playback. Tap play again.');
         }
       });
-  }, [primeAudioSource, syncPlayingState]);
+  }, [clearPendingPlay, primeAudioSource, syncPlayingState]);
 
-  const requestPlay = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio || !assignedSourceRef.current) return;
+  const preloadEpisodeMedia = useCallback(
+    (postId: string, streamUrl: string) => {
+      if (!prefersBlobPlayback()) {
+        primeAudioSource(true);
+        setMediaReady(true);
+        setMediaLoading(false);
+        return;
+      }
 
-    clearPendingPlay();
-    setPlaybackError(null);
+      const cached = getCachedStreamBlob(postId);
+      if (cached) {
+        blobUrlRef.current = cached;
+        primeAudioSource(true);
+        setMediaReady(true);
+        setMediaLoading(false);
+        return;
+      }
 
-    // Brave/Chrome require play() in the user-gesture stack — never defer to canplay.
-    if (audioUnlockedRef.current) {
-      playAssignedSource();
-      return;
-    }
+      setMediaLoading(true);
+      setMediaReady(false);
 
-    audio.src = SILENT_WAV;
-    audio.load();
-    const unlockAttempt = audio.play();
-    if (!unlockAttempt) {
-      playAssignedSource();
-      return;
-    }
-
-    unlockAttempt
-      .then(() => {
-        audio.pause();
-        audio.currentTime = 0;
-        audioUnlockedRef.current = true;
-        playAssignedSource();
-      })
-      .catch(() => {
-        audioUnlockedRef.current = false;
-        playAssignedSource();
-      });
-  }, [clearPendingPlay, playAssignedSource]);
+      loadStreamBlob(postId, streamUrl)
+        .then((blobUrl) => {
+          if (assignedSourceRef.current?.postId !== postId) return;
+          blobUrlRef.current = blobUrl;
+          primeAudioSource(true);
+          setMediaReady(true);
+          setMediaLoading(false);
+          setPlaybackError(null);
+        })
+        .catch((err: Error) => {
+          if (assignedSourceRef.current?.postId !== postId) return;
+          blobUrlRef.current = null;
+          setMediaReady(false);
+          setMediaLoading(false);
+          setPlaybackError(err.message || 'Could not load this episode.');
+        });
+    },
+    [primeAudioSource]
+  );
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
       assignEpisode(postId, streamUrl, durationSecs);
-      primeAudioSource(true);
+      preloadEpisodeMedia(postId, streamUrl);
     },
-    [assignEpisode, primeAudioSource]
+    [assignEpisode, preloadEpisodeMedia]
   );
 
   const playEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
       assignEpisode(postId, streamUrl, durationSecs);
-      primeAudioSource(true);
+      preloadEpisodeMedia(postId, streamUrl);
       requestPlay();
     },
-    [assignEpisode, primeAudioSource, requestPlay]
+    [assignEpisode, preloadEpisodeMedia, requestPlay]
   );
 
   const togglePlayback = useCallback(() => {
@@ -536,6 +584,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       currentTime,
       duration,
       playbackError,
+      mediaLoading,
+      mediaReady,
       cycleReplay,
       toggleShuffle,
       setQueue,
@@ -568,6 +618,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       currentTime,
       duration,
       playbackError,
+      mediaLoading,
+      mediaReady,
       cycleReplay,
       toggleShuffle,
       setQueue,
