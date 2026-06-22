@@ -33,6 +33,7 @@ const adminRouter = require('./routes/admin');
 const accountRouter = require('./routes/account');
 const rssRouter = require('./routes/rss');
 const streamRouter = require('./routes/stream');
+const shareRouter = require('./routes/share');
 const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
 
 const app = express();
@@ -294,6 +295,7 @@ core.post('/auth/reset-password', async (req, res) => {
 const API_PREFIXES = ['/api', '/shyam_akaash/api'];
 API_PREFIXES.forEach((prefix) => {
   app.use(prefix, core);
+  app.use(`${prefix}/share`, shareRouter);
   app.use(`${prefix}/admin/users`, authenticateToken, requireAdmin, adminUsersRouter);
   app.use(`${prefix}/admin/posts`, authenticateToken, requireAdmin, adminPostsRouter);
   app.use(`${prefix}/admin/library`, authenticateToken, requireAdmin, adminLibraryRouter);

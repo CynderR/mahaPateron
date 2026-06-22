@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
+import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import LibraryMetadataFilters, {
   emptyLibraryMetadataFilters,
@@ -28,6 +29,7 @@ interface LibraryEntry {
   album?: string | null;
   year?: string | null;
   genre?: string | null;
+  share_token?: string | null;
 }
 
 interface LibraryResponse {
@@ -229,6 +231,10 @@ const AdminLibrary: React.FC = () => {
                   <td>{entry.published_at ? new Date(entry.published_at).toLocaleDateString() : ''}</td>
                   <td>
                     <div className="pod-inline-actions">
+                      <AdminFeedPostShareButton
+                        shareToken={entry.share_token}
+                        isPublished={entry.is_published}
+                      />
                       <button
                         type="button"
                         className="pod-btn pod-btn-secondary pod-btn-sm"

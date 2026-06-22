@@ -5,7 +5,7 @@ const jwt = require('jsonwebtoken');
 
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
-const { getUserByRssToken, getUserById, getPostById, logStreamEvent, userCanAccessPost } = require('../database');
+const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
 
 const router = express.Router();
 
@@ -35,24 +35,37 @@ const resolveUser = async (req) => {
 // GET /:postId — stream audio with HTTP range support.
 router.get('/:postId', async (req, res) => {
   try {
-    const user = await resolveUser(req);
-    if (!user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    if (!user.is_paying) {
-      return res.status(403).json({ error: 'Subscription inactive' });
-    }
-    const streamingAllowed = user.access_type === 'streaming' || user.access_type === 'both';
-    if (!streamingAllowed) {
-      return res.status(403).json({ error: 'Your plan does not include streaming access' });
-    }
+    const shareToken = req.query.share;
+    let user = null;
+    let post = null;
+    let streamUserId = null;
 
-    const post = await getPostById(req.params.postId);
-    if (!post || !post.is_published) {
-      return res.status(404).json({ error: 'Episode not found' });
-    }
-    if (!userCanAccessPost(user, post)) {
-      return res.status(403).json({ error: 'This episode is not included in your subscription' });
+    if (shareToken) {
+      post = await getPostByShareToken(String(shareToken));
+      if (!post || post.id !== req.params.postId || !post.is_published) {
+        return res.status(404).json({ error: 'Episode not found' });
+      }
+    } else {
+      user = await resolveUser(req);
+      if (!user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+      if (!user.is_paying) {
+        return res.status(403).json({ error: 'Subscription inactive' });
+      }
+      const streamingAllowed = user.access_type === 'streaming' || user.access_type === 'both';
+      if (!streamingAllowed) {
+        return res.status(403).json({ error: 'Your plan does not include streaming access' });
+      }
+
+      post = await getPostById(req.params.postId);
+      if (!post || !post.is_published) {
+        return res.status(404).json({ error: 'Episode not found' });
+      }
+      if (!userCanAccessPost(user, post)) {
+        return res.status(403).json({ error: 'This episode is not included in your subscription' });
+      }
+      streamUserId = user.id;
     }
 
     const filePath = path.join(AUDIO_DIR, post.audio_filename);
@@ -92,7 +105,7 @@ router.get('/:postId', async (req, res) => {
       res.set('Content-Range', `bytes ${start}-${end}/${fileSize}`);
       res.set('Content-Length', chunkSize);
 
-      logStreamEvent({ post_id: post.id, user_id: user.id, bytes_sent: chunkSize }).catch(() => {});
+      logStreamEvent({ post_id: post.id, user_id: streamUserId, bytes_sent: chunkSize }).catch(() => {});
 
       const stream = fs.createReadStream(filePath, { start, end });
       stream.on('error', () => res.destroy());
@@ -101,7 +114,7 @@ router.get('/:postId', async (req, res) => {
 
     res.status(200);
     res.set('Content-Length', fileSize);
-    logStreamEvent({ post_id: post.id, user_id: user.id, bytes_sent: fileSize }).catch(() => {});
+    logStreamEvent({ post_id: post.id, user_id: streamUserId, bytes_sent: fileSize }).catch(() => {});
 
     const stream = fs.createReadStream(filePath);
     stream.on('error', () => res.destroy());

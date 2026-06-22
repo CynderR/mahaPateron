@@ -21,6 +21,7 @@ import AdminPosts from './pages/admin/Posts';
 import AdminLibrary from './pages/admin/Library';
 import AdminBulkUpload from './pages/admin/BulkUpload';
 import Playlists from './pages/Playlists';
+import PublicShare from './pages/PublicShare';
 import { PlayerProvider } from './contexts/PlayerContext';
 import './App.css';
 import './styles/themes.css';
@@ -37,6 +38,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/signup" element={<SignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/share/:shareToken" element={<PublicShare />} />
 
       <Route path="/dashboard" element={<Navigate to={isAdmin ? '/admin' : '/feed'} replace />} />
 

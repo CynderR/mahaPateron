@@ -39,3 +39,31 @@ export const buildDownloadUrl = (postId: string, rssToken: string): string =>
 // Cover art is served publicly from the backend uploads directory.
 export const buildImageUrl = (filename: string): string =>
   `${MEDIA_BASE_URL}/uploads/images/${encodeURIComponent(filename)}`;
+
+// Member-facing URL for an episode (opens the stream page from the feed).
+export const buildMemberFeedPostUrl = (postId: string): string => {
+  const path = `${ROUTER_BASENAME}/stream/${encodeURIComponent(postId)}`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+};
+
+// Public share URL — works without login when the episode is published.
+export const buildPublicSharePostUrl = (shareToken: string): string => {
+  const path = `${ROUTER_BASENAME}/share/${encodeURIComponent(shareToken)}`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+};
+
+export const buildPublicShareStreamUrl = (postId: string, shareToken: string): string => {
+  const params = new URLSearchParams({ share: shareToken });
+  const path = `${MEDIA_BASE_URL}/stream/${encodeURIComponent(postId)}?${params.toString()}`;
+  if (path.startsWith('http')) return path;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+};

@@ -13,6 +13,7 @@ const {
   getLibraryMetadataFilters,
   countAllLibraryEntries,
   countPublishedInLibrary,
+  getShareTokensForPostIds,
   updatePost,
   softDeletePost
 } = require('../database');
@@ -120,7 +121,8 @@ const mapLibraryEntry = (entry) => ({
   album: entry.album || null,
   year: entry.year || null,
   genre: entry.genre || null,
-  is_published: !!entry.is_published
+  is_published: !!entry.is_published,
+  share_token: entry.share_token || null
 });
 
 // GET /filters — distinct metadata values for library filters.
@@ -155,13 +157,17 @@ router.get('/', async (req, res) => {
       countPublishedInLibrary()
     ]);
 
+    const shareTokens = await getShareTokensForPostIds(result.entries.map((entry) => entry.post_id));
+
     res.json({
       total: result.total,
       catalogTotal,
       published,
       page: result.page,
       limit: result.limit,
-      entries: result.entries.map(mapLibraryEntry)
+      entries: result.entries.map((entry) =>
+        mapLibraryEntry({ ...entry, share_token: shareTokens[entry.post_id] || null })
+      )
     });
   } catch (error) {
     console.error('Admin library list error:', error.message || error);

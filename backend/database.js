@@ -4,6 +4,7 @@ const { v4: uuidv4 } = require('uuid');
 const { runPodcastMigration } = require('./migrations/20260531120000_podcast_platform');
 const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_player_features');
 const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
+const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -72,6 +73,7 @@ const initDatabase = () => {
     .then(() => runPodcastMigration(db))
     .then(() => runPlayerFeaturesMigration(db))
     .then(() => runLibraryAudioMetadataMigration(db))
+    .then(() => runPostShareTokenMigration(db))
     .then(() => {
       libraryMetadataReady = true;
     });
@@ -346,15 +348,16 @@ const createPost = (postData) => {
     } = postData;
     const published = is_published === false || is_published === 0 ? 0 : 1;
     const publishedAt = published_at || new Date().toISOString();
+    const shareToken = postData.share_token || uuidv4();
     const sql = `INSERT INTO posts (
                    id, title, description, audio_filename, image_filename, duration_secs,
-                   artist, album, year, genre, created_by, is_published, published_at
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                   artist, album, year, genre, created_by, is_published, published_at, share_token
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     db.run(sql, [
       id, title, description || null, audio_filename, image_filename || null,
       duration_secs != null ? duration_secs : null,
       artist || null, album || null, year || null, genre || null,
-      created_by || null, published, publishedAt
+      created_by || null, published, publishedAt, shareToken
     ], function (err) {
       if (err) return reject(err);
       getPostById(id)
@@ -369,6 +372,33 @@ const getPostById = (id, { includeDeleted = false } = {}) => {
   return new Promise((resolve, reject) => {
     const sql = `SELECT * FROM posts WHERE id = ?${includeDeleted ? '' : ' AND deleted_at IS NULL'}`;
     db.get(sql, [id], (err, row) => (err ? reject(err) : resolve(row)));
+  });
+};
+
+const getPostByShareToken = (shareToken) => {
+  return new Promise((resolve, reject) => {
+    const sql = 'SELECT * FROM posts WHERE share_token = ? AND deleted_at IS NULL';
+    db.get(sql, [shareToken], (err, row) => (err ? reject(err) : resolve(row)));
+  });
+};
+
+const getShareTokensForPostIds = (postIds = []) => {
+  const ids = [...new Set(postIds.filter(Boolean))];
+  if (ids.length === 0) return Promise.resolve({});
+  const placeholders = ids.map(() => '?').join(', ');
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT id, share_token FROM posts WHERE id IN (${placeholders}) AND deleted_at IS NULL`,
+      ids,
+      (err, rows) => {
+        if (err) return reject(err);
+        const map = {};
+        rows.forEach((row) => {
+          map[row.id] = row.share_token;
+        });
+        resolve(map);
+      }
+    );
   });
 };
 
@@ -923,6 +953,8 @@ module.exports = {
   getUserStats,
   createPost,
   getPostById,
+  getPostByShareToken,
+  getShareTokensForPostIds,
   getAllPosts,
   getPublishedPosts,
   getPublishedPostsForUser,

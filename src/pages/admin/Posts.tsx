@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UploadForm from '../../components/UploadForm';
+import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import SortableTableHeader from '../../components/SortableTableHeader';
 import {
@@ -20,6 +21,7 @@ interface AdminPost {
   duration_secs?: number;
   is_published: boolean | number;
   published_at?: string;
+  share_token?: string | null;
 }
 
 const formatDuration = (secs?: number): string => {
@@ -138,6 +140,10 @@ const Posts: React.FC = () => {
                   <td>{post.published_at ? new Date(post.published_at).toLocaleDateString() : ''}</td>
                   <td>
                     <div className="pod-inline-actions">
+                      <AdminFeedPostShareButton
+                        shareToken={post.share_token}
+                        isPublished={!!post.is_published}
+                      />
                       <button type="button" className="pod-btn pod-btn-secondary pod-btn-sm" onClick={() => togglePublished(post)}>
                         {post.is_published ? 'Unpublish' : 'Publish'}
                       </button>
