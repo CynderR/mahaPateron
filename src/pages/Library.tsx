@@ -49,7 +49,7 @@ const Library: React.FC = () => {
   );
   const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
   const limit = 20;
-  const selectedPostIds = useMemo(() => [...selectedIds], [selectedIds]);
+  const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
 
   const load = useCallback(async () => {
     setError('');

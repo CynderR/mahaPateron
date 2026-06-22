@@ -33,7 +33,7 @@ const Feed: React.FC = () => {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
-  const selectedPostIds = useMemo(() => [...selectedIds], [selectedIds]);
+  const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
 
   useEffect(() => {
     const load = async () => {
