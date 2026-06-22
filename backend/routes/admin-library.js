@@ -9,10 +9,14 @@ const { AUDIO_DIR, IMAGE_DIR, ensureDirs } = require('../config');
 const {
   createPost,
   getPostById,
-  getAllLibraryEntries,
+  getLibraryEntriesPaginated,
+  getLibraryMetadataFilters,
+  countAllLibraryEntries,
+  countPublishedInLibrary,
   updatePost,
   softDeletePost
 } = require('../database');
+const { resolvePostTags, resolvePostDescription } = require('../utils/audioMetadata');
 
 const router = express.Router();
 
@@ -112,17 +116,52 @@ const mapLibraryEntry = (entry) => ({
   duration_secs: entry.duration_secs,
   published_at: entry.published_at,
   image_filename: entry.image_filename || null,
+  artist: entry.artist || null,
+  album: entry.album || null,
+  year: entry.year || null,
+  genre: entry.genre || null,
   is_published: !!entry.is_published
 });
 
-// GET / — list all library entries for the admin dashboard.
+// GET /filters — distinct metadata values for library filters.
+router.get('/filters', async (req, res) => {
+  try {
+    const filters = await getLibraryMetadataFilters({ publishedOnly: false });
+    res.json(filters);
+  } catch (error) {
+    console.error('Admin library filters error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET / — paginated library list for the admin dashboard.
 router.get('/', async (req, res) => {
   try {
-    const entries = await getAllLibraryEntries();
+    const { page, limit, q, sort, dir, artist, album, year, genre } = req.query;
+    const [result, catalogTotal, published] = await Promise.all([
+      getLibraryEntriesPaginated({
+        page,
+        limit,
+        search: q,
+        sortField: sort,
+        sortDir: dir,
+        publishedOnly: false,
+        artist,
+        album,
+        year,
+        genre
+      }),
+      countAllLibraryEntries(),
+      countPublishedInLibrary()
+    ]);
+
     res.json({
-      total: entries.length,
-      published: entries.filter((e) => e.is_published).length,
-      entries: entries.map(mapLibraryEntry)
+      total: result.total,
+      catalogTotal,
+      published,
+      page: result.page,
+      limit: result.limit,
+      entries: result.entries.map(mapLibraryEntry)
     });
   } catch (error) {
     console.error('Admin library list error:', error);
@@ -133,7 +172,7 @@ router.get('/', async (req, res) => {
 // POST / — manually add a new episode to the library.
 router.post('/', handleUpload, async (req, res) => {
   try {
-    const { title, description, is_published, published_at } = req.body;
+    const { title, description, is_published, published_at, artist, album, year, genre, notes } = req.body;
     const audioFile = req.files && req.files.audio && req.files.audio[0];
     const imageFile = req.files && req.files.image && req.files.image[0];
 
@@ -159,10 +198,16 @@ router.post('/', handleUpload, async (req, res) => {
     const metadata = await parseAudioMetadata(audioFile.path);
     const duration = metadata?.format?.duration ? Math.round(metadata.format.duration) : null;
     const imageFilename = imageFile ? imageFile.filename : saveEmbeddedCover(metadata);
+    const tags = resolvePostTags({ metadata, description, body: { artist, album, year, genre } });
+    const resolvedDescription = resolvePostDescription({ description, tags, notes });
 
     const post = await createPost({
       title: String(title).trim(),
-      description: description ? String(description).trim() : null,
+      description: resolvedDescription,
+      artist: tags.artist,
+      album: tags.album,
+      year: tags.year,
+      genre: tags.genre,
       audio_filename: audioFile.filename,
       image_filename: imageFilename,
       duration_secs: duration,
@@ -190,13 +235,17 @@ router.put('/:id', handleUpload, async (req, res) => {
       return res.status(404).json({ error: 'Library entry not found' });
     }
 
-    const { title, description, is_published, published_at } = req.body;
+    const { title, description, is_published, published_at, artist, album, year, genre, notes } = req.body;
     const audioFile = req.files && req.files.audio && req.files.audio[0];
     const imageFile = req.files && req.files.image && req.files.image[0];
 
     const data = {};
     if (title !== undefined) data.title = String(title).trim();
     if (description !== undefined) data.description = description ? String(description).trim() : null;
+    if (artist !== undefined) data.artist = artist ? String(artist).trim() : null;
+    if (album !== undefined) data.album = album ? String(album).trim() : null;
+    if (year !== undefined) data.year = year ? String(year).trim() : null;
+    if (genre !== undefined) data.genre = genre ? String(genre).trim() : null;
     if (is_published !== undefined) {
       data.is_published = is_published === 'true' || is_published === true ? 1 : 0;
     }
@@ -213,6 +262,18 @@ router.put('/:id', handleUpload, async (req, res) => {
       data.audio_filename = audioFile.filename;
       const metadata = await parseAudioMetadata(audioFile.path);
       data.duration_secs = metadata?.format?.duration ? Math.round(metadata.format.duration) : null;
+      const tags = resolvePostTags({
+        metadata,
+        description: data.description ?? existing.description,
+        body: { artist, album, year, genre }
+      });
+      data.artist = tags.artist;
+      data.album = tags.album;
+      data.year = tags.year;
+      data.genre = tags.genre;
+      if (description === undefined && !existing.description) {
+        data.description = resolvePostDescription({ tags, notes });
+      }
       if (!imageFile) {
         const embeddedCover = saveEmbeddedCover(metadata);
         if (embeddedCover) {

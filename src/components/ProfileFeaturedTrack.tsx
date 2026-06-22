@@ -4,6 +4,7 @@ import { buildImageUrl } from '../config';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
+import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileFeaturedTrackProps {
   post: FeedPost;
@@ -18,6 +19,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   selected = false,
   onSelectChange
 }) => {
+  const streamState = useStreamLinkState(post);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const cover = coverUrl ? (
@@ -32,7 +34,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
     <>
       <div className="ht-featured-top">
         {canStream ? (
-          <Link to={`/stream/${post.id}`} className="ht-play-btn" aria-label={`Play ${post.title}`}>
+          <Link to={`/stream/${post.id}`} state={streamState} className="ht-play-btn" aria-label={`Play ${post.title}`}>
             <svg viewBox="0 0 24 24" aria-hidden>
               <path d="M8 5v14l11-7z" fill="currentColor" />
             </svg>
@@ -46,7 +48,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         )}
         <div className="ht-featured-info">
           {canStream ? (
-            <Link to={`/stream/${post.id}`} className="ht-featured-title-link">
+            <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-title-link">
               <h2 className="ht-featured-title">{post.title}</h2>
             </Link>
           ) : (
@@ -80,7 +82,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         </label>
       )}
       {canStream ? (
-        <Link to={`/stream/${post.id}`} className="ht-featured-cover-link">
+        <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-cover-link">
           {cover}
         </Link>
       ) : (

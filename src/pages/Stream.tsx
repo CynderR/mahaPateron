@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,6 +6,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { buildImageUrl } from '../config';
 import StreamPlayer from '../components/StreamPlayer';
 import { FeedPost } from '../components/PostCard';
+import { resolveStreamBackTarget, StreamLocationState } from '../utils/streamNavigation';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -21,12 +22,18 @@ const Stream: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { setQueue } = usePlayer();
+  const { setQueue, queue } = usePlayer();
+  const queueRef = useRef(queue);
+  queueRef.current = queue;
   const [data, setData] = useState<EpisodeResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  const navPost = (location.state as { post?: FeedPost } | null)?.post;
+  const navState = location.state as StreamLocationState | null;
+  const navPost = navState?.post;
+  const returnPath = resolveStreamBackTarget(location.state);
+  const goBack = () => navigate(returnPath);
+
   const playerPost =
     data?.post ?? (navPost && navPost.id === postId ? navPost : null);
 
@@ -48,6 +55,11 @@ const Stream: React.FC = () => {
 
   useEffect(() => {
     if (!postId || !user) return;
+    const activeQueue = queueRef.current;
+    if (activeQueue.some((p) => p.id === postId)) {
+      setQueue(activeQueue, postId);
+      return;
+    }
     axios
       .get<{ posts: FeedPost[] }>('/account/feed')
       .then((res) => setQueue(res.data.posts, postId))
@@ -74,7 +86,7 @@ const Stream: React.FC = () => {
       <button
         type="button"
         className="stream-back-btn stream-desktop-only"
-        onClick={() => navigate(-1)}
+        onClick={goBack}
         aria-label="Go back"
       >
         <svg viewBox="0 0 24 24" aria-hidden>
@@ -83,13 +95,13 @@ const Stream: React.FC = () => {
       </button>
 
       <header className="pod-stream-topbar pod-mobile-only">
-        <button type="button" className="pod-stream-topbar-btn" onClick={() => navigate(-1)} aria-label="Back">
+        <button type="button" className="pod-stream-topbar-btn" onClick={goBack} aria-label="Back">
           <svg viewBox="0 0 24 24" aria-hidden>
             <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z" />
           </svg>
         </button>
         <span className="pod-stream-topbar-title">Now playing</span>
-        <Link to="/feed" className="pod-stream-topbar-btn" aria-label="All episodes">
+        <Link to={returnPath} className="pod-stream-topbar-btn" aria-label="Back to list">
           <svg viewBox="0 0 24 24" aria-hidden>
             <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
           </svg>
@@ -115,7 +127,7 @@ const Stream: React.FC = () => {
               />
             </svg>
           </Link>
-          <button type="button" className="stream-mobile-icon-btn" onClick={() => navigate(-1)} aria-label="Menu">
+          <button type="button" className="stream-mobile-icon-btn" onClick={goBack} aria-label="Back">
             <svg viewBox="0 0 24 24" aria-hidden>
               <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
             </svg>
@@ -128,8 +140,8 @@ const Stream: React.FC = () => {
         {!loading && error && (
           <div className="stream-card">
             <div className="pod-banner pod-banner-error">{error}</div>
-            <Link to="/feed" className="pod-btn">
-              Back to feed
+            <Link to={returnPath} className="pod-btn">
+              Go back
             </Link>
           </div>
         )}
@@ -154,6 +166,7 @@ const Stream: React.FC = () => {
                 coverUrl={coverUrl}
                 accessible={data ? data.accessible && data.is_paying : true}
                 canStream={data ? data.canStream : true}
+                returnPath={returnPath}
               />
             </div>
           </article>

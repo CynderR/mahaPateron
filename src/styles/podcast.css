@@ -346,6 +346,27 @@
   margin-left: 0.25rem;
 }
 
+.library-metadata-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1rem;
+  margin-top: 0.75rem;
+}
+
+.library-metadata-filter {
+  margin-bottom: 0;
+  min-width: 140px;
+}
+
+.library-metadata-filter .pod-select {
+  min-width: 160px;
+}
+
+.library-metadata-clear {
+  margin-bottom: 0.15rem;
+}
+
 .pod-table-sort-btn {
   display: inline-flex;
   align-items: center;
@@ -2188,6 +2209,49 @@
   white-space: nowrap;
 }
 
+.player-autoplay-timeout {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.player-autoplay-timeout-label {
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.75;
+}
+
+.player-autoplay-timeout-select {
+  min-width: 6.5rem;
+  padding: 0.3rem 0.5rem;
+  font-size: 0.72rem;
+  border-radius: 999px;
+}
+
+.stream-player-tools .player-autoplay-timeout-select,
+.stream-global-bar .player-autoplay-timeout-select {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+.ht-page .player-autoplay-timeout-select,
+.playlists-page .player-autoplay-timeout-select,
+.pod-stream-tools .player-autoplay-timeout-select {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
+  color: var(--text-primary);
+}
+
+.player-autoplay-timeout-remaining {
+  font-size: 0.68rem;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 .player-favorite-btn {
   display: inline-flex;
   align-items: center;
@@ -2269,6 +2333,16 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.playlist-picker-toolbar {
+  display: inline-flex;
+  align-items: center;
+}
+
+.member-episode-toolbar .playlist-picker-menu {
+  left: 0;
+  right: auto;
 }
 
 .playlist-picker-msg {

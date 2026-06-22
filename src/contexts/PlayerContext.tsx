@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import axios from 'axios';
+import { buildStreamUrl } from '../config';
 import { useAuth } from './AuthContext';
 import {
   buildShuffleOrder,
@@ -15,6 +16,12 @@ import {
   loadStreamBlob,
   prefersBlobPlayback
 } from '../utils/streamLoader';
+import {
+  AutoplayTimeoutHours,
+  autoplayTimeoutMs,
+  readAutoplayTimeoutHours,
+  writeAutoplayTimeoutHours
+} from '../utils/autoplayTimeout';
 
 export interface PlaylistSummary {
   id: string;
@@ -43,6 +50,9 @@ interface PlayerContextType {
   playbackError: string | null;
   mediaLoading: boolean;
   mediaReady: boolean;
+  autoplayTimeoutHours: AutoplayTimeoutHours;
+  autoplayTimeRemainingMs: number | null;
+  setAutoplayTimeoutHours: (hours: AutoplayTimeoutHours) => void;
   cycleReplay: () => void;
   toggleShuffle: () => void;
   setQueue: (posts: QueuePost[], currentPostId: string) => void;
@@ -54,6 +64,7 @@ interface PlayerContextType {
   refreshPlaylists: () => Promise<void>;
   createPlaylist: (name: string) => Promise<PlaylistSummary | null>;
   addToPlaylist: (playlistId: string, postId: string) => Promise<void>;
+  addManyToPlaylist: (playlistId: string, postIds: string[]) => Promise<{ added: number; failed: number }>;
   removeFromPlaylist: (playlistId: string, postId: string) => Promise<void>;
   deletePlaylist: (playlistId: string) => Promise<void>;
   prepareEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
@@ -61,6 +72,7 @@ interface PlayerContextType {
   togglePlayback: () => void;
   seekTo: (time: number) => void;
   skipBy: (delta: number) => void;
+  playNextInQueue: () => QueuePost | null;
   registerTrackEndedHandler: (handler: (() => void) | null) => void;
 }
 
@@ -72,7 +84,7 @@ const SHUFFLE_STORAGE_KEY = 'playerShuffle';
 const readReplayMode = (): ReplayMode => {
   const stored = localStorage.getItem(REPLAY_STORAGE_KEY);
   if (stored === 'all' || stored === 'off' || stored === 'one') return stored;
-  return 'one';
+  return 'off';
 };
 
 const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) === 'true';
@@ -106,6 +118,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const loadedPostIdRef = useRef<string | null>(null);
   const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
   const blobUrlRef = useRef<string | null>(null);
+  const autoplayOnLoadRef = useRef(false);
+  const autoplayDeadlineRef = useRef<number | null>(null);
+  const autoplayTimedOutRef = useRef(false);
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
@@ -123,6 +138,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
   const [mediaReady, setMediaReady] = useState(!prefersBlobPlayback());
+  const [autoplayTimeoutHours, setAutoplayTimeoutHoursState] = useState<AutoplayTimeoutHours>(readAutoplayTimeoutHours);
+  const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
 
   useEffect(() => {
     replayModeRef.current = replayMode;
@@ -142,6 +159,76 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!audio) return;
     setPlaying(!audio.paused && !audio.ended);
   }, []);
+
+  const stopForAutoplayTimeout = useCallback(() => {
+    const audio = audioRef.current;
+    autoplayDeadlineRef.current = null;
+    autoplayTimedOutRef.current = true;
+    setAutoplayTimeRemainingMs(null);
+    autoplayOnLoadRef.current = false;
+    if (audio) {
+      clearPendingPlay();
+      audio.pause();
+    }
+    setPlaying(false);
+    setPlaybackError('Playback stopped — autoplay time limit reached.');
+  }, [clearPendingPlay]);
+
+  const isAutoplayTimeoutExpired = useCallback(() => {
+    const deadline = autoplayDeadlineRef.current;
+    return deadline != null && Date.now() >= deadline;
+  }, []);
+
+  const armAutoplayDeadline = useCallback((hours: AutoplayTimeoutHours) => {
+    if (hours <= 0) {
+      autoplayDeadlineRef.current = null;
+      setAutoplayTimeRemainingMs(null);
+      return;
+    }
+    const deadline = Date.now() + autoplayTimeoutMs(hours);
+    autoplayDeadlineRef.current = deadline;
+    setAutoplayTimeRemainingMs(deadline - Date.now());
+  }, []);
+
+  const setAutoplayTimeoutHours = useCallback(
+    (hours: AutoplayTimeoutHours) => {
+      writeAutoplayTimeoutHours(hours);
+      setAutoplayTimeoutHoursState(hours);
+      autoplayTimedOutRef.current = false;
+      armAutoplayDeadline(hours);
+      if (hours > 0) {
+        setPlaybackError(null);
+      }
+    },
+    [armAutoplayDeadline]
+  );
+
+  useEffect(() => {
+    if (autoplayTimeoutHours <= 0) {
+      autoplayDeadlineRef.current = null;
+      setAutoplayTimeRemainingMs(null);
+      return undefined;
+    }
+
+    if (!autoplayDeadlineRef.current) {
+      armAutoplayDeadline(autoplayTimeoutHours);
+    }
+
+    const tick = () => {
+      const deadline = autoplayDeadlineRef.current;
+      if (deadline == null) return;
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) {
+        stopForAutoplayTimeout();
+        return;
+      }
+      setAutoplayTimeRemainingMs(remaining);
+    };
+
+    tick();
+    const intervalId = window.setInterval(tick, 1000);
+    return () => window.clearInterval(intervalId);
+  }, [autoplayTimeoutHours, armAutoplayDeadline, stopForAutoplayTimeout]);
 
   const assignEpisode = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
     const changed = assignedSourceRef.current?.postId !== postId || assignedSourceRef.current?.url !== streamUrl;
@@ -212,6 +299,20 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const audio = audioRef.current;
     if (!audio || !assignedSourceRef.current) return;
 
+    if (autoplayTimedOutRef.current) {
+      setPlaybackError('Autoplay limit reached. Choose a new limit to continue.');
+      return;
+    }
+
+    if (isAutoplayTimeoutExpired()) {
+      stopForAutoplayTimeout();
+      return;
+    }
+
+    if (autoplayTimeoutHours > 0 && autoplayDeadlineRef.current == null) {
+      armAutoplayDeadline(autoplayTimeoutHours);
+    }
+
     clearPendingPlay();
     setPlaybackError(null);
 
@@ -233,6 +334,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     attempt
       .then(() => {
+        setPlaying(true);
         syncPlayingState();
         setPlaybackError(null);
       })
@@ -245,7 +347,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           setPlaybackError('Could not start playback. Tap play again.');
         }
       });
-  }, [clearPendingPlay, primeAudioSource, syncPlayingState]);
+  }, [armAutoplayDeadline, autoplayTimeoutHours, clearPendingPlay, isAutoplayTimeoutExpired, primeAudioSource, stopForAutoplayTimeout, syncPlayingState]);
 
   const preloadEpisodeMedia = useCallback(
     (postId: string, streamUrl: string) => {
@@ -305,6 +407,37 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [assignEpisode, preloadEpisodeMedia, requestPlay]
   );
 
+  const playNextInQueue = useCallback((): QueuePost | null => {
+    if (queue.length === 0 || !user?.rss_token) return null;
+    if (autoplayTimedOutRef.current || isAutoplayTimeoutExpired()) {
+      stopForAutoplayTimeout();
+      return null;
+    }
+
+    const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+    if (nextIndex == null) return null;
+
+    const nextPost = queue[nextIndex];
+    if (!nextPost) return null;
+
+    setCurrentIndex(nextIndex);
+    autoplayOnLoadRef.current = true;
+    const streamUrl = buildStreamUrl(nextPost.id, user.rss_token);
+    prepareEpisode(nextPost.id, streamUrl, nextPost.duration_secs);
+    return nextPost;
+  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, prepareEpisode, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+
+  useEffect(() => {
+    if (!autoplayOnLoadRef.current || mediaLoading || !mediaReady) return;
+    if (isAutoplayTimeoutExpired()) {
+      autoplayOnLoadRef.current = false;
+      stopForAutoplayTimeout();
+      return;
+    }
+    autoplayOnLoadRef.current = false;
+    requestPlay();
+  }, [mediaLoading, mediaReady, activePostId, requestPlay, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !assignedSourceRef.current) return;
@@ -353,13 +486,19 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const audio = audioRef.current;
     if (!audio) return;
 
-    const onTimeUpdate = () => setCurrentTime(audio.currentTime);
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      if (!audio.paused && !audio.ended) {
+        setPlaying(true);
+      }
+    };
     const onDurationChange = () => {
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         setDuration(audio.duration);
       }
     };
     const onPlay = () => syncPlayingState();
+    const onPlaying = () => setPlaying(true);
     const onPause = () => syncPlayingState();
     const onEnded = () => {
       setPlaying(false);
@@ -381,6 +520,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     audio.addEventListener('durationchange', onDurationChange);
     audio.addEventListener('loadedmetadata', onDurationChange);
     audio.addEventListener('play', onPlay);
+    audio.addEventListener('playing', onPlaying);
     audio.addEventListener('pause', onPause);
     audio.addEventListener('ended', onEnded);
     audio.addEventListener('error', onError);
@@ -390,6 +530,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       audio.removeEventListener('durationchange', onDurationChange);
       audio.removeEventListener('loadedmetadata', onDurationChange);
       audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('playing', onPlaying);
       audio.removeEventListener('pause', onPause);
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
@@ -555,6 +696,21 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [refreshPlaylists]
   );
 
+  const addManyToPlaylist = useCallback(
+    async (playlistId: string, postIds: string[]) => {
+      if (postIds.length === 0) return { added: 0, failed: 0 };
+      const results = await Promise.allSettled(
+        postIds.map((postId) =>
+          axios.post(`/account/player/playlists/${playlistId}/items`, { post_id: postId })
+        )
+      );
+      const added = results.filter((result) => result.status === 'fulfilled').length;
+      await refreshPlaylists();
+      return { added, failed: postIds.length - added };
+    },
+    [refreshPlaylists]
+  );
+
   const removeFromPlaylist = useCallback(
     async (playlistId: string, postId: string) => {
       await axios.delete(`/account/player/playlists/${playlistId}/items/${postId}`);
@@ -586,6 +742,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       playbackError,
       mediaLoading,
       mediaReady,
+      autoplayTimeoutHours,
+      autoplayTimeRemainingMs,
+      setAutoplayTimeoutHours,
       cycleReplay,
       toggleShuffle,
       setQueue,
@@ -597,10 +756,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       refreshPlaylists,
       createPlaylist,
       addToPlaylist,
+      addManyToPlaylist,
       removeFromPlaylist,
       deletePlaylist: deletePlaylistById,
       prepareEpisode,
       playEpisode,
+      playNextInQueue,
       togglePlayback,
       seekTo,
       skipBy,
@@ -620,6 +781,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       playbackError,
       mediaLoading,
       mediaReady,
+      autoplayTimeoutHours,
+      autoplayTimeRemainingMs,
+      setAutoplayTimeoutHours,
       cycleReplay,
       toggleShuffle,
       setQueue,
@@ -631,10 +795,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       refreshPlaylists,
       createPlaylist,
       addToPlaylist,
+      addManyToPlaylist,
       removeFromPlaylist,
       deletePlaylistById,
       prepareEpisode,
       playEpisode,
+      playNextInQueue,
       togglePlayback,
       seekTo,
       skipBy,

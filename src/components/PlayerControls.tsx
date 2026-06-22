@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import { REPLAY_LABELS } from '../utils/playerQueue';
+import AutoplayTimeoutSelect from './AutoplayTimeoutSelect';
 
 interface PlayerControlsProps {
   onPrevious?: () => void;
@@ -77,6 +78,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
         </svg>
       </button>
+
+      <AutoplayTimeoutSelect compact />
     </div>
   );
 };

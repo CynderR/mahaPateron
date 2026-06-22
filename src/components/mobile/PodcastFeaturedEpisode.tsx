@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { usePlayer } from '../../contexts/PlayerContext';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
+import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastFeaturedEpisodeProps {
   post: FeedPost;
@@ -22,12 +23,13 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { prepareEpisode } = usePlayer();
+  const streamState = useStreamLinkState(post);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const handlePlay = () => {
     if (!user?.rss_token || !canStream) return;
     prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
-    navigate(`/stream/${post.id}`, { state: { post } });
+    navigate(`/stream/${post.id}`, { state: streamState });
   };
 
   return (

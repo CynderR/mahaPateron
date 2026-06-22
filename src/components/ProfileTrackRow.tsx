@@ -4,6 +4,7 @@ import { buildImageUrl } from '../config';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_GENRE, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
+import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileTrackRowProps {
   post: FeedPost;
@@ -20,6 +21,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   selected = false,
   onSelectChange
 }) => {
+  const streamState = useStreamLinkState(post);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -53,7 +55,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
       <div className="ht-track-rank">#{rank}</div>
       <div className="ht-track-cover-wrap">
         {canStream ? (
-          <Link to={`/stream/${post.id}`} className="ht-track-cover-link">
+          <Link to={`/stream/${post.id}`} state={streamState} className="ht-track-cover-link">
             {cover}
           </Link>
         ) : (
@@ -63,7 +65,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
       <div className="ht-track-main">
         <div className="ht-track-head">
           {canStream ? (
-            <Link to={`/stream/${post.id}`} className="ht-play-btn ht-play-btn-sm" aria-label={`Play ${post.title}`}>
+            <Link to={`/stream/${post.id}`} state={streamState} className="ht-play-btn ht-play-btn-sm" aria-label={`Play ${post.title}`}>
               <svg viewBox="0 0 24 24" aria-hidden>
                 <path d="M8 5v14l11-7z" fill="currentColor" />
               </svg>
@@ -77,7 +79,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
           )}
           <div className="ht-track-text">
             {canStream ? (
-              <Link to={`/stream/${post.id}`} className="ht-track-title-link">
+              <Link to={`/stream/${post.id}`} state={streamState} className="ht-track-title-link">
                 <h3 className="ht-track-title">
                   <span className="ht-track-artist-inline">{PODCAST_AUTHOR}</span> {post.title}
                 </h3>

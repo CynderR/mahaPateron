@@ -3,6 +3,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const { runPodcastMigration } = require('./migrations/20260531120000_podcast_platform');
 const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_player_features');
+const { runLibraryAudioMetadataMigration } = require('./migrations/20260617120000_library_audio_metadata');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -57,7 +58,10 @@ const initDatabase = () => {
         }
       });
     });
-  }).then(() => runPodcastMigration(db)).then(() => runPlayerFeaturesMigration(db));
+  })
+    .then(() => runPodcastMigration(db))
+    .then(() => runPlayerFeaturesMigration(db))
+    .then(() => runLibraryAudioMetadataMigration(db));
 };
 
 // User CRUD operations
@@ -323,14 +327,21 @@ const getUserStats = () => {
 const createPost = (postData) => {
   return new Promise((resolve, reject) => {
     const id = postData.id || uuidv4();
-    const { title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at } = postData;
+    const {
+      title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at,
+      artist, album, year, genre
+    } = postData;
     const published = is_published === false || is_published === 0 ? 0 : 1;
     const publishedAt = published_at || new Date().toISOString();
-    const sql = `INSERT INTO posts (id, title, description, audio_filename, image_filename, duration_secs, created_by, is_published, published_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+    const sql = `INSERT INTO posts (
+                   id, title, description, audio_filename, image_filename, duration_secs,
+                   artist, album, year, genre, created_by, is_published, published_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
     db.run(sql, [
       id, title, description || null, audio_filename, image_filename || null,
-      duration_secs != null ? duration_secs : null, created_by || null, published, publishedAt
+      duration_secs != null ? duration_secs : null,
+      artist || null, album || null, year || null, genre || null,
+      created_by || null, published, publishedAt
     ], function (err) {
       if (err) return reject(err);
       getPostById(id)
@@ -394,7 +405,10 @@ const activateUserSubscription = (id) => {
   });
 };
 
-const POST_UPDATABLE_FIELDS = ['title', 'description', 'audio_filename', 'image_filename', 'duration_secs', 'is_published', 'published_at'];
+const POST_UPDATABLE_FIELDS = [
+  'title', 'description', 'audio_filename', 'image_filename', 'duration_secs',
+  'artist', 'album', 'year', 'genre', 'is_published', 'published_at'
+];
 
 const updatePost = (id, data) => {
   return new Promise((resolve, reject) => {
@@ -446,14 +460,19 @@ const syncLibraryFromPost = (post) => {
 
     const sql = `INSERT INTO library (
                    id, post_id, title, description, audio_filename, image_filename,
-                   duration_secs, is_published, published_at, updated_at, deleted_at
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
+                   duration_secs, artist, album, year, genre,
+                   is_published, published_at, updated_at, deleted_at
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, NULL)
                  ON CONFLICT(post_id) DO UPDATE SET
                    title = excluded.title,
                    description = excluded.description,
                    audio_filename = excluded.audio_filename,
                    image_filename = excluded.image_filename,
                    duration_secs = excluded.duration_secs,
+                   artist = excluded.artist,
+                   album = excluded.album,
+                   year = excluded.year,
+                   genre = excluded.genre,
                    is_published = excluded.is_published,
                    published_at = excluded.published_at,
                    updated_at = CURRENT_TIMESTAMP,
@@ -467,6 +486,10 @@ const syncLibraryFromPost = (post) => {
       post.audio_filename,
       post.image_filename || null,
       post.duration_secs != null ? post.duration_secs : null,
+      post.artist || null,
+      post.album || null,
+      post.year || null,
+      post.genre || null,
       post.is_published ? 1 : 0,
       post.published_at || new Date().toISOString()
     ], function (err) {
@@ -505,21 +528,82 @@ const getPublishedLibraryEntries = () => {
   });
 };
 
-const getLibraryForUser = (user) => {
-  return getPublishedLibraryEntries().then((entries) =>
-    entries.map((entry) => ({
-      id: entry.post_id,
-      title: entry.title,
-      description: entry.description,
-      duration_secs: entry.duration_secs,
-      published_at: entry.published_at,
-      image_filename: entry.image_filename || null,
-      accessible: userCanAccessPost(user, entry)
-    }))
-  );
+const parseLibraryListOptions = (options = {}) => {
+  const page = Math.max(1, parseInt(options.page, 10) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(options.limit, 10) || 20));
+  const sortField = options.sortField === 'duration' ? 'duration' : 'date';
+  const sortDir = options.sortDir === 'asc' ? 'ASC' : 'DESC';
+  const orderCol = sortField === 'duration' ? 'duration_secs' : 'published_at';
+  const search = (options.search || '').trim();
+  return { page, limit, sortDir, orderCol, search, offset: (page - 1) * limit };
 };
 
-const countLibraryEntries = () => {
+const applyLibraryMetadataFilters = (where, params, options = {}) => {
+  const { artist, album, year, genre } = options;
+  if (artist) {
+    where.push('artist = ?');
+    params.push(artist);
+  }
+  if (album) {
+    where.push('album = ?');
+    params.push(album);
+  }
+  if (year) {
+    where.push('year = ?');
+    params.push(year);
+  }
+  if (genre) {
+    where.push('genre = ?');
+    params.push(genre);
+  }
+};
+
+const getLibraryEntriesPaginated = (options = {}) => {
+  const { page, limit, sortDir, orderCol, search, offset } = parseLibraryListOptions(options);
+  const publishedOnly = !!options.publishedOnly;
+
+  const where = ['deleted_at IS NULL'];
+  const params = [];
+  if (publishedOnly) where.push('is_published = 1');
+  if (search) {
+    where.push(`(
+      LOWER(title) LIKE ?
+      OR LOWER(COALESCE(description, '')) LIKE ?
+      OR LOWER(COALESCE(artist, '')) LIKE ?
+      OR LOWER(COALESCE(album, '')) LIKE ?
+      OR LOWER(COALESCE(year, '')) LIKE ?
+      OR LOWER(COALESCE(genre, '')) LIKE ?
+    )`);
+    const like = `%${search.toLowerCase()}%`;
+    params.push(like, like, like, like, like, like);
+  }
+  applyLibraryMetadataFilters(where, params, options);
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT * FROM library ${whereSql} ORDER BY ${orderCol} ${sortDir}, post_id DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset],
+      (err, rows) => {
+        if (err) return reject(err);
+        db.get(`SELECT COUNT(*) AS count FROM library ${whereSql}`, params, (err2, countRow) => {
+          if (err2) return reject(err2);
+          resolve({ entries: rows, total: countRow.count, page, limit });
+        });
+      }
+    );
+  });
+};
+
+const countAllLibraryEntries = () => {
+  return new Promise((resolve, reject) => {
+    db.get('SELECT COUNT(*) AS count FROM library WHERE deleted_at IS NULL', [], (err, row) =>
+      err ? reject(err) : resolve(row.count)
+    );
+  });
+};
+
+const countPublishedInLibrary = () => {
   return new Promise((resolve, reject) => {
     db.get(
       'SELECT COUNT(*) AS count FROM library WHERE deleted_at IS NULL AND is_published = 1',
@@ -528,6 +612,82 @@ const countLibraryEntries = () => {
     );
   });
 };
+
+const countAccessibleLibraryEntriesForUser = (user) => {
+  if (!user) return Promise.resolve(0);
+  if (user.back_catalog_access) return countPublishedInLibrary();
+  const cutoff = user.subscribed_at || user.created_at;
+  if (!cutoff) return countPublishedInLibrary();
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT COUNT(*) AS count FROM library
+       WHERE deleted_at IS NULL AND is_published = 1 AND published_at >= ?`,
+      [cutoff],
+      (err, row) => (err ? reject(err) : resolve(row.count))
+    );
+  });
+};
+
+const mapLibraryEntryForUser = (user, entry) => ({
+  id: entry.post_id,
+  title: entry.title,
+  description: entry.description,
+  duration_secs: entry.duration_secs,
+  published_at: entry.published_at,
+  image_filename: entry.image_filename || null,
+  artist: entry.artist || null,
+  album: entry.album || null,
+  year: entry.year || null,
+  genre: entry.genre || null,
+  accessible: userCanAccessPost(user, entry)
+});
+
+const getLibraryMetadataFilters = ({ publishedOnly = false } = {}) => {
+  const where = ['deleted_at IS NULL'];
+  if (publishedOnly) where.push('is_published = 1');
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  const distinctValues = (column) =>
+    new Promise((resolve, reject) => {
+      db.all(
+        `SELECT DISTINCT ${column} AS value FROM library
+         ${whereSql} AND ${column} IS NOT NULL AND TRIM(${column}) != ''
+         ORDER BY LOWER(${column}) ASC`,
+        [],
+        (err, rows) => (err ? reject(err) : resolve(rows.map((row) => row.value)))
+      );
+    });
+
+  return Promise.all([
+    distinctValues('artist'),
+    distinctValues('album'),
+    distinctValues('year'),
+    distinctValues('genre')
+  ]).then(([artists, albums, years, genres]) => ({ artists, albums, years, genres }));
+};
+
+const getLibraryForUser = (user) => {
+  return getPublishedLibraryEntries().then((entries) =>
+    entries.map((entry) => mapLibraryEntryForUser(user, entry))
+  );
+};
+
+const getLibraryForUserPaginated = (user, options = {}) => {
+  return Promise.all([
+    getLibraryEntriesPaginated({ ...options, publishedOnly: true }),
+    countPublishedInLibrary(),
+    countAccessibleLibraryEntriesForUser(user)
+  ]).then(([{ entries, total, page, limit }, catalogTotal, accessible]) => ({
+    entries: entries.map((entry) => mapLibraryEntryForUser(user, entry)),
+    total,
+    catalogTotal,
+    accessible,
+    page,
+    limit
+  }));
+};
+
+const countLibraryEntries = () => countPublishedInLibrary();
 
 // ----- Platform settings -----
 
@@ -759,7 +919,13 @@ module.exports = {
   syncLibraryFromPost,
   getAllLibraryEntries,
   getPublishedLibraryEntries,
+  getLibraryEntriesPaginated,
+  getLibraryMetadataFilters,
   getLibraryForUser,
+  getLibraryForUserPaginated,
+  countAllLibraryEntries,
+  countPublishedInLibrary,
+  countAccessibleLibraryEntriesForUser,
   countLibraryEntries,
   getPlatformSettings,
   updatePlatformSettings,

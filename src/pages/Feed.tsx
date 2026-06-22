@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
 import HearThisNav from '../components/HearThisNav';
@@ -9,11 +9,13 @@ import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/Podc
 import PodcastFeaturedEpisode from '../components/mobile/PodcastFeaturedEpisode';
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
+import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import { FeedPost } from '../components/PostCard';
 import { buildImageUrl } from '../config';
 import { PODCAST_AUTHOR, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../podcastMeta';
 import { filterAdminItems } from '../utils/adminTableHelpers';
 import { useEpisodeSelection } from '../utils/episodeListHelpers';
+import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 interface FeedResponse {
   is_paying: boolean;
@@ -23,12 +25,15 @@ interface FeedResponse {
 }
 
 const Feed: React.FC = () => {
+  const location = useLocation();
+  const streamReturnFrom = currentPathWithSearch(location.pathname, location.search);
   const { user } = useAuth();
   const [data, setData] = useState<FeedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
+  const selectedPostIds = useMemo(() => [...selectedIds], [selectedIds]);
 
   useEffect(() => {
     const load = async () => {
@@ -65,6 +70,7 @@ const Feed: React.FC = () => {
       selectedCount={selectedIds.size}
       selectableCount={visiblePosts.length}
       onSelectAll={(checked) => selectAll(visiblePosts.map((p) => p.id), checked)}
+      selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
     />
   );
 
@@ -215,7 +221,7 @@ const Feed: React.FC = () => {
                   <span aria-hidden>♪</span>
                 );
                 return canStream ? (
-                  <Link key={post.id} to={`/stream/${post.id}`} className="ht-sidebar-thumb">
+                  <Link key={post.id} to={`/stream/${post.id}`} state={buildStreamState(streamReturnFrom, post)} className="ht-sidebar-thumb">
                     {thumb}
                   </Link>
                 ) : (

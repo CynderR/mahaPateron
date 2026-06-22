@@ -1,6 +1,7 @@
 import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
 import { Link } from 'react-router-dom';
 import { buildImageUrl } from '../config';
+import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 export interface FeedPost {
   id: string;
@@ -40,6 +41,7 @@ const PostCard: React.FC<PostCardProps> = ({
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const displayDescription = stripFeedMetadataFromDescription(post.description);
+  const streamState = useStreamLinkState(post);
 
   return (
     <article className="pod-post-card">
@@ -55,7 +57,7 @@ const PostCard: React.FC<PostCardProps> = ({
         </label>
       )}
       {canStream && !locked ? (
-        <Link to={`/stream/${post.id}`} state={{ post }} className="pod-post-cover-link">
+        <Link to={`/stream/${post.id}`} state={streamState} className="pod-post-cover-link">
           {coverUrl ? (
             <img className="pod-post-cover" src={coverUrl} alt={post.title} />
           ) : (
@@ -73,7 +75,7 @@ const PostCard: React.FC<PostCardProps> = ({
       )}
       <div className="pod-post-body">
         {canStream && !locked ? (
-          <Link to={`/stream/${post.id}`} state={{ post }} className="pod-post-title-link">
+          <Link to={`/stream/${post.id}`} state={streamState} className="pod-post-title-link">
             <h3 className="pod-post-title">{post.title}</h3>
           </Link>
         ) : (
@@ -87,7 +89,7 @@ const PostCard: React.FC<PostCardProps> = ({
         {locked ? (
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (
-          <Link to={`/stream/${post.id}`} className="pod-btn pod-stream-listen-btn">
+          <Link to={`/stream/${post.id}`} state={streamState} className="pod-btn pod-stream-listen-btn">
             Listen
           </Link>
         ) : (

@@ -13,6 +13,7 @@ interface MemberEpisodeToolbarProps {
   selectedCount?: number;
   selectableCount?: number;
   onSelectAll?: (selected: boolean) => void;
+  selectionActions?: React.ReactNode;
 }
 
 const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
@@ -26,7 +27,8 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   onSort,
   selectedCount = 0,
   selectableCount = 0,
-  onSelectAll
+  onSelectAll,
+  selectionActions
 }) => {
   const [query, setQuery] = useState('');
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -89,6 +91,8 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
             )}
           </label>
         )}
+
+        {selectedCount > 0 && selectionActions}
 
         {showSort && onSort && (
           <div className="member-sort-group" role="group" aria-label="Sort episodes">

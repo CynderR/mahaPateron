@@ -6,7 +6,8 @@ const {
   getUserByEmail,
   getUserByUsername,
   getPublishedPostsForUser,
-  getLibraryForUser,
+  getLibraryForUserPaginated,
+  getLibraryMetadataFilters,
   getPostById,
   userCanAccessPost,
   updateUserFields,
@@ -86,13 +87,35 @@ router.get('/episodes/:id', async (req, res) => {
   }
 });
 
-// GET /library — full episode catalog with per-item access flags.
+// GET /library/filters — distinct metadata values for library filters.
+router.get('/library/filters', async (req, res) => {
+  try {
+    const filters = await getLibraryMetadataFilters({ publishedOnly: true });
+    res.json(filters);
+  } catch (error) {
+    console.error('Account library filters error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /library — paginated episode catalog with per-item access flags.
 router.get('/library', async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const entries = await getLibraryForUser(user);
+    const { page, limit, q, sort, dir, artist, album, year, genre } = req.query;
+    const result = await getLibraryForUserPaginated(user, {
+      page,
+      limit,
+      search: q,
+      sortField: sort,
+      sortDir: dir,
+      artist,
+      album,
+      year,
+      genre
+    });
     const { canStream, canRss } = accessFlags(user);
 
     res.json({
@@ -100,9 +123,12 @@ router.get('/library', async (req, res) => {
       back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
-      total: entries.length,
-      accessible: entries.filter((e) => e.accessible).length,
-      entries
+      total: result.total,
+      catalogTotal: result.catalogTotal,
+      accessible: result.accessible,
+      page: result.page,
+      limit: result.limit,
+      entries: result.entries
     });
   } catch (error) {
     console.error('Account library error:', error);

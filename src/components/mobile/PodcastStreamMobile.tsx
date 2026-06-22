@@ -24,6 +24,7 @@ interface PodcastStreamMobileProps {
   onNext: () => void;
   canPrevious: boolean;
   canNext: boolean;
+  returnPath: string;
 }
 
 const formatTime = (secs: number): string => {
@@ -51,7 +52,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   onPrevious,
   onNext,
   canPrevious,
-  canNext
+  canNext,
+  returnPath
 }) => {
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -158,8 +160,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         />
         <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
-        <Link to="/feed" className="pod-stream-back-link">
-          All episodes
+        <Link to={returnPath} className="pod-stream-back-link">
+          Back to episodes
         </Link>
       </div>
 

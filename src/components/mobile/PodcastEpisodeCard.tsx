@@ -7,6 +7,7 @@ import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../../podcastMeta';
 import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
+import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastEpisodeCardProps {
   post: FeedPost;
@@ -24,6 +25,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { prepareEpisode } = usePlayer();
+  const streamState = useStreamLinkState(post);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -38,7 +40,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
     e.stopPropagation();
     if (!user?.rss_token || !canStream) return;
     prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
-    navigate(`/stream/${post.id}`, { state: { post } });
+    navigate(`/stream/${post.id}`, { state: streamState });
   };
 
   const displayDescription = feedDescriptionPreview(post.description);
@@ -69,7 +71,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </label>
       )}
       {canStream ? (
-        <Link to={`/stream/${post.id}`} state={{ post }} className="pod-episode-card-main">
+        <Link to={`/stream/${post.id}`} state={streamState} className="pod-episode-card-main">
           {cover}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>

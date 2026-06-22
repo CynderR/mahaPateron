@@ -7,6 +7,7 @@ import FavoriteButton from './FavoriteButton';
 import PlayerControls from './PlayerControls';
 import PlaylistPicker from './PlaylistPicker';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
+import { buildStreamState } from '../utils/streamNavigation';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -16,6 +17,7 @@ interface StreamPlayerProps {
   coverUrl: string | null;
   accessible: boolean;
   canStream: boolean;
+  returnPath: string;
 }
 
 const formatTime = (secs: number): string => {
@@ -57,7 +59,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   rssToken,
   coverUrl,
   accessible,
-  canStream
+  canStream,
+  returnPath
 }) => {
   const navigate = useNavigate();
   const {
@@ -70,6 +73,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     getNextPostId,
     getPrevPostId,
     prepareEpisode,
+    playNextInQueue,
     togglePlayback,
     seekTo,
     skipBy,
@@ -87,17 +91,27 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const nextId = getNextPostId();
   const prevId = getPrevPostId();
 
+  const navToStream = useCallback(
+    (targetPost: FeedPost) => {
+      navigate(`/stream/${targetPost.id}`, { state: buildStreamState(returnPath, targetPost) });
+    },
+    [navigate, returnPath]
+  );
+
   const goNext = useCallback(() => {
-    if (nextId) navigate(`/stream/${nextId}`);
-  }, [navigate, nextId]);
+    if (nextId) navigate(`/stream/${nextId}`, { state: buildStreamState(returnPath) });
+  }, [navigate, nextId, returnPath]);
 
   const goPrev = useCallback(() => {
-    if (prevId) navigate(`/stream/${prevId}`);
-  }, [navigate, prevId]);
+    if (prevId) navigate(`/stream/${prevId}`, { state: buildStreamState(returnPath) });
+  }, [navigate, prevId, returnPath]);
 
   const handleEnded = useCallback(() => {
-    if (nextId) navigate(`/stream/${nextId}`);
-  }, [nextId, navigate]);
+    const nextPost = playNextInQueue();
+    if (nextPost) {
+      navToStream(nextPost);
+    }
+  }, [navToStream, playNextInQueue]);
 
   useEffect(() => {
     registerTrackEndedHandler(handleEnded);
@@ -117,13 +131,13 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     seekTo(ratio * effectiveDuration);
   };
 
-  const PlayIcon = ({ large = false, filled = false }: { large?: boolean; filled?: boolean }) => (
+  const PlayIcon = ({ large = false }: { large?: boolean }) => (
     <svg
       className={large ? 'stream-play-icon stream-play-icon-lg' : 'stream-play-icon'}
       viewBox="0 0 24 24"
       aria-hidden
     >
-      {playing && filled ? (
+      {playing ? (
         <>
           <rect x="6" y="5" width="4" height="14" fill="currentColor" />
           <rect x="14" y="5" width="4" height="14" fill="currentColor" />
@@ -198,7 +212,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           disabled={!canPlay}
           aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
-          <PlayIcon filled />
+          <PlayIcon />
         </button>
         <span className="stream-mobile-duration">{formatTime(effectiveDuration)}</span>
         <span className="stream-mobile-actions-spacer" aria-hidden />
@@ -300,6 +314,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         onNext={goNext}
         canPrevious={!!prevId}
         canNext={!!nextId}
+        returnPath={returnPath}
       />
 
       <footer className="stream-mobile-bar stream-ht-mobile-only">
@@ -327,7 +342,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
               disabled={!canPlay}
               aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
             >
-              <PlayIcon filled />
+              <PlayIcon />
             </button>
             <button
               type="button"

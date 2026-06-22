@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import HearThisNav from '../components/HearThisNav';
 import FavoriteButton from '../components/FavoriteButton';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from '../components/PostCard';
+import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 const Playlists: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const streamReturnFrom = currentPathWithSearch(location.pathname, location.search);
   const { playlists, createPlaylist, deletePlaylist, playQueueFromPlaylist, refreshPlaylists } = usePlayer();
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
@@ -50,7 +53,7 @@ const Playlists: React.FC = () => {
       image_filename: item.image_filename
     }));
     playQueueFromPlaylist(posts, posts[0].id);
-    navigate(`/stream/${posts[0].id}`);
+    navigate(`/stream/${posts[0].id}`, { state: buildStreamState(streamReturnFrom, posts[0]) });
   };
 
   return (
@@ -108,7 +111,18 @@ const Playlists: React.FC = () => {
                   <ul className="playlist-track-list">
                     {pl.items.map((item) => (
                       <li key={item.post_id}>
-                        <Link to={`/stream/${item.post_id}`}>{item.title}</Link>
+                        <Link
+                          to={`/stream/${item.post_id}`}
+                          state={buildStreamState(streamReturnFrom, {
+                            id: item.post_id,
+                            title: item.title,
+                            duration_secs: item.duration_secs,
+                            published_at: item.published_at,
+                            image_filename: item.image_filename
+                          })}
+                        >
+                          {item.title}
+                        </Link>
                         <FavoriteButton postId={item.post_id} />
                       </li>
                     ))}
@@ -173,7 +187,18 @@ const Playlists: React.FC = () => {
                   <ul className="playlist-track-list">
                     {pl.items.map((item) => (
                       <li key={item.post_id}>
-                        <Link to={`/stream/${item.post_id}`}>{item.title}</Link>
+                        <Link
+                          to={`/stream/${item.post_id}`}
+                          state={buildStreamState(streamReturnFrom, {
+                            id: item.post_id,
+                            title: item.title,
+                            duration_secs: item.duration_secs,
+                            published_at: item.published_at,
+                            image_filename: item.image_filename
+                          })}
+                        >
+                          {item.title}
+                        </Link>
                         <FavoriteButton postId={item.post_id} />
                       </li>
                     ))}

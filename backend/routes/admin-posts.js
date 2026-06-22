@@ -13,6 +13,7 @@ const {
   updatePost,
   softDeletePost
 } = require('../database');
+const { resolvePostTags, resolvePostDescription } = require('../utils/audioMetadata');
 
 const router = express.Router();
 
@@ -121,7 +122,7 @@ router.get('/', async (req, res) => {
 // POST / — multipart upload of a new episode.
 router.post('/', handleUpload, async (req, res) => {
   try {
-    const { title, description, is_published, published_at } = req.body;
+    const { title, description, is_published, published_at, artist, album, year, genre, notes } = req.body;
     const audioFile = req.files && req.files.audio && req.files.audio[0];
     const imageFile = req.files && req.files.image && req.files.image[0];
 
@@ -151,10 +152,16 @@ router.post('/', handleUpload, async (req, res) => {
     const imageFilename = imageFile
       ? imageFile.filename
       : saveEmbeddedCover(metadata);
+    const tags = resolvePostTags({ metadata, description, body: { artist, album, year, genre } });
+    const resolvedDescription = resolvePostDescription({ description, tags, notes });
 
     const post = await createPost({
       title,
-      description: description || null,
+      description: resolvedDescription,
+      artist: tags.artist,
+      album: tags.album,
+      year: tags.year,
+      genre: tags.genre,
       audio_filename: audioFile.filename,
       image_filename: imageFilename,
       duration_secs: duration,
@@ -182,13 +189,17 @@ router.put('/:id', handleUpload, async (req, res) => {
       return res.status(404).json({ error: 'Post not found' });
     }
 
-    const { title, description, is_published } = req.body;
+    const { title, description, is_published, artist, album, year, genre, notes } = req.body;
     const audioFile = req.files && req.files.audio && req.files.audio[0];
     const imageFile = req.files && req.files.image && req.files.image[0];
 
     const data = {};
     if (title !== undefined) data.title = title;
     if (description !== undefined) data.description = description;
+    if (artist !== undefined) data.artist = artist ? String(artist).trim() : null;
+    if (album !== undefined) data.album = album ? String(album).trim() : null;
+    if (year !== undefined) data.year = year ? String(year).trim() : null;
+    if (genre !== undefined) data.genre = genre ? String(genre).trim() : null;
     if (is_published !== undefined) {
       data.is_published = is_published === 'true' || is_published === true ? 1 : 0;
     }
@@ -199,6 +210,18 @@ router.put('/:id', handleUpload, async (req, res) => {
       data.duration_secs = metadata?.format?.duration
         ? Math.round(metadata.format.duration)
         : null;
+      const tags = resolvePostTags({
+        metadata,
+        description: data.description ?? existing.description,
+        body: { artist, album, year, genre }
+      });
+      data.artist = tags.artist;
+      data.album = tags.album;
+      data.year = tags.year;
+      data.genre = tags.genre;
+      if (description === undefined && !existing.description) {
+        data.description = resolvePostDescription({ tags, notes });
+      }
       if (!imageFile) {
         const embeddedCover = saveEmbeddedCover(metadata);
         if (embeddedCover) {
