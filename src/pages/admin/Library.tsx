@@ -4,12 +4,10 @@ import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
 import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
-import LibraryMetadataFilters, {
-  emptyLibraryMetadataFilters,
-  LibraryMetadataFiltersState
-} from '../../components/LibraryMetadataFilters';
+import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import SortableTableHeader from '../../components/SortableTableHeader';
 import { buildImageUrl } from '../../config';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
 import {
   AdminSortDir,
@@ -49,67 +47,89 @@ const formatDuration = (secs?: number): string => {
 };
 
 const AdminLibrary: React.FC = () => {
-  const [data, setData] = useState<LibraryResponse | null>(null);
+  const [meta, setMeta] = useState<Omit<LibraryResponse, 'entries' | 'page' | 'limit'> | null>(null);
+  const [entries, setEntries] = useState<LibraryEntry[]>([]);
+  const [total, setTotal] = useState(0);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<AdminSortField | null>('date');
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
   const [page, setPage] = useState(1);
-  const [metadataFilters, setMetadataFilters] = useState<LibraryMetadataFiltersState>(
-    emptyLibraryMetadataFilters
-  );
+  const [refreshKey, setRefreshKey] = useState(0);
   const limit = 20;
-
-  const load = useCallback(async () => {
-    setError('');
-    try {
-      const params: Record<string, string | number> = { page, limit };
-      if (searchQuery) params.q = searchQuery;
-      if (metadataFilters.artist) params.artist = metadataFilters.artist;
-      if (metadataFilters.album) params.album = metadataFilters.album;
-      if (metadataFilters.year) params.year = metadataFilters.year;
-      if (metadataFilters.genre) params.genre = metadataFilters.genre;
-      if (sortField) params.sort = sortField;
-      params.dir = sortDir;
-      const res = await axios.get<LibraryResponse>('/admin/library', { params });
-      if (res.data.entries.length === 0 && res.data.page > 1 && res.data.total > 0) {
-        setPage(res.data.page - 1);
-        return;
-      }
-      setData(res.data);
-    } catch (e) {
-      setError('Could not load the library.');
-    }
-  }, [page, searchQuery, sortField, sortDir, metadataFilters]);
+  const hasMore = entries.length < total;
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setPage(1);
+    setEntries([]);
+    setLoading(true);
+  }, [searchQuery, sortField, sortDir]);
 
-  const entries = data?.entries ?? [];
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / limit));
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setError('');
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      try {
+        const params: Record<string, string | number> = { page, limit };
+        if (searchQuery) params.q = searchQuery;
+        if (sortField) params.sort = sortField;
+        params.dir = sortDir;
+
+        const res = await axios.get<LibraryResponse>('/admin/library', { params });
+        if (cancelled) return;
+
+        const { entries: pageEntries, page: responsePage, ...responseMeta } = res.data;
+        setTotal(res.data.total);
+        setMeta(responseMeta);
+        setEntries((prev) => (page === 1 ? pageEntries : [...prev, ...pageEntries]));
+
+        if (pageEntries.length === 0 && responsePage > 1 && res.data.total > 0) {
+          setPage(responsePage - 1);
+        }
+      } catch (e) {
+        if (!cancelled) setError('Could not load the library.');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, searchQuery, sortField, sortDir, refreshKey]);
+
+  const reload = () => {
+    setEntries([]);
+    setPage(1);
+    setRefreshKey((key) => key + 1);
+  };
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    setPage((current) => current + 1);
+  }, [loading, loadingMore, hasMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
   const handleSearch = (query: string) => {
-    setPage(1);
     setSearchQuery(query);
   };
 
   const handleSort = (field: AdminSortField) => {
     const next = nextSortState(field, sortField, sortDir);
-    setPage(1);
     setSortField(next.field);
     setSortDir(next.dir);
-  };
-
-  const handleMetadataFilter = (field: keyof LibraryMetadataFiltersState, value: string) => {
-    setPage(1);
-    setMetadataFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const clearMetadataFilters = () => {
-    setPage(1);
-    setMetadataFilters(emptyLibraryMetadataFilters());
   };
 
   const togglePublished = async (entry: LibraryEntry) => {
@@ -119,7 +139,7 @@ const AdminLibrary: React.FC = () => {
       await axios.put(`/admin/library/${entry.id}`, form, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Update failed.');
     }
@@ -130,7 +150,7 @@ const AdminLibrary: React.FC = () => {
     try {
       await axios.delete(`/admin/library/${entry.id}`);
       setMessage('Library entry removed.');
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Delete failed.');
     }
@@ -141,7 +161,7 @@ const AdminLibrary: React.FC = () => {
       <PodcastNav />
       <main className="podcast-main">
         <h2 className="podcast-section-title">
-          Library {data ? `(${data.catalogTotal})` : ''}
+          Library {meta ? `(${meta.catalogTotal})` : ''}
         </h2>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
@@ -150,23 +170,15 @@ const AdminLibrary: React.FC = () => {
         <LibraryAddForm
           onAdded={() => {
             setMessage('Episode added to the library.');
-            setPage(1);
-            load();
+            reload();
           }}
         />
 
         <AdminTableToolbar
           onSearch={handleSearch}
-          totalCount={data?.catalogTotal ?? 0}
-          resultCount={data?.total ?? 0}
-        />
-
-        <LibraryMetadataFilters
-          filtersUrl="/admin/library/filters"
-          values={metadataFilters}
-          onChange={handleMetadataFilter}
-          onClear={clearMetadataFilters}
-          refreshKey={data?.catalogTotal ?? 0}
+          placeholder="Search by title, description, artist, album, year, or genre…"
+          totalCount={meta?.catalogTotal ?? 0}
+          resultCount={total}
         />
 
         <div className="pod-table-wrap" style={{ marginTop: '0.75rem' }}>
@@ -256,17 +268,24 @@ const AdminLibrary: React.FC = () => {
                 </tr>
                 );
               })}
-              {data && data.catalogTotal === 0 && (
+              {loading && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
+                    Loading library…
+                  </td>
+                </tr>
+              )}
+              {!loading && meta && meta.catalogTotal === 0 && (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
                     No library entries yet.
                   </td>
                 </tr>
               )}
-              {data && data.catalogTotal > 0 && entries.length === 0 && (
+              {!loading && meta && meta.catalogTotal > 0 && entries.length === 0 && (
                 <tr>
                   <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-tertiary)' }}>
-                    No library entries match your search or filters.
+                    No library entries match your search.
                   </td>
                 </tr>
               )}
@@ -274,28 +293,12 @@ const AdminLibrary: React.FC = () => {
           </table>
         </div>
 
-        {data && data.total > 0 && (
-          <div className="pod-inline-actions" style={{ marginTop: '1.5rem', justifyContent: 'center' }}>
-            <button
-              type="button"
-              className="pod-btn pod-btn-secondary pod-btn-sm"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-            >
-              Previous
-            </button>
-            <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>
-              Page {page} of {totalPages}
-            </span>
-            <button
-              type="button"
-              className="pod-btn pod-btn-secondary pod-btn-sm"
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-            >
-              Next
-            </button>
-          </div>
+        {!loading && (
+          <LibraryInfiniteFooter
+            sentinelRef={sentinelRef}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+          />
         )}
       </main>
     </div>

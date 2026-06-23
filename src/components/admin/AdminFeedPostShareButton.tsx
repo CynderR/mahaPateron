@@ -68,13 +68,12 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
 
   const handleCopy = async () => {
     if (!url) return;
-    const shareText = `${postTitle}\n${url}`;
     try {
-      await navigator.clipboard.writeText(shareText);
+      await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt(`Copy this link for "${postTitle}":`, shareText);
+      window.prompt('Copy this link:', url);
     }
   };
 

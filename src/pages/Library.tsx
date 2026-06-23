@@ -8,10 +8,8 @@ import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/Podc
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
-import LibraryMetadataFilters, {
-  emptyLibraryMetadataFilters,
-  LibraryMetadataFiltersState
-} from '../components/LibraryMetadataFilters';
+import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import {
   AdminSortDir,
   AdminSortField,
@@ -37,61 +35,83 @@ interface LibraryResponse {
 
 const Library: React.FC = () => {
   const { user } = useAuth();
-  const [data, setData] = useState<LibraryResponse | null>(null);
+  const [meta, setMeta] = useState<Omit<LibraryResponse, 'entries' | 'page' | 'limit'> | null>(null);
+  const [entries, setEntries] = useState<LibraryEntry[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<AdminSortField>('date');
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
   const [page, setPage] = useState(1);
-  const [metadataFilters, setMetadataFilters] = useState<LibraryMetadataFiltersState>(
-    emptyLibraryMetadataFilters
-  );
   const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
   const limit = 20;
   const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
-
-  const load = useCallback(async () => {
-    setError('');
-    try {
-      const params: Record<string, string | number> = { page, limit };
-      if (searchQuery) params.q = searchQuery;
-      if (metadataFilters.artist) params.artist = metadataFilters.artist;
-      if (metadataFilters.album) params.album = metadataFilters.album;
-      if (metadataFilters.year) params.year = metadataFilters.year;
-      if (metadataFilters.genre) params.genre = metadataFilters.genre;
-      params.sort = sortField;
-      params.dir = sortDir;
-      const res = await axios.get<LibraryResponse>('/account/library', { params });
-      if (res.data.entries.length === 0 && res.data.page > 1 && res.data.total > 0) {
-        setPage(res.data.page - 1);
-        return;
-      }
-      setData(res.data);
-    } catch (e) {
-      setError('Could not load the episode library.');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, searchQuery, sortField, sortDir, metadataFilters]);
+  const hasMore = entries.length < total;
 
   useEffect(() => {
+    setPage(1);
+    setEntries([]);
     setLoading(true);
-    load();
-  }, [load]);
+  }, [searchQuery, sortField, sortDir]);
 
-  const lockedCount = data ? data.catalogTotal - data.accessible : 0;
-  const entries = data?.entries ?? [];
-  const totalPages = Math.max(1, Math.ceil((data?.total ?? 0) / limit));
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setError('');
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      try {
+        const params: Record<string, string | number> = { page, limit };
+        if (searchQuery) params.q = searchQuery;
+        params.sort = sortField;
+        params.dir = sortDir;
+
+        const res = await axios.get<LibraryResponse>('/account/library', { params });
+        if (cancelled) return;
+
+        const { entries: pageEntries, page: responsePage, ...responseMeta } = res.data;
+        setTotal(res.data.total);
+        setMeta(responseMeta);
+        setEntries((prev) => (page === 1 ? pageEntries : [...prev, ...pageEntries]));
+
+        if (pageEntries.length === 0 && responsePage > 1 && res.data.total > 0) {
+          setPage(responsePage - 1);
+        }
+      } catch (e) {
+        if (!cancelled) setError('Could not load the episode library.');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    };
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [page, searchQuery, sortField, sortDir]);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    setPage((current) => current + 1);
+  }, [loading, loadingMore, hasMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
+
+  const lockedCount = meta ? meta.catalogTotal - meta.accessible : 0;
 
   const handleSearch = (query: string) => {
-    setPage(1);
     setSearchQuery(query);
   };
 
   const handleSort = (field: AdminSortField) => {
     const next = nextSortState(field, sortField, sortDir);
-    setPage(1);
     setSortField(next.field);
     setSortDir(next.dir);
   };
@@ -101,31 +121,12 @@ const Library: React.FC = () => {
     onSelectChange: toggleSelect
   };
 
-  const handleMetadataFilter = (field: keyof LibraryMetadataFiltersState, value: string) => {
-    setPage(1);
-    setMetadataFilters((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const clearMetadataFilters = () => {
-    setPage(1);
-    setMetadataFilters(emptyLibraryMetadataFilters());
-  };
-
-  const metadataFilterBar = !loading && (data?.catalogTotal ?? 0) > 0 && (
-    <LibraryMetadataFilters
-      filtersUrl="/account/library/filters"
-      values={metadataFilters}
-      onChange={handleMetadataFilter}
-      onClear={clearMetadataFilters}
-      refreshKey={data?.catalogTotal ?? 0}
-    />
-  );
-
-  const toolbar = !loading && (data?.catalogTotal ?? 0) > 0 && (
+  const toolbar = !loading && (meta?.catalogTotal ?? 0) > 0 && (
     <MemberEpisodeToolbar
       onSearch={handleSearch}
-      resultCount={data?.total ?? 0}
-      totalCount={data?.catalogTotal ?? 0}
+      placeholder="Search by title, description, artist, album, year, or genre…"
+      resultCount={total}
+      totalCount={meta?.catalogTotal ?? 0}
       showSort
       sortField={sortField}
       sortDir={sortDir}
@@ -138,32 +139,16 @@ const Library: React.FC = () => {
   );
 
   const emptyMessage =
-    (data?.catalogTotal ?? 0) > 0 && entries.length === 0 && !loading
-      ? 'No episodes match your search or filters.'
+    (meta?.catalogTotal ?? 0) > 0 && entries.length === 0 && !loading
+      ? 'No episodes match your search.'
       : 'No episodes in the library yet.';
 
-  const pagination = data && data.total > 0 && (
-    <div className="pod-inline-actions" style={{ marginTop: '1.5rem', justifyContent: 'center' }}>
-      <button
-        type="button"
-        className="pod-btn pod-btn-secondary pod-btn-sm"
-        disabled={page <= 1}
-        onClick={() => setPage((p) => p - 1)}
-      >
-        Previous
-      </button>
-      <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>
-        Page {page} of {totalPages}
-      </span>
-      <button
-        type="button"
-        className="pod-btn pod-btn-secondary pod-btn-sm"
-        disabled={page >= totalPages}
-        onClick={() => setPage((p) => p + 1)}
-      >
-        Next
-      </button>
-    </div>
+  const infiniteFooter = (
+    <LibraryInfiniteFooter
+      sentinelRef={sentinelRef}
+      loadingMore={loadingMore}
+      hasMore={hasMore}
+    />
   );
 
   return (
@@ -175,45 +160,45 @@ const Library: React.FC = () => {
       <div className="pod-feed-mobile-only">
         <PodcastMobileHeader
           title="Library"
-          subtitle={data ? `${data.accessible} of ${data.catalogTotal} episodes available` : undefined}
+          subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
         />
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && data && !data.is_paying && (
+        {!loading && meta && !meta.is_paying && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
         )}
 
-        {!loading && data && data.is_paying && lockedCount > 0 && !data.back_catalog_access && (
+        {!loading && meta && meta.is_paying && lockedCount > 0 && !meta.back_catalog_access && (
           <div className="pod-banner pod-banner-info">
             {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
           </div>
         )}
 
         {toolbar}
-        {metadataFilterBar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
-          <div className="pod-feed-list">
-            {entries.map((entry) => (
-              <PodcastEpisodeCard
-                key={entry.id}
-                post={entry}
-                canStream={!!data?.is_paying && !!data.canStream && entry.accessible}
-                selected={selectedIds.has(entry.id)}
-                onSelectChange={selectionProps.onSelectChange}
-              />
-            ))}
-          </div>
+          <>
+            <div className="pod-feed-list">
+              {entries.map((entry) => (
+                <PodcastEpisodeCard
+                  key={entry.id}
+                  post={entry}
+                  canStream={!!meta?.is_paying && !!meta.canStream && entry.accessible}
+                  selected={selectedIds.has(entry.id)}
+                  onSelectChange={selectionProps.onSelectChange}
+                />
+              ))}
+            </div>
+            {infiniteFooter}
+          </>
         ) : (
           <div className="pod-empty">{emptyMessage}</div>
         )}
-
-        {pagination}
 
         <PodcastMobileNav />
       </div>
@@ -223,13 +208,13 @@ const Library: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && data && !data.is_paying && (
+        {!loading && meta && !meta.is_paying && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
         )}
 
-        {!loading && data && data.is_paying && lockedCount > 0 && !data.back_catalog_access && (
+        {!loading && meta && meta.is_paying && lockedCount > 0 && !meta.back_catalog_access && (
           <div className="pod-banner pod-banner-info">
             {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
             Contact the administrator for full archive access.
@@ -237,29 +222,29 @@ const Library: React.FC = () => {
         )}
 
         {toolbar}
-        {metadataFilterBar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
-          <div className="pod-feed-grid">
-            {entries.map((entry) => (
-              <PostCard
-                key={entry.id}
-                post={entry}
-                rssToken={user?.rss_token}
-                canStream={!!data?.is_paying && data.canStream && entry.accessible}
-                locked={!entry.accessible}
-                selected={selectedIds.has(entry.id)}
-                onSelectChange={selectionProps.onSelectChange}
-              />
-            ))}
-          </div>
+          <>
+            <div className="pod-feed-grid">
+              {entries.map((entry) => (
+                <PostCard
+                  key={entry.id}
+                  post={entry}
+                  rssToken={user?.rss_token}
+                  canStream={!!meta?.is_paying && meta.canStream && entry.accessible}
+                  locked={!entry.accessible}
+                  selected={selectedIds.has(entry.id)}
+                  onSelectChange={selectionProps.onSelectChange}
+                />
+              ))}
+            </div>
+            {infiniteFooter}
+          </>
         ) : (
           <div className="pod-empty">{emptyMessage}</div>
         )}
-
-        {pagination}
       </main>
     </div>
   );
