@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { FeedPost } from '../PostCard';
 import { PODCAST_AUTHOR } from '../../podcastMeta';
 import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
-import FavoriteButton from '../FavoriteButton';
-import PlayerControls from '../PlayerControls';
 import PlaylistPicker from '../PlaylistPicker';
 
 interface PodcastStreamMobileProps {
@@ -152,13 +150,6 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
       )}
 
       <div className="pod-stream-tools">
-        <PlayerControls
-          onPrevious={onPrevious}
-          onNext={onNext}
-          canPrevious={canPrevious}
-          canNext={canNext}
-        />
-        <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
         <Link to={returnPath} className="pod-stream-back-link">
           Back to episodes

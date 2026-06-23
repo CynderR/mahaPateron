@@ -41,8 +41,12 @@ router.get('/:postId', async (req, res) => {
     let streamUserId = null;
 
     if (shareToken) {
-      post = await getPostByShareToken(String(shareToken));
-      if (!post || post.id !== req.params.postId || !post.is_published) {
+      const anchor = await getPostByShareToken(String(shareToken));
+      if (!anchor || !anchor.is_published) {
+        return res.status(404).json({ error: 'Episode not found' });
+      }
+      post = await getPostById(req.params.postId);
+      if (!post || !post.is_published) {
         return res.status(404).json({ error: 'Episode not found' });
       }
     } else {

@@ -1,29 +1,13 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { buildImageUrl, buildPublicShareStreamUrl } from '../config';
-import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
-
-interface SharedPost {
-  id: string;
-  title: string;
-  description?: string;
-  duration_secs?: number;
-  published_at?: string;
-  image_filename?: string | null;
-}
+import PublicShareEpisodeRow, { PublicSharePost } from '../components/PublicShareEpisodeRow';
 
 interface ShareResponse {
   share_token: string;
-  post: SharedPost;
+  post: PublicSharePost;
+  posts: PublicSharePost[];
 }
-
-const formatDuration = (secs?: number): string => {
-  if (!secs && secs !== 0) return '';
-  const m = Math.floor(secs / 60);
-  const s = Math.floor(secs % 60);
-  return `${m}:${String(s).padStart(2, '0')}`;
-};
 
 const PublicShare: React.FC = () => {
   const { shareToken } = useParams<{ shareToken?: string; titleSlug?: string }>();
@@ -31,7 +15,7 @@ const PublicShare: React.FC = () => {
   const [data, setData] = useState<ShareResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const [playing, setPlaying] = useState(false);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -42,7 +26,7 @@ const PublicShare: React.FC = () => {
         const res = await axios.get<ShareResponse>(`/share/${encodeURIComponent(token)}`);
         setData(res.data);
       } catch {
-        setError('This episode is unavailable or the link has expired.');
+        setError('This share link is unavailable or has expired.');
       } finally {
         setLoading(false);
       }
@@ -50,34 +34,33 @@ const PublicShare: React.FC = () => {
     load();
   }, [token]);
 
-  const streamUrl = useMemo(() => {
-    if (!data) return '';
-    return buildPublicShareStreamUrl(data.post.id, data.share_token);
-  }, [data]);
-
-  const togglePlayback = async () => {
+  const handleTogglePlay = async (postId: string, streamUrl: string) => {
     const audio = audioRef.current;
-    if (!audio || !streamUrl) return;
-    if (playing) {
+    if (!audio) return;
+
+    if (playingId === postId && !audio.paused) {
       audio.pause();
-      setPlaying(false);
+      setPlayingId(null);
       return;
     }
+
     if (audio.src !== streamUrl) {
       audio.src = streamUrl;
       audio.load();
     }
+
     try {
       await audio.play();
-      setPlaying(true);
+      setPlayingId(postId);
     } catch {
       setError('Could not start playback in this browser.');
     }
   };
 
-  const post = data?.post;
-  const coverUrl = post?.image_filename ? buildImageUrl(post.image_filename) : null;
-  const description = stripFeedMetadataFromDescription(post?.description);
+  const featured = data?.post ?? null;
+  const shareTokenValue = data?.share_token ?? '';
+  const otherPosts =
+    data?.posts.filter((post) => post.id !== featured?.id) ?? [];
 
   return (
     <div className="public-share-page">
@@ -91,9 +74,9 @@ const PublicShare: React.FC = () => {
       </header>
 
       <main className="public-share-main">
-        {loading && <div className="pod-empty">Loading episode…</div>}
+        {loading && <div className="pod-empty">Loading episodes…</div>}
 
-        {!loading && error && (
+        {!loading && error && !data && (
           <div className="pod-card">
             <div className="pod-banner pod-banner-error">{error}</div>
             <Link to="/" className="pod-btn">
@@ -102,41 +85,45 @@ const PublicShare: React.FC = () => {
           </div>
         )}
 
-        {!loading && post && streamUrl && (
-          <article className="pod-card public-share-card">
-            {coverUrl ? (
-              <img className="public-share-cover" src={coverUrl} alt="" />
-            ) : (
-              <div className="public-share-cover public-share-cover-placeholder" aria-hidden>
-                ♪
+        {!loading && data && shareTokenValue && (
+          <>
+            {error && <div className="pod-banner pod-banner-error">{error}</div>}
+
+            <p className="public-share-note public-share-catalog-note">
+              Anyone with this link can browse and listen to all published episodes.
+            </p>
+
+            <audio ref={audioRef} preload="none" onEnded={() => setPlayingId(null)} />
+
+            {featured && (
+              <div className="pod-card public-share-card">
+                <PublicShareEpisodeRow
+                  post={featured}
+                  shareToken={shareTokenValue}
+                  featured
+                  playing={playingId === featured.id}
+                  onTogglePlay={handleTogglePlay}
+                />
               </div>
             )}
 
-            <div className="public-share-body">
-              <p className="public-share-kicker">Shared episode</p>
-              <h1 className="public-share-title">{post.title}</h1>
-              {post.duration_secs != null && (
-                <p className="public-share-meta">{formatDuration(post.duration_secs)}</p>
-              )}
-              {description && <p className="public-share-description">{description}</p>}
-
-              <audio
-                ref={audioRef}
-                preload="none"
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
-                onEnded={() => setPlaying(false)}
-              />
-
-              <button type="button" className="pod-btn public-share-play" onClick={togglePlayback}>
-                {playing ? 'Pause' : 'Play episode'}
-              </button>
-
-              <p className="public-share-note">
-                Anyone with this link can listen. Members can also find episodes in the full feed after signing in.
-              </p>
-            </div>
-          </article>
+            {otherPosts.length > 0 && (
+              <section className="public-share-catalog">
+                <h2 className="public-share-catalog-title">All episodes</h2>
+                <div className="public-share-catalog-list">
+                  {otherPosts.map((post) => (
+                    <PublicShareEpisodeRow
+                      key={post.id}
+                      post={post}
+                      shareToken={shareTokenValue}
+                      playing={playingId === post.id}
+                      onTogglePlay={handleTogglePlay}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
+          </>
         )}
       </main>
     </div>

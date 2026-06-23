@@ -1,5 +1,5 @@
 const express = require('express');
-const { getPostByShareToken } = require('../database');
+const { getPostByShareToken, getPublishedPosts } = require('../database');
 
 const router = express.Router();
 
@@ -22,7 +22,8 @@ router.get('/:shareToken', async (req, res) => {
 
     res.json({
       share_token: post.share_token,
-      post: mapPublicPost(post)
+      post: mapPublicPost(post),
+      posts: (await getPublishedPosts()).map(mapPublicPost)
     });
   } catch (error) {
     console.error('Public share error:', error);

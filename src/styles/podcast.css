@@ -1224,7 +1224,7 @@
 
   .stream-page {
     background: #000;
-    padding-bottom: 88px;
+    padding-bottom: calc(9.5rem + env(safe-area-inset-bottom, 0px));
   }
 
   .stream-bg,
@@ -1382,6 +1382,20 @@
     z-index: 5;
     background: #0a0a0a;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .stream-mobile-bar-player-tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .stream-mobile-bar-player-controls {
+    flex: 1;
+    min-width: 0;
   }
 
   .stream-mobile-bar-progress {
@@ -2497,6 +2511,85 @@
   margin: 1rem 0 0;
   font-size: 0.82rem;
   color: var(--text-tertiary);
+}
+
+.public-share-catalog-note {
+  margin: 0 0 1.25rem;
+}
+
+.public-share-catalog {
+  margin-top: 1.5rem;
+}
+
+.public-share-catalog-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
+
+.public-share-catalog-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.public-share-row {
+  display: flex;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+  border-radius: 0.65rem;
+}
+
+.public-share-row-featured {
+  border: none;
+  padding: 0;
+  background: transparent;
+  flex-direction: column;
+}
+
+.public-share-row-featured .public-share-row-cover {
+  width: 100%;
+  max-width: none;
+  height: auto;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.public-share-row-featured .public-share-row-body {
+  padding: 1.25rem;
+}
+
+.public-share-row-cover {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  object-fit: contain;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 0.35rem;
+}
+
+.public-share-row-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.public-share-row-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.public-share-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.public-share-row-play {
+  margin-top: 0.35rem;
 }
 
 .download-latest {

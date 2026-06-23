@@ -193,56 +193,12 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <span className="stream-author-name">{PODCAST_AUTHOR}</span>
       </div>
 
-      <div className="stream-player-tools stream-desktop-only">
-        <PlayerControls
-          onPrevious={goPrev}
-          onNext={goNext}
-          canPrevious={!!prevId}
-          canNext={!!nextId}
-        />
-        <FavoriteButton postId={post.id} />
-        <PlaylistPicker postId={post.id} />
-      </div>
-
-      <div className="stream-mobile-actions stream-ht-mobile-only">
-        <button
-          type="button"
-          className="stream-play-btn stream-play-btn-mobile"
-          onClick={() => togglePlayback()}
-          disabled={!canPlay}
-          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
-        >
-          <PlayIcon />
-        </button>
-        <span className="stream-mobile-duration">{formatTime(effectiveDuration)}</span>
-        <span className="stream-mobile-actions-spacer" aria-hidden />
-        <FavoriteButton postId={post.id} className="stream-mobile-favorite" />
-        <Link to="/account/rss" className="stream-mobile-icon-btn stream-mobile-share" aria-label="RSS feed">
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <path
-              fill="currentColor"
-              d="M18 11c0-3.31-2.69-6-6-6s-6 2.69-6 6 2.69 6 6 6 6-2.69 6-6zm-6 4c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zM6 6v2c6.08 0 11 4.92 11 11h2C19 11.94 12.06 6 6 6zm0 4v2c3.87 0 7 3.13 7 7h2c0-4.97-4.03-9-9-9z"
-            />
-          </svg>
-        </Link>
-      </div>
-
       <div className="stream-waveform-wrap">
         <span className="stream-duration-label stream-desktop-only">
           {formatTime(effectiveDuration)}
         </span>
         {waveform(barHeights, 'stream-waveform-desktop stream-desktop-only')}
         {waveform(mobileBarHeights, 'stream-waveform-mobile stream-ht-mobile-only')}
-      </div>
-
-      <div className="stream-player-tools stream-ht-mobile-only stream-player-tools-mobile">
-        <PlayerControls
-          onPrevious={goPrev}
-          onNext={goNext}
-          canPrevious={!!prevId}
-          canNext={!!nextId}
-        />
-        <PlaylistPicker postId={post.id} />
       </div>
 
       <div className="stream-description-block stream-ht-mobile-only">
@@ -295,6 +251,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           canNext={!!nextId}
         />
         <FavoriteButton postId={post.id} />
+        <PlaylistPicker postId={post.id} />
       </footer>
 
       <PodcastStreamMobile
@@ -317,9 +274,19 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         returnPath={returnPath}
       />
 
-      <footer className="stream-mobile-bar stream-ht-mobile-only">
+      <footer className="stream-mobile-bar pod-mobile-only">
         <div className="stream-mobile-bar-progress">
           <div className="stream-mobile-bar-progress-fill" style={{ width: `${progress}%` }} />
+        </div>
+        <div className="stream-mobile-bar-player-tools">
+          <PlayerControls
+            className="stream-mobile-bar-player-controls"
+            onPrevious={goPrev}
+            onNext={goNext}
+            canPrevious={!!prevId}
+            canNext={!!nextId}
+          />
+          <FavoriteButton postId={post.id} className="stream-mobile-bar-icon-wrap" />
         </div>
         <div className="stream-mobile-bar-inner">
           {coverUrl ? (
@@ -334,7 +301,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
             <p className="stream-mobile-bar-artist">{PODCAST_AUTHOR}</p>
           </div>
           <div className="stream-mobile-bar-controls">
-            <FavoriteButton postId={post.id} className="stream-mobile-bar-icon-wrap" />
             <button
               type="button"
               className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
