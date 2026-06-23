@@ -65,7 +65,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
       <div className="ht-featured-actions">
         <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
         <span className="ht-featured-badge">Members only</span>
-        <AdminFeedShareAction postId={post.id} className="ht-featured-share" />
+        <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-featured-share" />
       </div>
     </>
   );

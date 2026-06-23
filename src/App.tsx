@@ -38,6 +38,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/signup" element={<SignUp />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/share/:titleSlug/:shareToken" element={<PublicShare />} />
       <Route path="/share/:shareToken" element={<PublicShare />} />
 
       <Route path="/dashboard" element={<Navigate to={isAdmin ? '/admin' : '/feed'} replace />} />

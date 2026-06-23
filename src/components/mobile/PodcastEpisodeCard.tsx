@@ -106,7 +106,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </button>
       )}
       {canStream && <FavoriteButton postId={post.id} className="pod-episode-fav" />}
-      <AdminFeedShareAction postId={post.id} className="pod-episode-share" />
+      <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
     </article>
   );
 };

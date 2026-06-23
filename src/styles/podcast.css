@@ -2403,6 +2403,9 @@
   width: 100%;
   justify-content: center;
   text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-feed-share-hint {

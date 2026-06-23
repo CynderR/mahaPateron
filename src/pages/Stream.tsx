@@ -163,7 +163,7 @@ const Stream: React.FC = () => {
             <div className="stream-card-body">
               {isAdmin && (
                 <div className="stream-admin-share">
-                  <AdminFeedShareAction postId={playerPost.id} />
+                  <AdminFeedShareAction postId={playerPost.id} postTitle={playerPost.title} />
                 </div>
               )}
               <StreamPlayer

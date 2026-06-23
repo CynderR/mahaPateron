@@ -4,6 +4,7 @@ import { buildPublicSharePostUrl } from '../../config';
 
 interface AdminFeedPostShareButtonProps {
   postId: string;
+  postTitle: string;
   shareToken?: string | null;
   isPublished?: boolean;
   className?: string;
@@ -11,6 +12,7 @@ interface AdminFeedPostShareButtonProps {
 
 const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
   postId,
+  postTitle,
   shareToken,
   isPublished = true,
   className = ''
@@ -28,8 +30,8 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
 
   const activeToken = resolvedToken || shareToken || null;
   const url = useMemo(
-    () => (activeToken ? buildPublicSharePostUrl(activeToken) : ''),
-    [activeToken]
+    () => (activeToken ? buildPublicSharePostUrl(activeToken, postTitle) : ''),
+    [activeToken, postTitle]
   );
 
   useEffect(() => {
@@ -66,12 +68,13 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
 
   const handleCopy = async () => {
     if (!url) return;
+    const shareText = `${postTitle}\n${url}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareText);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt('Copy this public link:', url);
+      window.prompt(`Copy this link for "${postTitle}":`, shareText);
     }
   };
 
@@ -84,11 +87,11 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
         aria-expanded={open}
         aria-haspopup="dialog"
       >
-        Share link
+        Share
       </button>
       {open && (
-        <div className="admin-feed-share-menu" role="dialog" aria-label="Public episode link">
-          <p className="admin-feed-share-label">Public listen link</p>
+        <div className="admin-feed-share-menu" role="dialog" aria-label={`Share ${postTitle}`}>
+          <p className="admin-feed-share-label">{postTitle}</p>
           {!isPublished && (
             <p className="admin-feed-share-hint">Publish this episode before sharing the link.</p>
           )}
@@ -102,6 +105,7 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
                   type="text"
                   value={url}
                   readOnly
+                  aria-label={`Share link for ${postTitle}`}
                   onFocus={(e) => e.target.select()}
                 />
                 <button type="button" className="pod-btn pod-btn-sm" onClick={handleCopy}>
@@ -114,7 +118,7 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
                 rel="noopener noreferrer"
                 className="pod-btn pod-btn-secondary pod-btn-sm admin-feed-share-open"
               >
-                Preview link
+                {postTitle}
               </a>
             </>
           )}

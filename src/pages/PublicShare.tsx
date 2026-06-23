@@ -26,7 +26,8 @@ const formatDuration = (secs?: number): string => {
 };
 
 const PublicShare: React.FC = () => {
-  const { shareToken } = useParams<{ shareToken: string }>();
+  const { shareToken } = useParams<{ shareToken?: string; titleSlug?: string }>();
+  const token = shareToken || '';
   const [data, setData] = useState<ShareResponse | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -34,11 +35,11 @@ const PublicShare: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    if (!shareToken) return;
+    if (!token) return;
     const load = async () => {
       setError('');
       try {
-        const res = await axios.get<ShareResponse>(`/share/${encodeURIComponent(shareToken)}`);
+        const res = await axios.get<ShareResponse>(`/share/${encodeURIComponent(token)}`);
         setData(res.data);
       } catch {
         setError('This episode is unavailable or the link has expired.');
@@ -47,7 +48,7 @@ const PublicShare: React.FC = () => {
       }
     };
     load();
-  }, [shareToken]);
+  }, [token]);
 
   const streamUrl = useMemo(() => {
     if (!data) return '';

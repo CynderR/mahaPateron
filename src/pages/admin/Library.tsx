@@ -233,6 +233,7 @@ const AdminLibrary: React.FC = () => {
                     <div className="pod-inline-actions">
                       <AdminFeedPostShareButton
                         postId={entry.id}
+                        postTitle={entry.title}
                         shareToken={entry.share_token}
                         isPublished={entry.is_published}
                       />

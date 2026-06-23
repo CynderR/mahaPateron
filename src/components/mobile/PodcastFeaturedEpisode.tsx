@@ -73,7 +73,7 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
           ) : (
             <span className="pod-featured-locked">Subscribe to listen</span>
           )}
-          <AdminFeedShareAction postId={post.id} className="pod-featured-share" />
+          <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-featured-share" />
         </div>
       </article>
     </section>

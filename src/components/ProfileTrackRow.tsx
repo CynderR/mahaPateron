@@ -100,7 +100,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
         <div className="ht-track-meta">
           <span className="ht-track-meta-item">Members only</span>
           {published && <span className="ht-track-meta-item">on {published}</span>}
-          <AdminFeedShareAction postId={post.id} className="ht-track-share" />
+          <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-track-share" />
         </div>
       </div>
     </article>

@@ -4,6 +4,7 @@ import AdminFeedPostShareButton from './AdminFeedPostShareButton';
 
 interface AdminFeedShareActionProps {
   postId: string;
+  postTitle: string;
   isPublished?: boolean;
   shareToken?: string | null;
   className?: string;
@@ -11,6 +12,7 @@ interface AdminFeedShareActionProps {
 
 const AdminFeedShareAction: React.FC<AdminFeedShareActionProps> = ({
   postId,
+  postTitle,
   isPublished = true,
   shareToken,
   className = ''
@@ -21,6 +23,7 @@ const AdminFeedShareAction: React.FC<AdminFeedShareActionProps> = ({
   return (
     <AdminFeedPostShareButton
       postId={postId}
+      postTitle={postTitle}
       shareToken={shareToken}
       isPublished={isPublished}
       className={className}

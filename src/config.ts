@@ -1,6 +1,8 @@
 // Production is served under the /shyam_akaash subpath at 4thstate.ca, so API
 // and media requests are prefixed accordingly. In development the React dev
 // server talks to the Express backend on port 5000 directly.
+import { slugifyPostTitle } from './utils/shareLinkHelpers';
+
 const isProd = process.env.NODE_ENV === 'production';
 
 // Base path the React app is mounted at (BrowserRouter basename).
@@ -50,8 +52,11 @@ export const buildMemberFeedPostUrl = (postId: string): string => {
 };
 
 // Public share URL — works without login when the episode is published.
-export const buildPublicSharePostUrl = (shareToken: string): string => {
-  const path = `${ROUTER_BASENAME}/share/${encodeURIComponent(shareToken)}`;
+export const buildPublicSharePostUrl = (shareToken: string, title?: string): string => {
+  const slug = title ? slugifyPostTitle(title) : null;
+  const path = slug
+    ? `${ROUTER_BASENAME}/share/${encodeURIComponent(slug)}/${encodeURIComponent(shareToken)}`
+    : `${ROUTER_BASENAME}/share/${encodeURIComponent(shareToken)}`;
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}${path}`;
   }
