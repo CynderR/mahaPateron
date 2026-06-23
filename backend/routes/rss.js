@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { BASE_URL, AUDIO_DIR } = require('../config');
-const { getUserByRssToken, getPublishedPostsForUser } = require('../database');
+const { getUserByRssToken, getPublishedPostsForUser, getPostByShareToken } = require('../database');
 
 const router = express.Router();
 
@@ -85,6 +85,12 @@ ${items}
 // GET /:token — personal RSS feed. Always returns a valid feed at a stable URL.
 router.get('/:token', async (req, res) => {
   try {
+    // Post share tokens must not work as RSS feed URLs.
+    const sharedPost = await getPostByShareToken(req.params.token);
+    if (sharedPost) {
+      return res.status(404).json({ error: 'Feed not found' });
+    }
+
     const user = await getUserByRssToken(req.params.token);
 
     // Unknown token is the only 404 — podcast apps need a consistent URL once

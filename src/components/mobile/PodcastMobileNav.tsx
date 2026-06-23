@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import DownloadLatestButton from '../DownloadLatestButton';
+import ThemeToggle from '../ThemeToggle';
 
 const PodcastMobileNav: React.FC = () => {
   return (
@@ -42,7 +43,10 @@ export const PodcastMobileHeader: React.FC<{ title: string; subtitle?: string }>
       <h1 className="pod-mobile-header-title">{title}</h1>
       {subtitle && <p className="pod-mobile-header-subtitle">{subtitle}</p>}
     </div>
-    <DownloadLatestButton compact />
+    <div className="theme-toggle-row">
+      <ThemeToggle />
+      <DownloadLatestButton compact />
+    </div>
   </header>
 );
 

@@ -22,6 +22,11 @@ router.get('/:shareToken', async (req, res) => {
 
     res.json({
       share_token: post.share_token,
+      access: {
+        canStream: true,
+        canRss: false,
+        canDownload: false
+      },
       post: mapPublicPost(post),
       posts: (await getPublishedPosts()).map(mapPublicPost)
     });

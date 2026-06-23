@@ -6,6 +6,7 @@ const ThemeToggle: React.FC = () => {
 
   return (
     <button
+      type="button"
       className="theme-toggle"
       onClick={toggleTheme}
       title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
@@ -15,6 +16,12 @@ const ThemeToggle: React.FC = () => {
     </button>
   );
 };
+
+export const ThemeToggleFixed: React.FC<{ className?: string }> = ({ className = '' }) => (
+  <div className={`theme-toggle-corner ${className}`.trim()}>
+    <ThemeToggle />
+  </div>
+);
 
 export default ThemeToggle;
 

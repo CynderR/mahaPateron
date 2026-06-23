@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
+import ThemeToggle from '../components/ThemeToggle';
 import PublicShareEpisodeRow, { PublicSharePost } from '../components/PublicShareEpisodeRow';
 
 interface ShareResponse {
@@ -68,9 +69,12 @@ const PublicShare: React.FC = () => {
         <Link to="/" className="public-share-brand">
           Shyam Akaash
         </Link>
-        <Link to="/signin" className="pod-btn pod-btn-secondary pod-btn-sm">
-          Member sign in
-        </Link>
+        <div className="public-share-header-actions">
+          <ThemeToggle />
+          <Link to="/signin" className="pod-btn pod-btn-secondary pod-btn-sm">
+            Member sign in
+          </Link>
+        </div>
       </header>
 
       <main className="public-share-main">
@@ -90,7 +94,8 @@ const PublicShare: React.FC = () => {
             {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
             <p className="public-share-note public-share-catalog-note">
-              Anyone with this link can browse and listen to all published episodes.
+              Anyone with this link can browse and listen to all published episodes. RSS feeds and
+              downloads are not included — sign in as a member for those options.
             </p>
 
             <audio ref={audioRef} preload="none" onEnded={() => setPlayingId(null)} />

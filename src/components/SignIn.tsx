@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggleFixed } from './ThemeToggle';
 import './Auth.css';
 
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -43,6 +44,7 @@ const SignIn: React.FC = () => {
 
   return (
     <div className="auth-container">
+      <ThemeToggleFixed />
       {/* Background with parallax effect */}
       <div 
         className="auth-background"

@@ -14,6 +14,10 @@ const router = express.Router();
 const resolveUser = async (req) => {
   const rssToken = req.query.token;
   if (rssToken) {
+    const sharedPost = await getPostByShareToken(String(rssToken));
+    if (sharedPost) {
+      return null;
+    }
     const byRss = await getUserByRssToken(rssToken);
     if (byRss) return byRss;
   }
@@ -41,6 +45,10 @@ router.get('/:postId', async (req, res) => {
     let streamUserId = null;
 
     if (shareToken) {
+      if (req.query.download === '1') {
+        return res.status(403).json({ error: 'Downloads are not available through share links' });
+      }
+
       const anchor = await getPostByShareToken(String(shareToken));
       if (!anchor || !anchor.is_published) {
         return res.status(404).json({ error: 'Episode not found' });

@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 import DownloadLatestButton from './DownloadLatestButton';
+import ThemeToggle from './ThemeToggle';
 
 const HearThisNav: React.FC = () => {
   const { isAdmin, logout } = useAuth();
@@ -30,6 +31,7 @@ const HearThisNav: React.FC = () => {
           <NavLink to="/account/billing">Billing</NavLink>
           <NavLink to="/account/settings">Settings</NavLink>
           {isAdmin && <NavLink to="/admin">Admin</NavLink>}
+          <ThemeToggle />
           <button type="button" className="ht-nav-signout" onClick={handleLogout}>
             Log out
           </button>

@@ -96,7 +96,8 @@ const AdminFeedPostShareButton: React.FC<AdminFeedPostShareButtonProps> = ({
           )}
           {isPublished && (
             <p className="admin-feed-share-hint">
-              Anyone with this link can browse and listen to all published episodes.
+              Anyone with this link can browse and listen to all published episodes. RSS and downloads
+              are for members only.
             </p>
           )}
           {loading && <p className="admin-feed-share-hint">Preparing link…</p>}

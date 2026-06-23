@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import ThemeToggle from './ThemeToggle';
 import './LandingPage.css';
 
 const publicUrl = process.env.PUBLIC_URL || '';
@@ -23,6 +24,7 @@ const LandingPage: React.FC = () => {
         <header className="landing-top-bar">
           <h1 className="landing-page-title">Shyam Akaash</h1>
           <div className="landing-cta-group">
+            <ThemeToggle />
             <button
               type="button"
               className="sign-in-button"

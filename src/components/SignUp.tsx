@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { ThemeToggleFixed } from './ThemeToggle';
 import './Auth.css';
 
 const SignUp: React.FC = () => {
@@ -55,6 +56,7 @@ const SignUp: React.FC = () => {
 
   return (
     <div className="auth-container">
+      <ThemeToggleFixed />
       {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">

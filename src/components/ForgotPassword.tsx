@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { ThemeToggleFixed } from './ThemeToggle';
 import './Auth.css';
 
 // Configure axios baseURL (same as AuthContext)
@@ -46,6 +47,7 @@ const ForgotPassword: React.FC = () => {
 
   return (
     <div className="auth-container">
+      <ThemeToggleFixed />
       {/* Background with parallax effect */}
       <div 
         className="auth-background"

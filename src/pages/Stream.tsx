@@ -6,6 +6,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { buildImageUrl } from '../config';
 import StreamPlayer from '../components/StreamPlayer';
 import AdminFeedShareAction from '../components/admin/AdminFeedShareAction';
+import ThemeToggle from '../components/ThemeToggle';
 import { FeedPost } from '../components/PostCard';
 import { resolveStreamBackTarget, StreamLocationState } from '../utils/streamNavigation';
 
@@ -95,6 +96,10 @@ const Stream: React.FC = () => {
         </svg>
       </button>
 
+      <div className="stream-theme-btn stream-desktop-only">
+        <ThemeToggle />
+      </div>
+
       <header className="pod-stream-topbar pod-mobile-only">
         <button type="button" className="pod-stream-topbar-btn" onClick={goBack} aria-label="Back">
           <svg viewBox="0 0 24 24" aria-hidden>
@@ -102,16 +107,20 @@ const Stream: React.FC = () => {
           </svg>
         </button>
         <span className="pod-stream-topbar-title">Now playing</span>
-        <Link to={returnPath} className="pod-stream-topbar-btn" aria-label="Back to list">
+        <div className="theme-toggle-row">
+          <ThemeToggle />
+          <Link to={returnPath} className="pod-stream-topbar-btn" aria-label="Back to list">
           <svg viewBox="0 0 24 24" aria-hidden>
             <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
           </svg>
-        </Link>
+          </Link>
+        </div>
       </header>
 
       <header className="stream-mobile-topbar stream-ht-mobile-only">
         <span className="stream-mobile-brand">{PODCAST_AUTHOR}</span>
         <div className="stream-mobile-topbar-actions">
+          <ThemeToggle />
           <Link to="/account/settings" className="stream-mobile-icon-btn" aria-label="Account">
             <svg viewBox="0 0 24 24" aria-hidden>
               <path

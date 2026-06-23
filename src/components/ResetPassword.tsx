@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import { ThemeToggleFixed } from './ThemeToggle';
 import './Auth.css';
 
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -85,6 +86,7 @@ const ResetPassword: React.FC = () => {
 
   return (
     <div className="auth-container">
+      <ThemeToggleFixed />
       {/* Background with parallax effect */}
       <div 
         className="auth-background"
