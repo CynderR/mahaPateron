@@ -15,18 +15,10 @@ export const API_BASE_URL = isProd ? '/shyam_akaash/api' : 'http://localhost:500
 export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000';
 
 // Build the streaming URL for a post, authenticated with the user's RSS token.
-// Use an absolute URL in the browser so mobile audio elements resolve correctly under /shyam_akaash.
-const getStoredAuthToken = (): string | null => {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem('token') || sessionStorage.getItem('token');
-};
-
-export const buildStreamUrl = (postId: string, rssToken: string, jwtToken?: string | null): string => {
+// JWT is sent via Authorization header in fetch-based playback; it is not
+// appended to the URL to avoid leaking session tokens in logs and history.
+export const buildStreamUrl = (postId: string, rssToken: string): string => {
   const params = new URLSearchParams({ token: rssToken });
-  const jwt = jwtToken ?? getStoredAuthToken();
-  if (jwt) {
-    params.set('jwt', jwt);
-  }
   const path = `${MEDIA_BASE_URL}/stream/${postId}?${params.toString()}`;
   if (path.startsWith('http')) return path;
   if (typeof window !== 'undefined' && window.location?.origin) {

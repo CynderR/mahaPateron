@@ -72,7 +72,12 @@ router.get('/:postId', async (req, res) => {
       streamUserId = user.id;
     }
 
-    const filePath = path.join(AUDIO_DIR, post.audio_filename);
+    const safeFilename = path.basename(String(post.audio_filename || ''));
+    if (!safeFilename || safeFilename !== post.audio_filename) {
+      return res.status(404).json({ error: 'Audio file missing' });
+    }
+
+    const filePath = path.join(AUDIO_DIR, safeFilename);
     let stat;
     try {
       stat = fs.statSync(filePath);

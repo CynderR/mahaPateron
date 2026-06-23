@@ -40,6 +40,14 @@ const Settings: React.FC = () => {
     e.preventDefault();
     setError('');
     setMessage('');
+    if (passwords.newPassword.length < 8) {
+      setError('Password must be at least 8 characters long');
+      return;
+    }
+    if (passwords.newPassword !== passwords.confirmPassword) {
+      setError('New password and confirmation do not match');
+      return;
+    }
     try {
       await axios.post('/profile/change-password', passwords);
       setMessage('Password changed.');

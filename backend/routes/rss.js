@@ -34,7 +34,9 @@ const formatDuration = (secs) => {
 
 const audioByteLength = (filename) => {
   try {
-    return fs.statSync(path.join(AUDIO_DIR, filename)).size;
+    const safeName = path.basename(String(filename || ''));
+    if (!safeName || safeName !== filename) return 0;
+    return fs.statSync(path.join(AUDIO_DIR, safeName)).size;
   } catch (e) {
     return 0;
   }

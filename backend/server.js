@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
@@ -22,7 +23,9 @@ const { sendPasswordResetEmail } = require('./emailService');
 
 const authenticateToken = require('./middleware/authenticateToken');
 const requireAdmin = require('./middleware/requireAdmin');
+const authRateLimiter = require('./middleware/authRateLimit');
 const { JWT_SECRET } = authenticateToken;
+const { validatePassword } = require('./utils/passwordPolicy');
 const { ensureDirs, IMAGE_DIR } = require('./config');
 
 const adminUsersRouter = require('./routes/admin-users');
@@ -48,6 +51,9 @@ const corsOrigins = CORS_ORIGIN.includes(',')
   : CORS_ORIGIN;
 
 app.use(cors({ origin: corsOrigins, credentials: true }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // The Stripe webhook must receive the unparsed body so its signature can be
 // verified, so it is registered before express.json() consumes the body.
@@ -80,11 +86,16 @@ core.get('/health', (req, res) => {
 });
 
 // Register a new self-service account.
-core.post('/register', async (req, res) => {
+core.post('/register', authRateLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body;
     if (!username || !email || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     if (await getUserByEmail(email)) {
@@ -118,7 +129,7 @@ core.post('/register', async (req, res) => {
 });
 
 // Login.
-core.post('/login', async (req, res) => {
+core.post('/login', authRateLimiter, async (req, res) => {
   try {
     const { email, password, rememberMe } = req.body;
     if (!email || !password) {
@@ -207,8 +218,9 @@ core.post('/profile/change-password', authenticateToken, async (req, res) => {
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: 'New password and confirmation do not match' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const user = await getUserById(userId);
@@ -231,7 +243,7 @@ core.post('/profile/change-password', authenticateToken, async (req, res) => {
 });
 
 // Forgot password — emails a reset token via the existing email sender.
-core.post('/auth/forgot-password', async (req, res) => {
+core.post('/auth/forgot-password', authRateLimiter, async (req, res) => {
   const genericMessage = 'If an account exists with this email, a password reset link has been sent.';
   try {
     const { email } = req.body;
@@ -260,7 +272,7 @@ core.post('/auth/forgot-password', async (req, res) => {
 });
 
 // Reset password using the emailed token.
-core.post('/auth/reset-password', async (req, res) => {
+core.post('/auth/reset-password', authRateLimiter, async (req, res) => {
   try {
     const { token, newPassword, confirmPassword } = req.body;
     if (!token || !newPassword || !confirmPassword) {
@@ -269,8 +281,9 @@ core.post('/auth/reset-password', async (req, res) => {
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: 'New password and confirmation do not match' });
     }
-    if (newPassword.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+    const passwordError = validatePassword(newPassword);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
     const user = await getUserByResetToken(token);

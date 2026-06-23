@@ -2,7 +2,6 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const mm = require('music-metadata');
 const { v4: uuidv4 } = require('uuid');
 
 const { AUDIO_DIR, IMAGE_DIR, ensureDirs } = require('../config');
@@ -15,13 +14,15 @@ const {
   softDeletePost
 } = require('../database');
 const { resolvePostTags, resolvePostDescription } = require('../utils/audioMetadata');
+const {
+  IMAGE_MIME,
+  isAllowedAudioMime,
+  validateUploadedAudio
+} = require('../utils/audioUpload');
 
 const router = express.Router();
 
 ensureDirs();
-
-const AUDIO_MIME = ['audio/mpeg', 'audio/mp3'];
-const IMAGE_MIME = ['image/jpeg', 'image/png', 'image/webp'];
 const MAX_AUDIO_BYTES = 500 * 1024 * 1024; // 500 MB
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
 
@@ -38,9 +39,7 @@ const storage = multer.diskStorage({
 // Validate MIME type server-side (not just the extension).
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === 'audio') {
-    const ok =
-      AUDIO_MIME.includes(file.mimetype) || /\.mp3$/i.test(file.originalname || '');
-    return cb(null, ok);
+    return cb(null, isAllowedAudioMime(file.mimetype, file.originalname));
   }
   if (file.fieldname === 'image') {
     return cb(null, IMAGE_MIME.includes(file.mimetype));
@@ -74,15 +73,6 @@ const removeFiles = (files) => {
   Object.values(files || {}).flat().forEach((f) => {
     fs.unlink(f.path, () => {});
   });
-};
-
-const parseAudioMetadata = async (audioPath) => {
-  try {
-    return await mm.parseFile(audioPath);
-  } catch (e) {
-    console.warn('Could not parse audio metadata:', e.message);
-    return null;
-  }
 };
 
 const normalizeImageExt = (format) => {
@@ -160,7 +150,14 @@ router.post('/', handleUpload, async (req, res) => {
       return res.status(400).json({ error: 'Invalid published date' });
     }
 
-    const metadata = await parseAudioMetadata(audioFile.path);
+    let metadata;
+    try {
+      metadata = await validateUploadedAudio(audioFile.path);
+    } catch (validationError) {
+      removeFiles(req.files);
+      return res.status(400).json({ error: validationError.message });
+    }
+
     const duration = metadata?.format?.duration
       ? Math.round(metadata.format.duration)
       : null;
@@ -220,8 +217,15 @@ router.put('/:id', handleUpload, async (req, res) => {
     }
 
     if (audioFile) {
+      let metadata;
+      try {
+        metadata = await validateUploadedAudio(audioFile.path);
+      } catch (validationError) {
+        removeFiles(req.files);
+        return res.status(400).json({ error: validationError.message });
+      }
+
       data.audio_filename = audioFile.filename;
-      const metadata = await parseAudioMetadata(audioFile.path);
       data.duration_secs = metadata?.format?.duration
         ? Math.round(metadata.format.duration)
         : null;
