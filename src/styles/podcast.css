@@ -1512,13 +1512,15 @@
 
 .ht-page {
   min-height: 100vh;
-  background: #ececec;
-  color: #222;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .ht-nav {
-  background: #fff;
-  border-bottom: 1px solid #ddd;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 0;
   z-index: 20;
@@ -1539,7 +1541,7 @@
   font-size: 1rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: #111;
+  color: var(--text-primary);
   text-decoration: none;
 }
 
@@ -1551,37 +1553,40 @@
 }
 
 .ht-nav-links a {
-  color: #555;
+  color: var(--text-secondary);
   text-decoration: none;
   font-size: 0.82rem;
   font-weight: 600;
   padding: 0.35rem 0.65rem;
   border-radius: 3px;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .ht-nav-links a:hover {
-  background: #f3f3f3;
-  color: #111;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .ht-nav-links a.active {
   color: #e74c3c;
+  background: var(--bg-tertiary);
 }
 
 .ht-nav-signout {
   border: none;
   background: transparent;
-  color: #555;
+  color: var(--text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
   padding: 0.35rem 0.65rem;
   border-radius: 3px;
   cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 .ht-nav-signout:hover {
-  background: #f3f3f3;
-  color: #111;
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .ht-profile-banner {
@@ -1691,7 +1696,7 @@
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 0 0.75rem;
-  border-bottom: 1px solid #d8d8d8;
+  border-bottom: 1px solid var(--border-primary);
   margin-bottom: 1rem;
 }
 
@@ -1706,46 +1711,54 @@
   display: inline-flex;
   align-items: center;
   padding: 0.35rem 0.85rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--border-secondary);
   border-radius: 999px;
-  background: #fff;
-  color: #444;
+  background: var(--bg-card);
+  color: var(--text-secondary);
   font-size: 0.82rem;
   font-weight: 600;
   text-decoration: none;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.ht-tab:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
 }
 
 .ht-tab-active {
   border-color: #e74c3c;
   color: #e74c3c;
-  background: #fff;
+  background: var(--bg-card);
 }
 
 .ht-banner {
   padding: 0.75rem 1rem;
-  border-radius: 4px;
+  border-radius: 0.5rem;
   margin-bottom: 1rem;
   font-size: 0.88rem;
+  font-weight: 500;
 }
 
 .ht-banner-error {
-  background: #fde8e8;
-  color: #9b2c2c;
+  background: var(--bg-error);
+  color: var(--text-error);
+  border: 1px solid var(--border-error);
 }
 
 .ht-banner-info {
-  background: #ebf8ff;
-  color: #2c5282;
+  background: var(--bg-info);
+  color: var(--text-info);
 }
 
 .ht-banner-info a {
-  color: #2b6cb0;
+  color: var(--accent-info);
 }
 
 .ht-empty {
   text-align: center;
   padding: 3rem 1rem;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .ht-featured {
@@ -1929,7 +1942,7 @@
   gap: 0.65rem;
   align-items: start;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #ddd;
+  border-bottom: 1px solid var(--border-primary);
 }
 
 .ht-track-rank {
@@ -1954,14 +1967,15 @@
   object-fit: contain;
   border-radius: 2px;
   display: block;
-  background: #ccc;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
 }
 
 .ht-track-cover-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888;
+  color: var(--text-tertiary);
   font-size: 1.25rem;
 }
 
@@ -1994,7 +2008,7 @@
 }
 
 .ht-track-artist-inline {
-  color: #666;
+  color: var(--text-secondary);
   font-weight: 500;
 }
 
@@ -2009,12 +2023,12 @@
 
 .ht-track-genre {
   font-size: 0.72rem;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .ht-track-duration {
   font-size: 0.78rem;
-  color: #555;
+  color: var(--text-secondary);
   font-weight: 600;
 }
 
@@ -2029,7 +2043,7 @@
   gap: 0.5rem 0.75rem;
   margin-top: 0.35rem;
   font-size: 0.72rem;
-  color: #888;
+  color: var(--text-tertiary);
 }
 
 .ht-sidebar {
@@ -2040,7 +2054,7 @@
   margin: 0 0 0.85rem;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #333;
+  color: var(--text-primary);
 }
 
 .ht-sidebar-covers {
@@ -2055,12 +2069,13 @@
   height: 2.5rem;
   border-radius: 50%;
   overflow: hidden;
-  background: #ccc;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-primary);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  color: #666;
+  color: var(--text-secondary);
   font-size: 0.85rem;
 }
 
@@ -2068,14 +2083,52 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  background: #eee;
+  background: var(--bg-secondary);
 }
 
 .ht-sidebar-note {
   margin: 0;
   font-size: 0.78rem;
-  color: #777;
+  color: var(--text-tertiary);
   line-height: 1.5;
+}
+
+/* Dark theme: align HearThis feed/playlists with library surfaces */
+[data-theme="dark"] .ht-featured {
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .ht-featured-cover {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .ht-featured-cover-placeholder {
+  color: var(--text-tertiary);
+}
+
+[data-theme="dark"] .ht-featured-artist,
+[data-theme="dark"] .ht-featured-actions,
+[data-theme="dark"] .ht-featured-badge {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .ht-featured-waveform .ht-waveform-bar {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+[data-theme="dark"] .ht-track-waveform .ht-waveform-bar {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .ht-tab-active {
+  background: var(--bg-tertiary);
+}
+
+[data-theme="dark"] .ht-page .member-episode-toolbar {
+  color: var(--text-primary);
 }
 
 @media (max-width: 900px) {

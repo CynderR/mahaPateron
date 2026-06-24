@@ -22,7 +22,7 @@ const HearThisNav: React.FC = () => {
         </NavLink>
         <nav className="ht-nav-links" aria-label="Member navigation">
           <NavLink to="/feed" end>
-            Sounds
+            Recent uploads
           </NavLink>
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/playlists">Playlists</NavLink>

@@ -155,7 +155,7 @@ const Feed: React.FC = () => {
           <div className="ht-tabs-bar">
             <div className="ht-tabs">
               <span className="ht-tab ht-tab-active">
-                {soundCount} {soundCount === 1 ? 'Sound' : 'Sounds'}
+                {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
               </span>
               <Link to="/library" className="ht-tab">
                 Library
