@@ -23,6 +23,7 @@ interface PodcastStreamMobileProps {
   canPrevious: boolean;
   canNext: boolean;
   returnPath: string;
+  showMemberTools?: boolean;
 }
 
 const formatTime = (secs: number): string => {
@@ -51,7 +52,8 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   onNext,
   canPrevious,
   canNext,
-  returnPath
+  returnPath,
+  showMemberTools = true
 }) => {
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -150,7 +152,7 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
       )}
 
       <div className="pod-stream-tools">
-        <PlaylistPicker postId={post.id} />
+        {showMemberTools && <PlaylistPicker postId={post.id} />}
         <Link to={returnPath} className="pod-stream-back-link">
           Back to episodes
         </Link>

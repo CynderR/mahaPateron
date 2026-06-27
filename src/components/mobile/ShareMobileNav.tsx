@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
-import { useShare } from '../contexts/ShareContext';
+import ThemeToggle from '../ThemeToggle';
+import { useShare } from '../../contexts/ShareContext';
 
 const ShareMobileNav: React.FC = () => {
   const { basePath } = useShare();
