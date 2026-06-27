@@ -32,6 +32,17 @@
   color: var(--text-primary);
 }
 
+.podcast-brand-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.podcast-brand-link:hover,
+.podcast-brand-link.active {
+  color: var(--accent-primary);
+}
+
 .podcast-nav {
   display: flex;
   align-items: center;
@@ -1202,6 +1213,13 @@
     font-size: 0.95rem;
     letter-spacing: 0.02em;
     text-transform: uppercase;
+    color: #fff;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .stream-mobile-brand:hover {
+    opacity: 0.85;
   }
 
   .stream-mobile-topbar-actions {

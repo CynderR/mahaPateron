@@ -15,6 +15,7 @@ const PODCAST_AUTHOR = 'Shyam Akaash';
 interface EpisodeResponse {
   is_paying: boolean;
   canStream: boolean;
+  canDownload: boolean;
   accessible: boolean;
   post: FeedPost;
 }
@@ -118,7 +119,9 @@ const Stream: React.FC = () => {
       </header>
 
       <header className="stream-mobile-topbar stream-ht-mobile-only">
-        <span className="stream-mobile-brand">{PODCAST_AUTHOR}</span>
+        <Link to="/feed" className="stream-mobile-brand">
+          {PODCAST_AUTHOR}
+        </Link>
         <div className="stream-mobile-topbar-actions">
           <ThemeToggle />
           <Link to="/account/settings" className="stream-mobile-icon-btn" aria-label="Account">
@@ -181,6 +184,7 @@ const Stream: React.FC = () => {
                 coverUrl={coverUrl}
                 accessible={data ? data.accessible && data.is_paying : true}
                 canStream={data ? data.canStream : true}
+                canDownload={data ? data.canDownload && data.is_paying : false}
                 returnPath={returnPath}
               />
             </div>

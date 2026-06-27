@@ -1,6 +1,7 @@
 import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
 import { Link } from 'react-router-dom';
 import { buildImageUrl } from '../config';
+import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 export interface FeedPost {
@@ -16,6 +17,7 @@ interface PostCardProps {
   post: FeedPost;
   rssToken?: string;
   canStream: boolean;
+  canDownload?: boolean;
   locked?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
@@ -34,6 +36,7 @@ const PostCard: React.FC<PostCardProps> = ({
   post,
   rssToken,
   canStream,
+  canDownload = false,
   locked = false,
   selected = false,
   onSelectChange
@@ -89,9 +92,14 @@ const PostCard: React.FC<PostCardProps> = ({
         {locked ? (
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (
-          <Link to={`/stream/${post.id}`} state={streamState} className="pod-btn pod-stream-listen-btn">
-            Listen
-          </Link>
+          <div className="pod-inline-actions">
+            <Link to={`/stream/${post.id}`} state={streamState} className="pod-btn pod-stream-listen-btn">
+              Listen
+            </Link>
+            {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />}
+          </div>
+        ) : canDownload ? (
+          <DownloadEpisodeButton postId={post.id} postTitle={post.title} />
         ) : (
           <p className="pod-post-meta">Streaming is not included in your plan.</p>
         )}

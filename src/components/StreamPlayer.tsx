@@ -6,7 +6,7 @@ import { FeedPost } from './PostCard';
 import FavoriteButton from './FavoriteButton';
 import PlayerControls from './PlayerControls';
 import PlaylistPicker from './PlaylistPicker';
-import PodcastStreamMobile from './mobile/PodcastStreamMobile';
+import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { buildStreamState } from '../utils/streamNavigation';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
@@ -17,6 +17,7 @@ interface StreamPlayerProps {
   coverUrl: string | null;
   accessible: boolean;
   canStream: boolean;
+  canDownload?: boolean;
   returnPath: string;
 }
 
@@ -60,6 +61,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   coverUrl,
   accessible,
   canStream,
+  canDownload = false,
   returnPath
 }) => {
   const navigate = useNavigate();
@@ -252,6 +254,9 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         />
         <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
+        {canDownload && accessible && (
+          <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />
+        )}
       </footer>
 
       <PodcastStreamMobile
@@ -272,6 +277,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         canPrevious={!!prevId}
         canNext={!!nextId}
         returnPath={returnPath}
+        canDownload={canDownload && accessible}
       />
 
       <footer className="stream-mobile-bar pod-mobile-only">

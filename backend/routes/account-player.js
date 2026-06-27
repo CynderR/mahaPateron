@@ -1,6 +1,7 @@
 const express = require('express');
 
 const { BASE_URL } = require('../config');
+const { accessFlags } = require('../utils/accessPermissions');
 const {
   getUserById,
   getPostById,
@@ -27,10 +28,6 @@ const mapPost = (post) => ({
   duration_secs: post.duration_secs,
   published_at: post.published_at,
   image_filename: post.image_filename || null
-});
-
-const accessFlags = (user) => ({
-  canStream: user.access_type === 'streaming' || user.access_type === 'both'
 });
 
 // GET /favorites
@@ -170,19 +167,22 @@ router.get('/latest-episode', async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const { canStream } = accessFlags(user);
+    const { canStream, canDownload } = accessFlags(user);
     const post = await getLatestAccessiblePostForUser(user);
     if (!post) {
-      return res.json({ post: null, is_new: false, canStream, is_paying: !!user.is_paying });
+      return res.json({ post: null, is_new: false, canStream, canDownload, is_paying: !!user.is_paying });
     }
 
-    const downloadUrl = `${BASE_URL}/stream/${post.id}?token=${encodeURIComponent(user.rss_token)}&download=1`;
+    const downloadUrl = canDownload
+      ? `${BASE_URL}/stream/${post.id}?token=${encodeURIComponent(user.rss_token)}&download=1`
+      : null;
 
     res.json({
       post: mapPost(post),
       download_url: downloadUrl,
       is_paying: !!user.is_paying,
-      canStream
+      canStream,
+      canDownload
     });
   } catch (error) {
     console.error('Latest episode error:', error);

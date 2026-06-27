@@ -150,6 +150,7 @@ const Users: React.FC = () => {
                 <option value="streaming">streaming</option>
                 <option value="rss">rss</option>
                 <option value="both">both</option>
+                <option value="download">download</option>
               </select>
             </div>
             <div className="pod-form-group">
@@ -212,6 +213,7 @@ const Users: React.FC = () => {
                 <option value="both">both</option>
                 <option value="rss">rss</option>
                 <option value="streaming">streaming</option>
+                <option value="download">download</option>
               </select>
             </div>
           </div>

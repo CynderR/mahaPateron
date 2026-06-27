@@ -20,6 +20,7 @@ import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigati
 interface FeedResponse {
   is_paying: boolean;
   canStream: boolean;
+  canDownload: boolean;
   canRss: boolean;
   posts: FeedPost[];
 }
@@ -51,6 +52,7 @@ const Feed: React.FC = () => {
 
   const posts = data?.posts ?? [];
   const canStream = !!data?.is_paying && !!data?.canStream;
+  const canDownload = !!data?.is_paying && !!data?.canDownload;
 
   const visiblePosts = useMemo(() => filterAdminItems(posts, searchQuery), [posts, searchQuery]);
   const featured = visiblePosts[0] ?? null;
@@ -88,6 +90,7 @@ const Feed: React.FC = () => {
       <div className="pod-feed-mobile-only">
         <PodcastMobileHeader
           title={PODCAST_AUTHOR}
+          titleTo="/feed"
           subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
         />
 
@@ -110,6 +113,7 @@ const Feed: React.FC = () => {
               <PodcastFeaturedEpisode
                 post={featured}
                 canStream={canStream}
+                canDownload={canDownload}
                 selected={selectedIds.has(featured.id)}
                 onSelectChange={selectionProps.onSelectChange}
               />
@@ -123,6 +127,7 @@ const Feed: React.FC = () => {
                       key={post.id}
                       post={post}
                       canStream={canStream}
+                      canDownload={canDownload}
                       selected={selectedIds.has(post.id)}
                       onSelectChange={selectionProps.onSelectChange}
                     />
@@ -187,6 +192,7 @@ const Feed: React.FC = () => {
                 <ProfileFeaturedTrack
                   post={featured}
                   canStream={canStream}
+                  canDownload={canDownload}
                   selected={selectedIds.has(featured.id)}
                   onSelectChange={selectionProps.onSelectChange}
                 />
@@ -198,6 +204,7 @@ const Feed: React.FC = () => {
                     post={post}
                     rank={index + 2}
                     canStream={canStream}
+                    canDownload={canDownload}
                     selected={selectedIds.has(post.id)}
                     onSelectChange={selectionProps.onSelectChange}
                   />

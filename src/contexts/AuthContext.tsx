@@ -12,7 +12,7 @@ interface User {
   signal_id?: string;
   payment_category?: 'full' | 'free' | 'discounted' | 'non_card';
   is_paying?: boolean | number;
-  access_type?: 'rss' | 'streaming' | 'both';
+  access_type?: 'rss' | 'streaming' | 'both' | 'download';
   subscription_price?: number | null;
   rss_token?: string;
   stripe_customer_id?: string;

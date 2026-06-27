@@ -36,10 +36,22 @@ const PodcastMobileNav: React.FC = () => {
   );
 };
 
-export const PodcastMobileHeader: React.FC<{ title: string; subtitle?: string }> = ({ title, subtitle }) => (
+export const PodcastMobileHeader: React.FC<{
+  title: string;
+  subtitle?: string;
+  titleTo?: string;
+}> = ({ title, subtitle, titleTo }) => (
   <header className="pod-mobile-header pod-mobile-only">
     <div>
-      <h1 className="pod-mobile-header-title">{title}</h1>
+      <h1 className="pod-mobile-header-title">
+        {titleTo ? (
+          <NavLink to={titleTo} end className="pod-mobile-header-title-link">
+            {title}
+          </NavLink>
+        ) : (
+          title
+        )}
+      </h1>
       {subtitle && <p className="pod-mobile-header-subtitle">{subtitle}</p>}
     </div>
     <div className="theme-toggle-row">

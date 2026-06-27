@@ -5,12 +5,14 @@ import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_GENRE, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
+import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileTrackRowProps {
   post: FeedPost;
   rank: number;
   canStream: boolean;
+  canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
 }
@@ -19,6 +21,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   post,
   rank,
   canStream,
+  canDownload = false,
   selected = false,
   onSelectChange
 }) => {
@@ -101,6 +104,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
           <span className="ht-track-meta-item">Members only</span>
           {published && <span className="ht-track-meta-item">on {published}</span>}
           <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-track-share" />
+          {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="ht-track-download" />}
         </div>
       </div>
     </article>

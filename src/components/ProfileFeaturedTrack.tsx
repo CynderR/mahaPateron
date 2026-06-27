@@ -5,11 +5,13 @@ import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
+import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 
 interface ProfileFeaturedTrackProps {
   post: FeedPost;
   canStream: boolean;
+  canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
 }
@@ -17,6 +19,7 @@ interface ProfileFeaturedTrackProps {
 const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   post,
   canStream,
+  canDownload = false,
   selected = false,
   onSelectChange
 }) => {
@@ -66,6 +69,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
         <span className="ht-featured-badge">Members only</span>
         <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-featured-share" />
+        {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="ht-featured-download" />}
       </div>
     </>
   );

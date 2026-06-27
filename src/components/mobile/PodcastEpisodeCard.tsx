@@ -8,11 +8,13 @@ import { formatDuration, PODCAST_AUTHOR } from '../../podcastMeta';
 import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
+import DownloadEpisodeButton from '../DownloadEpisodeButton';
 import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastEpisodeCardProps {
   post: FeedPost;
   canStream: boolean;
+  canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
 }
@@ -20,6 +22,7 @@ interface PodcastEpisodeCardProps {
 const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   post,
   canStream,
+  canDownload = false,
   selected = false,
   onSelectChange
 }) => {
@@ -106,6 +109,9 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </button>
       )}
       {canStream && <FavoriteButton postId={post.id} className="pod-episode-fav" />}
+      {canDownload && (
+        <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="pod-episode-download" />
+      )}
       <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
     </article>
   );

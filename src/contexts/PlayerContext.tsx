@@ -13,6 +13,7 @@ import {
 import {
   clearStreamBlob,
   getCachedStreamBlob,
+  getInflightStreamBlob,
   loadStreamBlob,
   prefersBlobPlayback
 } from '../utils/streamLoader';
@@ -123,6 +124,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const autoplayTimedOutRef = useRef(false);
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<(() => void) | null>(null);
+  const requestPlayRef = useRef<() => void>(() => {});
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
   const [shuffle, setShuffle] = useState(readShuffle);
@@ -317,6 +319,27 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setPlaybackError(null);
 
     if (prefersBlobPlayback() && !blobUrlRef.current) {
+      const assigned = assignedSourceRef.current;
+      const pending = assigned ? getInflightStreamBlob(assigned.postId) : null;
+      if (pending) {
+        setMediaLoading(true);
+        pending
+          .then((blobUrl) => {
+            if (assignedSourceRef.current?.postId !== assigned?.postId) return;
+            blobUrlRef.current = blobUrl;
+            setMediaReady(true);
+            setMediaLoading(false);
+            setPlaybackError(null);
+            requestPlayRef.current();
+          })
+          .catch((err: Error) => {
+            if (assignedSourceRef.current?.postId !== assigned?.postId) return;
+            setMediaLoading(false);
+            setMediaReady(false);
+            setPlaybackError(err.message || 'Could not load this episode.');
+          });
+        return;
+      }
       setPlaybackError('Still loading audio…');
       return;
     }
@@ -348,6 +371,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
       });
   }, [armAutoplayDeadline, autoplayTimeoutHours, clearPendingPlay, isAutoplayTimeoutExpired, primeAudioSource, stopForAutoplayTimeout, syncPlayingState]);
+
+  useEffect(() => {
+    requestPlayRef.current = requestPlay;
+  }, [requestPlay]);
 
   const preloadEpisodeMedia = useCallback(
     (postId: string, streamUrl: string) => {

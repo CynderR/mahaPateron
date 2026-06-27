@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
+const { accessFlags } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -65,8 +66,15 @@ router.get('/:postId', async (req, res) => {
       if (!user.is_paying) {
         return res.status(403).json({ error: 'Subscription inactive' });
       }
-      const streamingAllowed = user.access_type === 'streaming' || user.access_type === 'both';
-      if (!streamingAllowed) {
+
+      const flags = accessFlags(user);
+      const wantsDownload = req.query.download === '1';
+
+      if (wantsDownload) {
+        if (!flags.canDownload) {
+          return res.status(403).json({ error: 'Your plan does not include download access' });
+        }
+      } else if (!flags.canStream) {
         return res.status(403).json({ error: 'Your plan does not include streaming access' });
       }
 

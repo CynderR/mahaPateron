@@ -1,5 +1,7 @@
 import React from 'react';
 
+import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
+
 export interface AdminUser {
   id: number;
   username: string;
@@ -9,7 +11,7 @@ export interface AdminUser {
   back_catalog_access: boolean | number;
   monthly_payments: boolean | number;
   payment_category: 'full' | 'free' | 'discounted' | 'non_card';
-  access_type: 'rss' | 'streaming' | 'both';
+  access_type: 'rss' | 'streaming' | 'both' | 'download';
   subscription_price: number | null;
   rss_token: string;
 }
@@ -22,7 +24,6 @@ interface UserTableProps {
 }
 
 const PAYMENT_CATEGORIES = ['full', 'free', 'discounted', 'non_card'];
-const ACCESS_TYPES = ['streaming', 'rss', 'both'];
 
 const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDelete }) => {
   const copyRss = (token: string) => {
@@ -105,7 +106,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
                   value={u.access_type}
                   onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
                 >
-                  {ACCESS_TYPES.map((a) => (
+                  {ACCESS_TYPE_OPTIONS.map((a) => (
                     <option key={a} value={a}>
                       {a}
                     </option>

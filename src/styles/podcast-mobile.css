@@ -100,6 +100,17 @@
     color: var(--text-primary);
   }
 
+  .pod-mobile-header-title-link {
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.2s ease;
+  }
+
+  .pod-mobile-header-title-link:hover,
+  .pod-mobile-header-title-link.active {
+    color: var(--accent-primary);
+  }
+
   .pod-mobile-header-subtitle {
     margin: 0.25rem 0 0;
     font-size: 0.82rem;

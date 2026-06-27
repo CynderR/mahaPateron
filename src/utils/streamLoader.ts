@@ -1,13 +1,30 @@
-// Mobile Chromium (Brave, Chrome) often blocks <audio src="https://...?token=...">.
+// Mobile Chromium on Android (Brave, Chrome) often blocks <audio src="https://...?token=...">.
 // Fetch the MP3 with auth headers and play from a same-origin blob URL instead.
+//
+// iOS browsers (Safari, Chrome, Brave, Firefox, etc.) all use WebKit, which streams
+// tokenized URLs with HTTP range requests. Preloading the full file as a blob hangs
+// on long episodes and leaves the player stuck on "Loading audio…".
 
 const blobCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 
+export const isIOSDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return (
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+};
+
+export const isAndroidDevice = (): boolean => {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+};
+
 export const prefersBlobPlayback = (): boolean => {
   if (typeof window === 'undefined') return false;
-  if (window.matchMedia('(pointer: coarse)').matches) return true;
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  if (isIOSDevice()) return false;
+  return isAndroidDevice();
 };
 
 export const getStoredAuthToken = (): string | null => {
@@ -16,6 +33,8 @@ export const getStoredAuthToken = (): string | null => {
 };
 
 export const getCachedStreamBlob = (postId: string): string | null => blobCache.get(postId) ?? null;
+
+export const getInflightStreamBlob = (postId: string): Promise<string> | null => inflight.get(postId) ?? null;
 
 export const clearStreamBlob = (postId: string): void => {
   const url = blobCache.get(postId);

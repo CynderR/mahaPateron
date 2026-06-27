@@ -25,6 +25,7 @@ interface LibraryResponse {
   is_paying: boolean;
   back_catalog_access: boolean;
   canStream: boolean;
+  canDownload: boolean;
   total: number;
   catalogTotal: number;
   accessible: number;
@@ -105,6 +106,7 @@ const Library: React.FC = () => {
   const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
   const lockedCount = meta ? meta.catalogTotal - meta.accessible : 0;
+  const canDownload = !!meta?.is_paying && !!meta?.canDownload;
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -189,6 +191,7 @@ const Library: React.FC = () => {
                   key={entry.id}
                   post={entry}
                   canStream={!!meta?.is_paying && !!meta.canStream && entry.accessible}
+                  canDownload={canDownload && entry.accessible}
                   selected={selectedIds.has(entry.id)}
                   onSelectChange={selectionProps.onSelectChange}
                 />
@@ -234,6 +237,7 @@ const Library: React.FC = () => {
                   post={entry}
                   rssToken={user?.rss_token}
                   canStream={!!meta?.is_paying && meta.canStream && entry.accessible}
+                  canDownload={canDownload && entry.accessible}
                   locked={!entry.accessible}
                   selected={selectedIds.has(entry.id)}
                   onSelectChange={selectionProps.onSelectChange}

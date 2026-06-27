@@ -431,7 +431,7 @@ const getPublishedPosts = () => {
 
 const userCanAccessPost = (user, post) => {
   if (!user || !post || !post.is_published || post.deleted_at) return false;
-  if (user.back_catalog_access) return true;
+  if (user.back_catalog_access || user.access_type === 'download') return true;
   const cutoff = user.subscribed_at || user.created_at;
   if (!cutoff) return true;
   return new Date(post.published_at) >= new Date(cutoff);
@@ -439,7 +439,7 @@ const userCanAccessPost = (user, post) => {
 
 const getPublishedPostsForUser = (user) => {
   return new Promise((resolve, reject) => {
-    if (user.back_catalog_access) {
+    if (user.back_catalog_access || user.access_type === 'download') {
       return getPublishedPosts().then(resolve).catch(reject);
     }
     const cutoff = user.subscribed_at || user.created_at;

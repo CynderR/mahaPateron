@@ -6,11 +6,13 @@ import { usePlayer } from '../../contexts/PlayerContext';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
+import DownloadEpisodeButton from '../DownloadEpisodeButton';
 import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastFeaturedEpisodeProps {
   post: FeedPost;
   canStream: boolean;
+  canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
 }
@@ -18,6 +20,7 @@ interface PodcastFeaturedEpisodeProps {
 const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
   post,
   canStream,
+  canDownload = false,
   selected = false,
   onSelectChange
 }) => {
@@ -70,8 +73,13 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
             <button type="button" className="pod-btn pod-featured-play" onClick={handlePlay}>
               Play latest episode
             </button>
+          ) : canDownload ? (
+            <DownloadEpisodeButton postId={post.id} postTitle={post.title} />
           ) : (
             <span className="pod-featured-locked">Subscribe to listen</span>
+          )}
+          {canStream && canDownload && (
+            <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />
           )}
           <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-featured-share" />
         </div>

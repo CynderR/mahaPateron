@@ -11,11 +11,11 @@ const {
   activateUserSubscription,
   softDeleteUser
 } = require('../database');
+const { ACCESS_TYPES } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
 const PAYMENT_CATEGORIES = ['full', 'free', 'discounted', 'non_card'];
-const ACCESS_TYPES = ['rss', 'streaming', 'both'];
 
 const sanitizeUser = (user) => {
   if (!user) return user;

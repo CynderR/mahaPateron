@@ -1,6 +1,7 @@
 const express = require('express');
 
 const { BASE_URL } = require('../config');
+const { accessFlags } = require('../utils/accessPermissions');
 const {
   getUserById,
   getUserByEmail,
@@ -19,11 +20,6 @@ const router = express.Router();
 const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
 const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
 
-const accessFlags = (user) => ({
-  canRss: user.access_type === 'rss' || user.access_type === 'both',
-  canStream: user.access_type === 'streaming' || user.access_type === 'both'
-});
-
 // GET /feed — published episodes plus the viewer's access flags.
 router.get('/feed', async (req, res) => {
   try {
@@ -31,13 +27,14 @@ router.get('/feed', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const posts = await getPublishedPostsForUser(user);
-    const { canStream, canRss } = accessFlags(user);
+    const { canStream, canRss, canDownload } = accessFlags(user);
 
     res.json({
       is_paying: !!user.is_paying,
       back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
+      canDownload,
       posts: posts.map((p) => ({
         id: p.id,
         title: p.title,
@@ -64,13 +61,14 @@ router.get('/episodes/:id', async (req, res) => {
       return res.status(404).json({ error: 'Episode not found' });
     }
 
-    const { canStream, canRss } = accessFlags(user);
+    const { canStream, canRss, canDownload } = accessFlags(user);
     const accessible = userCanAccessPost(user, post);
 
     res.json({
       is_paying: !!user.is_paying,
       canStream,
       canRss,
+      canDownload,
       accessible,
       post: {
         id: post.id,
@@ -116,13 +114,14 @@ router.get('/library', async (req, res) => {
       year,
       genre
     });
-    const { canStream, canRss } = accessFlags(user);
+    const { canStream, canRss, canDownload } = accessFlags(user);
 
     res.json({
       is_paying: !!user.is_paying,
       back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
+      canDownload,
       total: result.total,
       catalogTotal: result.catalogTotal,
       accessible: result.accessible,

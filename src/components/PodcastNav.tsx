@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { PODCAST_AUTHOR } from '../podcastMeta';
 import ThemeToggle from './ThemeToggle';
 
 // Shared top navigation for the member and admin areas.
@@ -16,7 +17,11 @@ const PodcastNav: React.FC = () => {
   return (
     <header className="podcast-header">
       <div className="podcast-header-inner">
-        <h1 className="podcast-brand">Shyam Akaash</h1>
+        <h1 className="podcast-brand">
+          <NavLink to="/feed" end className="podcast-brand-link">
+            {PODCAST_AUTHOR}
+          </NavLink>
+        </h1>
         <nav className="podcast-nav">
           <NavLink to="/feed" end>
             Recent uploads
