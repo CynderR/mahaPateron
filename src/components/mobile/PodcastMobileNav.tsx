@@ -1,6 +1,5 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import DownloadLatestButton from '../DownloadLatestButton';
 import ThemeToggle from '../ThemeToggle';
 
 const PodcastMobileNav: React.FC = () => {
@@ -45,7 +44,6 @@ export const PodcastMobileHeader: React.FC<{ title: string; subtitle?: string }>
     </div>
     <div className="theme-toggle-row">
       <ThemeToggle />
-      <DownloadLatestButton compact />
     </div>
   </header>
 );
