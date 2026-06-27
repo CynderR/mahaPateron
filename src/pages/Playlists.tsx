@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import HearThisNav from '../components/HearThisNav';
+import PodcastNav from '../components/PodcastNav';
 import FavoriteButton from '../components/FavoriteButton';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import { usePlayer } from '../contexts/PlayerContext';
@@ -57,8 +57,10 @@ const Playlists: React.FC = () => {
   };
 
   return (
-    <div className="ht-page">
-      <HearThisNav />
+    <div className="podcast-page playlists-page-shell">
+      <div className="feed-ht-desktop-only">
+        <PodcastNav />
+      </div>
 
       <div className="pod-feed-mobile-only">
         <PodcastMobileHeader title="Playlists" subtitle={`${playlists.length} saved lists`} />

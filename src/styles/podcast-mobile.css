@@ -23,6 +23,7 @@
   }
 
   .ht-page,
+  .feed-page,
   .podcast-page,
   .stream-page {
     padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));

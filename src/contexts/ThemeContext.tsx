@@ -14,11 +14,16 @@ interface ThemeProviderProps {
   children: ReactNode;
 }
 
+const readStoredTheme = (): Theme => {
+  const savedTheme = localStorage.getItem('theme') as Theme;
+  return savedTheme === 'dark' || savedTheme === 'light' ? savedTheme : 'light';
+};
+
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  // Get initial theme from localStorage or default to 'light'
   const [theme, setThemeState] = useState<Theme>(() => {
-    const savedTheme = localStorage.getItem('theme') as Theme;
-    return savedTheme || 'light';
+    const initialTheme = readStoredTheme();
+    document.documentElement.setAttribute('data-theme', initialTheme);
+    return initialTheme;
   });
 
   // Update localStorage and document class when theme changes

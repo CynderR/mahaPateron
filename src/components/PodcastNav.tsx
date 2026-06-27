@@ -18,8 +18,11 @@ const PodcastNav: React.FC = () => {
       <div className="podcast-header-inner">
         <h1 className="podcast-brand">Shyam Akaash</h1>
         <nav className="podcast-nav">
-          <NavLink to="/feed">Feed</NavLink>
+          <NavLink to="/feed" end>
+            Recent uploads
+          </NavLink>
           <NavLink to="/library">Library</NavLink>
+          <NavLink to="/playlists">Playlists</NavLink>
           <NavLink to="/account/rss">RSS</NavLink>
           <NavLink to="/account/billing">Billing</NavLink>
           <NavLink to="/account/settings">Settings</NavLink>

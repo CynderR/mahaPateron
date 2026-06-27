@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../contexts/AuthContext';
-import HearThisNav from '../components/HearThisNav';
+import PodcastNav from '../components/PodcastNav';
 import ProfileFeaturedTrack from '../components/ProfileFeaturedTrack';
 import ProfileTrackRow from '../components/ProfileTrackRow';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
@@ -80,8 +80,10 @@ const Feed: React.FC = () => {
       : 'No episodes have been published yet.';
 
   return (
-    <div className="ht-page">
-      <HearThisNav />
+    <div className="podcast-page feed-page">
+      <div className="feed-ht-desktop-only">
+        <PodcastNav />
+      </div>
 
       <div className="pod-feed-mobile-only">
         <PodcastMobileHeader

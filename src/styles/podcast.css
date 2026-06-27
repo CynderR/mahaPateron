@@ -1510,6 +1510,16 @@
 
 /* ----- HearThis-style member profile (Feed) ----- */
 
+.feed-page {
+  min-height: 100vh;
+}
+
+.feed-page .ht-layout,
+.feed-page .ht-main {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
 .ht-page {
   min-height: 100vh;
   background: var(--bg-primary);
@@ -2098,11 +2108,48 @@
 }
 
 /* Dark theme: HearThis feed/playlists — match library surfaces */
+[data-theme="dark"] .feed-page,
 [data-theme="dark"] .ht-page,
 [data-theme="dark"] .ht-main,
 [data-theme="dark"] .ht-layout {
   background: var(--bg-primary);
   color: var(--text-primary);
+}
+
+[data-theme="dark"] .feed-page .ht-empty,
+[data-theme="dark"] .feed-page .ht-track-title,
+[data-theme="dark"] .feed-page .ht-featured-title,
+[data-theme="dark"] .feed-page .ht-sidebar-title,
+[data-theme="dark"] .feed-page .ht-sidebar-note {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .feed-page .ht-track-artist-inline,
+[data-theme="dark"] .feed-page .ht-featured-artist,
+[data-theme="dark"] .feed-page .ht-track-duration,
+[data-theme="dark"] .feed-page .ht-track-genre,
+[data-theme="dark"] .feed-page .ht-track-meta,
+[data-theme="dark"] .feed-page .ht-featured-actions {
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .feed-page .member-episode-toolbar,
+[data-theme="dark"] .feed-page .member-select-all,
+[data-theme="dark"] .feed-page .member-episode-count,
+[data-theme="dark"] .feed-page .member-sort-label {
+  color: var(--text-primary);
+}
+
+[data-theme="dark"] .feed-page .member-sort-btn {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-color: var(--border-primary);
+}
+
+[data-theme="dark"] .feed-page .pod-input {
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
 }
 
 [data-theme="dark"] .ht-featured-waveform .ht-waveform-bar {
@@ -2115,12 +2162,6 @@
 
 [data-theme="dark"] .ht-tab-active {
   background: var(--bg-tertiary);
-}
-
-[data-theme="dark"] .ht-page .member-episode-toolbar,
-[data-theme="dark"] .ht-page .member-select-all,
-[data-theme="dark"] .ht-page .member-episode-count {
-  color: var(--text-primary);
 }
 
 @media (max-width: 900px) {
