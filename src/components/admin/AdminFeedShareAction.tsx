@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import AdminFeedPostShareButton from './AdminFeedPostShareButton';
+import AdminPostEditButton from './AdminPostEditButton';
 
 interface AdminFeedShareActionProps {
   postId: string;
@@ -21,13 +22,16 @@ const AdminFeedShareAction: React.FC<AdminFeedShareActionProps> = ({
   if (!isAdmin) return null;
 
   return (
-    <AdminFeedPostShareButton
-      postId={postId}
-      postTitle={postTitle}
-      shareToken={shareToken}
-      isPublished={isPublished}
-      className={className}
-    />
+    <div className={`admin-feed-post-actions ${className}`.trim()}>
+      <AdminPostEditButton postId={postId} postTitle={postTitle} />
+      <AdminFeedPostShareButton
+        postId={postId}
+        postTitle={postTitle}
+        shareToken={shareToken}
+        isPublished={isPublished}
+        className="admin-feed-share"
+      />
+    </div>
   );
 };
 

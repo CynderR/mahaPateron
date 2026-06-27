@@ -3,6 +3,7 @@ import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
 import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareButton';
+import AdminPostEditButton from '../../components/admin/AdminPostEditButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import SortableTableHeader from '../../components/SortableTableHeader';
@@ -243,6 +244,7 @@ const AdminLibrary: React.FC = () => {
                   <td>{entry.published_at ? new Date(entry.published_at).toLocaleDateString() : ''}</td>
                   <td>
                     <div className="pod-inline-actions">
+                      <AdminPostEditButton postId={entry.id} postTitle={entry.title} onSaved={reload} />
                       <AdminFeedPostShareButton
                         postId={entry.id}
                         postTitle={entry.title}

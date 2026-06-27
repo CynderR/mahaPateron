@@ -23,6 +23,7 @@ import AdminBulkUpload from './pages/admin/BulkUpload';
 import Playlists from './pages/Playlists';
 import PublicShare from './pages/PublicShare';
 import { PlayerProvider } from './contexts/PlayerContext';
+import GlobalNowPlayingBar from './components/GlobalNowPlayingBar';
 import './App.css';
 import './styles/themes.css';
 import './styles/podcast.css';
@@ -154,6 +155,7 @@ function App() {
           <Router basename={ROUTER_BASENAME}>
             <div className="App">
               <AppRoutes />
+              <GlobalNowPlayingBar />
             </div>
           </Router>
         </PlayerProvider>

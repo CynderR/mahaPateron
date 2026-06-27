@@ -7,6 +7,8 @@ import FavoriteButton from './FavoriteButton';
 import PlayerControls from './PlayerControls';
 import PlaylistPicker from './PlaylistPicker';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
+import PodcastStreamMobile from './mobile/PodcastStreamMobile';
+import PlaybackProgressBar from './PlaybackProgressBar';
 import { buildStreamState } from '../utils/streamNavigation';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
@@ -203,6 +205,12 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         {waveform(mobileBarHeights, 'stream-waveform-mobile stream-ht-mobile-only')}
       </div>
 
+      <PlaybackProgressBar
+        postId={post.id}
+        durationSecs={post.duration_secs}
+        className="stream-desktop-scrubber stream-desktop-only"
+      />
+
       <div className="stream-description-block stream-ht-mobile-only">
         <p className="stream-description-label">Profile description of {PODCAST_AUTHOR}:</p>
         <p className="stream-description">{post.description || 'Members-only audio from Shyam Akaash.'}</p>
@@ -251,6 +259,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           onNext={goNext}
           canPrevious={!!prevId}
           canNext={!!nextId}
+          onSkip={skipBy}
+          canSkip={playable}
         />
         <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
@@ -291,6 +301,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
             onNext={goNext}
             canPrevious={!!prevId}
             canNext={!!nextId}
+            onSkip={skipBy}
+            canSkip={playable}
           />
           <FavoriteButton postId={post.id} className="stream-mobile-bar-icon-wrap" />
         </div>
@@ -309,12 +321,30 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           <div className="stream-mobile-bar-controls">
             <button
               type="button"
+              className="stream-mobile-bar-skip"
+              onClick={() => skipBy(-15)}
+              disabled={!playable}
+              aria-label="Rewind 15 seconds"
+            >
+              -15
+            </button>
+            <button
+              type="button"
               className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
               onClick={() => togglePlayback()}
               disabled={!canPlay}
               aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
             >
               <PlayIcon />
+            </button>
+            <button
+              type="button"
+              className="stream-mobile-bar-skip"
+              onClick={() => skipBy(15)}
+              disabled={!playable}
+              aria-label="Forward 15 seconds"
+            >
+              +15
             </button>
             <button
               type="button"

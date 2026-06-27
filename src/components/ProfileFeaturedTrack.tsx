@@ -64,7 +64,13 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
           </p>
         </div>
       </div>
-      <ProfileWaveform seed={`featured-${post.id}`} barCount={80} className="ht-featured-waveform" />
+      <ProfileWaveform
+        seed={`featured-${post.id}`}
+        barCount={80}
+        className="ht-featured-waveform"
+        postId={post.id}
+        durationSecs={post.duration_secs}
+      />
       <div className="ht-featured-actions">
         <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
         <span className="ht-featured-badge">Members only</span>

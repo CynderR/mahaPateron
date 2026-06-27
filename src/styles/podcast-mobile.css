@@ -232,6 +232,7 @@
   }
 
   .pod-episode-card {
+    position: relative;
     padding-right: 0.65rem;
   }
 

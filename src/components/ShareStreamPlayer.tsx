@@ -5,6 +5,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import PlayerControls from './PlayerControls';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
+import PlaybackProgressBar from './PlaybackProgressBar';
 import { StreamLocationState } from '../utils/streamNavigation';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 
@@ -199,6 +200,12 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
         {waveform(mobileBarHeights, 'stream-waveform-mobile stream-ht-mobile-only')}
       </div>
 
+      <PlaybackProgressBar
+        postId={post.id}
+        durationSecs={post.duration_secs}
+        className="stream-desktop-scrubber stream-desktop-only"
+      />
+
       {post.description && <p className="stream-description stream-desktop-only">{post.description}</p>}
 
       <div className="stream-card-footer stream-desktop-only">
@@ -228,6 +235,8 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
           onNext={goNext}
           canPrevious={!!prevId}
           canNext={!!nextId}
+          onSkip={skipBy}
+          canSkip={playable}
         />
         <Link to="/signin" className="pod-btn pod-btn-secondary pod-btn-sm">
           Sign in for RSS

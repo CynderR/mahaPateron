@@ -4,6 +4,7 @@ import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UploadForm from '../../components/UploadForm';
 import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareButton';
+import AdminPostEditButton from '../../components/admin/AdminPostEditButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import SortableTableHeader from '../../components/SortableTableHeader';
 import {
@@ -140,6 +141,7 @@ const Posts: React.FC = () => {
                   <td>{post.published_at ? new Date(post.published_at).toLocaleDateString() : ''}</td>
                   <td>
                     <div className="pod-inline-actions">
+                      <AdminPostEditButton postId={post.id} postTitle={post.title} onSaved={load} />
                       <AdminFeedPostShareButton
                         postId={post.id}
                         postTitle={post.title}

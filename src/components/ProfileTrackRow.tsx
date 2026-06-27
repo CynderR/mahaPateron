@@ -99,7 +99,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
             <span className="ht-track-duration">{formatDuration(post.duration_secs)}</span>
           </div>
         </div>
-        <ProfileWaveform seed={post.id} barCount={64} className="ht-track-waveform" />
+        <ProfileWaveform seed={post.id} barCount={64} className="ht-track-waveform" postId={post.id} durationSecs={post.duration_secs} />
         <div className="ht-track-meta">
           <span className="ht-track-meta-item">Members only</span>
           {published && <span className="ht-track-meta-item">on {published}</span>}

@@ -9,6 +9,7 @@ import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
 import FavoriteButton from '../FavoriteButton';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
+import PlaybackProgressBar from '../PlaybackProgressBar';
 import { useStreamLinkState } from '../../hooks/useStreamLinkState';
 
 interface PodcastEpisodeCardProps {
@@ -113,6 +114,13 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="pod-episode-download" />
       )}
       <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
+      <PlaybackProgressBar
+        postId={post.id}
+        durationSecs={post.duration_secs}
+        seekable={false}
+        variant="thin"
+        className="pod-episode-progress"
+      />
     </article>
   );
 };

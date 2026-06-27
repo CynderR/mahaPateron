@@ -110,6 +110,20 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /:id — single post for admin edit form.
+router.get('/:id', async (req, res) => {
+  try {
+    const post = await getPostById(req.params.id);
+    if (!post) {
+      return res.status(404).json({ error: 'Post not found' });
+    }
+    res.json({ post });
+  } catch (error) {
+    console.error('Admin get post error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /:id/share-link — ensure a public share token exists for this post.
 router.get('/:id/share-link', async (req, res) => {
   try {

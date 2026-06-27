@@ -8,6 +8,8 @@ interface PlayerControlsProps {
   onNext?: () => void;
   canPrevious?: boolean;
   canNext?: boolean;
+  onSkip?: (delta: number) => void;
+  canSkip?: boolean;
   className?: string;
 }
 
@@ -16,6 +18,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   onNext,
   canPrevious = false,
   canNext = false,
+  onSkip,
+  canSkip = true,
   className = ''
 }) => {
   const { replayMode, shuffle, cycleReplay, toggleShuffle } = usePlayer();
@@ -54,6 +58,31 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         </svg>
         <span className="player-control-label">Random</span>
       </button>
+
+      {onSkip && (
+        <>
+          <button
+            type="button"
+            className="player-control-btn player-skip-btn"
+            onClick={() => onSkip(-15)}
+            disabled={!canSkip}
+            aria-label="Rewind 15 seconds"
+            title="Rewind 15 seconds"
+          >
+            -15
+          </button>
+          <button
+            type="button"
+            className="player-control-btn player-skip-btn"
+            onClick={() => onSkip(15)}
+            disabled={!canSkip}
+            aria-label="Forward 15 seconds"
+            title="Forward 15 seconds"
+          >
+            +15
+          </button>
+        </>
+      )}
 
       <button
         type="button"
