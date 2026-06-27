@@ -154,16 +154,23 @@ const Library: React.FC = () => {
   );
 
   return (
-    <div className="podcast-page">
-      <div className="feed-ht-desktop-only">
+    <div className="podcast-page library-page">
+      <div className="library-sticky-stack feed-ht-desktop-only">
         <PodcastNav />
+        <div className="library-sticky-head-inner">
+          <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
+          {toolbar}
+        </div>
       </div>
 
       <div className="pod-feed-mobile-only">
-        <PodcastMobileHeader
-          title="Library"
-          subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
-        />
+        <div className="library-sticky-head">
+          <PodcastMobileHeader
+            title="Library"
+            subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
+          />
+          {toolbar}
+        </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
@@ -178,8 +185,6 @@ const Library: React.FC = () => {
             {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
           </div>
         )}
-
-        {toolbar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
@@ -206,9 +211,7 @@ const Library: React.FC = () => {
         <PodcastMobileNav />
       </div>
 
-      <main className="podcast-main feed-ht-desktop-only">
-        <h2 className="podcast-section-title">Episode Library</h2>
-
+      <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         {!loading && meta && !meta.is_paying && (
@@ -223,8 +226,6 @@ const Library: React.FC = () => {
             Contact the administrator for full archive access.
           </div>
         )}
-
-        {toolbar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>

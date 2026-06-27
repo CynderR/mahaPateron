@@ -379,6 +379,59 @@
   font-size: 0.85em;
 }
 
+/* Episode list pages sticky header (feed + library) */
+.library-sticky-stack {
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.library-sticky-head-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 0 2rem 0.85rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.library-sticky-title {
+  margin: 0.85rem 0 0.75rem;
+}
+
+.library-sticky-head-inner .member-episode-toolbar {
+  margin-bottom: 0;
+}
+
+.library-main {
+  padding-top: 1.25rem;
+}
+
+.library-sticky-tabs {
+  padding: 0.85rem 0 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+.feed-page .feed-sticky-subhead {
+  position: sticky;
+  top: var(--feed-sticky-nav-height, 4.1rem);
+  z-index: 24;
+  background: var(--bg-primary);
+  margin: 0 0 1rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.feed-page .feed-sticky-subhead .member-episode-toolbar {
+  margin-bottom: 0;
+}
+
+.feed-page .library-sticky-head,
+.library-page .library-sticky-head {
+  border-bottom: 1px solid var(--border-primary);
+}
+
 /* Member feed / library list toolbar */
 .member-episode-toolbar {
   margin-bottom: 1rem;

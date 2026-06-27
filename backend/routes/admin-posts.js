@@ -8,6 +8,7 @@ const { AUDIO_DIR, IMAGE_DIR, ensureDirs } = require('../config');
 const {
   createPost,
   getAllPosts,
+  getPostsPaginated,
   getPostById,
   ensurePostShareToken,
   updatePost,
@@ -102,6 +103,18 @@ const parsePublishedAt = (value) => {
 // GET / — list all posts (including unpublished) for the admin.
 router.get('/', async (req, res) => {
   try {
+    const { page, limit, q, sort, dir } = req.query;
+    if (page != null || q || sort) {
+      const result = await getPostsPaginated({
+        page,
+        limit,
+        search: q,
+        sortField: sort,
+        sortDir: dir
+      });
+      return res.json(result);
+    }
+
     const posts = await getAllPosts();
     res.json({ posts });
   } catch (error) {

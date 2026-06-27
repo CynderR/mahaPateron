@@ -140,24 +140,37 @@ const ShareLibrary: React.FC = () => {
   const canStream = !!meta?.canStream;
 
   return (
-    <div className="podcast-page">
-      <div className="feed-ht-desktop-only">
+    <div className="podcast-page library-page">
+      <div className="library-sticky-stack feed-ht-desktop-only">
         <ShareNav />
+        <div className="library-sticky-head-inner">
+          <div className="ht-tabs-bar library-sticky-tabs">
+            <div className="ht-tabs">
+              <Link to={basePath} className="ht-tab">
+                Recent uploads
+              </Link>
+              <span className="ht-tab ht-tab-active">Library</span>
+            </div>
+          </div>
+          <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
+          {toolbar}
+        </div>
       </div>
 
       <div className="pod-feed-mobile-only">
-        <ShareMobileHeader
-          title="Library"
-          subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
-        />
+        <div className="library-sticky-head">
+          <ShareMobileHeader
+            title="Library"
+            subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
+          />
+          {toolbar}
+        </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
           Full published catalog via this share link. <Link to="/signin">Sign in</Link> for RSS and downloads.
         </p>
-
-        {toolbar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
@@ -177,25 +190,12 @@ const ShareLibrary: React.FC = () => {
         <ShareMobileNav />
       </div>
 
-      <main className="podcast-main feed-ht-desktop-only">
-        <div className="ht-tabs-bar" style={{ marginBottom: '1rem' }}>
-          <div className="ht-tabs">
-            <Link to={basePath} className="ht-tab">
-              Recent uploads
-            </Link>
-            <span className="ht-tab ht-tab-active">Library</span>
-          </div>
-        </div>
-
-        <h2 className="podcast-section-title">Episode Library</h2>
-
+      <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <p className="pod-banner pod-banner-info">
           Full published catalog via this share link. <Link to="/signin">Sign in</Link> for RSS feeds and downloads.
         </p>
-
-        {toolbar}
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>

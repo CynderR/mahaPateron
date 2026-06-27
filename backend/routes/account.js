@@ -7,6 +7,7 @@ const {
   getUserByEmail,
   getUserByUsername,
   getPublishedPostsForUser,
+  getPublishedPostsForUserPaginated,
   getLibraryForUserPaginated,
   getLibraryMetadataFilters,
   getPostById,
@@ -26,23 +27,43 @@ router.get('/feed', async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    const posts = await getPublishedPostsForUser(user);
     const { canStream, canRss, canDownload } = accessFlags(user);
-
-    res.json({
+    const mapPost = (p) => ({
+      id: p.id,
+      title: p.title,
+      description: p.description,
+      duration_secs: p.duration_secs,
+      published_at: p.published_at,
+      image_filename: p.image_filename || null
+    });
+    const accessMeta = {
       is_paying: !!user.is_paying,
       back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
-      canDownload,
-      posts: posts.map((p) => ({
-        id: p.id,
-        title: p.title,
-        description: p.description,
-        duration_secs: p.duration_secs,
-        published_at: p.published_at,
-        image_filename: p.image_filename || null
-      }))
+      canDownload
+    };
+
+    const { page, limit, q } = req.query;
+    if (page != null || q) {
+      const result = await getPublishedPostsForUserPaginated(user, {
+        page,
+        limit,
+        search: q
+      });
+      return res.json({
+        ...accessMeta,
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        posts: result.posts.map(mapPost)
+      });
+    }
+
+    const posts = await getPublishedPostsForUser(user);
+    res.json({
+      ...accessMeta,
+      posts: posts.map(mapPost)
     });
   } catch (error) {
     console.error('Account feed error:', error);

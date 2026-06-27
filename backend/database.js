@@ -453,6 +453,61 @@ const getPublishedPostsForUser = (user) => {
   });
 };
 
+const getPostsPaginated = (options = {}) => {
+  const { page, limit, sortDir, orderCol, search, offset } = parseLibraryListOptions({
+    page: options.page,
+    limit: options.limit,
+    sortField: options.sortField,
+    sortDir: options.sortDir,
+    search: options.search
+  });
+
+  const where = ['deleted_at IS NULL'];
+  const params = [];
+  if (options.publishedOnly) {
+    where.push('is_published = 1');
+  }
+  if (options.publishedAfter) {
+    where.push('published_at >= ?');
+    params.push(options.publishedAfter);
+  }
+  if (search) {
+    where.push(`(
+      LOWER(title) LIKE ?
+      OR LOWER(COALESCE(description, '')) LIKE ?
+    )`);
+    const like = `%${search.toLowerCase()}%`;
+    params.push(like, like);
+  }
+  const whereSql = `WHERE ${where.join(' AND ')}`;
+
+  return new Promise((resolve, reject) => {
+    db.all(
+      `SELECT * FROM posts ${whereSql} ORDER BY ${orderCol} ${sortDir}, id DESC LIMIT ? OFFSET ?`,
+      [...params, limit, offset],
+      (err, rows) => {
+        if (err) return reject(err);
+        db.get(`SELECT COUNT(*) AS count FROM posts ${whereSql}`, params, (err2, countRow) => {
+          if (err2) return reject(err2);
+          resolve({ posts: rows, total: countRow.count, page, limit });
+        });
+      }
+    );
+  });
+};
+
+const getPublishedPostsForUserPaginated = (user, options = {}) => {
+  const base = { publishedOnly: true, ...options };
+  if (user.back_catalog_access || user.access_type === 'download') {
+    return getPostsPaginated(base);
+  }
+  const cutoff = user.subscribed_at || user.created_at;
+  if (!cutoff) {
+    return getPostsPaginated(base);
+  }
+  return getPostsPaginated({ ...base, publishedAfter: cutoff });
+};
+
 // Set is_paying and stamp subscribed_at when a user (re)activates.
 const activateUserSubscription = (id) => {
   return updateUserFields(id, {
@@ -972,6 +1027,8 @@ module.exports = {
   getAllPosts,
   getPublishedPosts,
   getPublishedPostsForUser,
+  getPublishedPostsForUserPaginated,
+  getPostsPaginated,
   userCanAccessPost,
   activateUserSubscription,
   updatePost,

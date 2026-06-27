@@ -62,14 +62,19 @@ const ShareFeed: React.FC = () => {
       : 'No episodes have been published yet.';
 
   return (
-    <div className="ht-page">
-      <ShareNav />
+    <div className="ht-page feed-page">
+      <div className="library-sticky-stack feed-ht-desktop-only">
+        <ShareNav />
+      </div>
 
       <div className="pod-feed-mobile-only">
-        <ShareMobileHeader
-          title={PODCAST_AUTHOR}
-          subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
-        />
+        <div className="library-sticky-head">
+          <ShareMobileHeader
+            title={PODCAST_AUTHOR}
+            subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
+          />
+          {toolbar}
+        </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
@@ -77,8 +82,6 @@ const ShareFeed: React.FC = () => {
           Shared listening link — browse and stream all published episodes. RSS and downloads require a
           member account.
         </p>
-
-        {toolbar}
 
         {loading ? (
           <div className="pod-empty">Loading episodes…</div>
@@ -119,15 +122,18 @@ const ShareFeed: React.FC = () => {
 
       <div className="ht-layout feed-ht-desktop-only">
         <main className="ht-main">
-          <div className="ht-tabs-bar">
-            <div className="ht-tabs">
-              <span className="ht-tab ht-tab-active">
-                {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
-              </span>
-              <Link to={`${basePath}/library`} className="ht-tab">
-                Library
-              </Link>
+          <div className="feed-sticky-subhead">
+            <div className="ht-tabs-bar library-sticky-tabs">
+              <div className="ht-tabs">
+                <span className="ht-tab ht-tab-active">
+                  {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
+                </span>
+                <Link to={`${basePath}/library`} className="ht-tab">
+                  Library
+                </Link>
+              </div>
             </div>
+            {toolbar}
           </div>
 
           <p className="pod-banner pod-banner-info">
@@ -136,8 +142,6 @@ const ShareFeed: React.FC = () => {
           </p>
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
-
-          {toolbar}
 
           {loading ? (
             <div className="ht-empty">Loading sounds…</div>
