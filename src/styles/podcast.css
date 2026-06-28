@@ -2171,6 +2171,11 @@ body.global-now-playing-active .feed-page {
 .ht-play-btn-disabled {
   opacity: 0.45;
   cursor: default;
+  pointer-events: none;
+}
+
+.ht-play-btn-disabled:hover {
+  background: #e74c3c;
 }
 
 .ht-waveform {

@@ -1,12 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { buildImageUrl, buildStreamUrl } from '../config';
+import { useAuth } from '../contexts/AuthContext';
+import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
+import { memberHasStreamAccess } from '../utils/accessPermissions';
 
 interface ProfileFeaturedTrackProps {
   post: FeedPost;
@@ -23,8 +26,17 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   selected = false,
   onSelectChange
 }) => {
+  const { user } = useAuth();
+  const { prepareEpisode } = usePlayer();
   const streamState = useStreamLinkState(post);
+  const showPlayControls =
+    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+
+  const primePlay = () => {
+    if (!user?.rss_token || !showPlayControls) return;
+    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+  };
 
   const cover = coverUrl ? (
     <img className="ht-featured-cover" src={coverUrl} alt="" />
@@ -37,8 +49,14 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   const body = (
     <>
       <div className="ht-featured-top">
-        {canStream ? (
-          <Link to={`/stream/${post.id}`} state={streamState} className="ht-play-btn" aria-label={`Play ${post.title}`}>
+        {showPlayControls ? (
+          <Link
+            to={`/stream/${post.id}`}
+            state={streamState}
+            className="ht-play-btn"
+            aria-label={`Play ${post.title}`}
+            onClick={primePlay}
+          >
             <svg viewBox="0 0 24 24" aria-hidden>
               <path d="M8 5v14l11-7z" fill="currentColor" />
             </svg>
@@ -51,8 +69,8 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
           </span>
         )}
         <div className="ht-featured-info">
-          {canStream ? (
-            <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-title-link">
+          {showPlayControls ? (
+            <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-title-link" onClick={primePlay}>
               <h2 className="ht-featured-title">{post.title}</h2>
             </Link>
           ) : (
@@ -93,8 +111,8 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
           />
         </label>
       )}
-      {canStream ? (
-        <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-cover-link">
+      {showPlayControls ? (
+        <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-cover-link" onClick={primePlay}>
           {cover}
         </Link>
       ) : (

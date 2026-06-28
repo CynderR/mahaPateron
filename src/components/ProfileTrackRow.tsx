@@ -1,12 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { buildImageUrl, buildStreamUrl } from '../config';
+import { useAuth } from '../contexts/AuthContext';
+import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_GENRE, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
+import { memberHasStreamAccess } from '../utils/accessPermissions';
 
 interface ProfileTrackRowProps {
   post: FeedPost;
@@ -25,7 +28,11 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   selected = false,
   onSelectChange
 }) => {
+  const { user } = useAuth();
+  const { prepareEpisode } = usePlayer();
   const streamState = useStreamLinkState(post);
+  const showPlayControls =
+    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -34,6 +41,11 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
         year: 'numeric'
       })
     : '';
+
+  const primePlay = () => {
+    if (!user?.rss_token || !showPlayControls) return;
+    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+  };
 
   const cover = coverUrl ? (
     <img className="ht-track-cover" src={coverUrl} alt="" />
@@ -58,7 +70,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
       )}
       <div className="ht-track-rank">#{rank}</div>
       <div className="ht-track-cover-wrap">
-        {canStream ? (
+        {showPlayControls ? (
           <Link to={`/stream/${post.id}`} state={streamState} className="ht-track-cover-link">
             {cover}
           </Link>
@@ -68,8 +80,14 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
       </div>
       <div className="ht-track-main">
         <div className="ht-track-head">
-          {canStream ? (
-            <Link to={`/stream/${post.id}`} state={streamState} className="ht-play-btn ht-play-btn-sm" aria-label={`Play ${post.title}`}>
+          {showPlayControls ? (
+            <Link
+              to={`/stream/${post.id}`}
+              state={streamState}
+              className="ht-play-btn ht-play-btn-sm"
+              aria-label={`Play ${post.title}`}
+              onClick={primePlay}
+            >
               <svg viewBox="0 0 24 24" aria-hidden>
                 <path d="M8 5v14l11-7z" fill="currentColor" />
               </svg>
@@ -82,8 +100,8 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
             </span>
           )}
           <div className="ht-track-text">
-            {canStream ? (
-              <Link to={`/stream/${post.id}`} state={streamState} className="ht-track-title-link">
+            {showPlayControls ? (
+              <Link to={`/stream/${post.id}`} state={streamState} className="ht-track-title-link" onClick={primePlay}>
                 <h3 className="ht-track-title">
                   <span className="ht-track-artist-inline">{PODCAST_AUTHOR}</span> {post.title}
                 </h3>

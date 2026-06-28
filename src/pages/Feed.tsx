@@ -34,6 +34,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 
 import { useEpisodeSelection } from '../utils/episodeListHelpers';
 
+import { memberHasDownloadAccess, memberHasStreamAccess } from '../utils/accessPermissions';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -209,9 +210,19 @@ const Feed: React.FC = () => {
 
 
 
-  const canStream = !!meta?.is_paying && !!meta?.canStream;
+  const canStream = useMemo(() => {
+    if (user) {
+      return memberHasStreamAccess(user.is_paying, user.access_type);
+    }
+    return !!meta?.is_paying && !!meta?.canStream;
+  }, [user, meta]);
 
-  const canDownload = !!meta?.is_paying && !!meta?.canDownload;
+  const canDownload = useMemo(() => {
+    if (user) {
+      return memberHasDownloadAccess(user.is_paying, user.access_type);
+    }
+    return !!meta?.is_paying && !!meta?.canDownload;
+  }, [user, meta]);
 
   const featured = !searchQuery && posts.length > 0 ? posts[0] : null;
 
