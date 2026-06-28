@@ -45,6 +45,9 @@ const authenticateToken = (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+    res.set('Cache-Control', 'no-store, private');
+    res.set('Pragma', 'no-cache');
+    res.set('Vary', 'Authorization');
     req.user = user;
     next();
   });

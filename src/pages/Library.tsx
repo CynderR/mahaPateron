@@ -10,6 +10,7 @@ import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { useMemberAccess } from '../hooks/useMemberAccess';
 import {
   AdminSortDir,
   AdminSortField,
@@ -106,7 +107,7 @@ const Library: React.FC = () => {
   const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
   const lockedCount = meta ? meta.catalogTotal - meta.accessible : 0;
-  const canDownload = !!meta?.is_paying && !!meta?.canDownload;
+  const { isPayingMember, canStream, canDownload } = useMemberAccess(meta);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -174,13 +175,13 @@ const Library: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && meta && !meta.is_paying && (
+        {!loading && !isPayingMember && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
         )}
 
-        {!loading && meta && meta.is_paying && lockedCount > 0 && !meta.back_catalog_access && (
+        {!loading && isPayingMember && lockedCount > 0 && !meta?.back_catalog_access && (
           <div className="pod-banner pod-banner-info">
             {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
           </div>
@@ -195,7 +196,7 @@ const Library: React.FC = () => {
                 <PodcastEpisodeCard
                   key={entry.id}
                   post={entry}
-                  canStream={!!meta?.is_paying && !!meta.canStream && entry.accessible}
+                  canStream={canStream && entry.accessible}
                   canDownload={canDownload && entry.accessible}
                   selected={selectedIds.has(entry.id)}
                   onSelectChange={selectionProps.onSelectChange}
@@ -214,13 +215,13 @@ const Library: React.FC = () => {
       <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && meta && !meta.is_paying && (
+        {!loading && !isPayingMember && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
         )}
 
-        {!loading && meta && meta.is_paying && lockedCount > 0 && !meta.back_catalog_access && (
+        {!loading && isPayingMember && lockedCount > 0 && !meta?.back_catalog_access && (
           <div className="pod-banner pod-banner-info">
             {lockedCount} older {lockedCount === 1 ? 'episode is' : 'episodes are'} not included in your plan.
             Contact the administrator for full archive access.
@@ -237,7 +238,7 @@ const Library: React.FC = () => {
                   key={entry.id}
                   post={entry}
                   rssToken={user?.rss_token}
-                  canStream={!!meta?.is_paying && meta.canStream && entry.accessible}
+                  canStream={canStream && entry.accessible}
                   canDownload={canDownload && entry.accessible}
                   locked={!entry.accessible}
                   selected={selectedIds.has(entry.id)}

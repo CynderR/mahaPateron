@@ -63,6 +63,8 @@ const clearStoredToken = () => {
 
 // Configure axios defaults
 axios.defaults.baseURL = API_BASE_URL;
+axios.defaults.headers.common['Cache-Control'] = 'no-cache';
+axios.defaults.headers.common['Pragma'] = 'no-cache';
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);

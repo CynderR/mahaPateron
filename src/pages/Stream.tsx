@@ -9,6 +9,7 @@ import AdminFeedShareAction from '../components/admin/AdminFeedShareAction';
 import ThemeToggle from '../components/ThemeToggle';
 import { FeedPost } from '../components/PostCard';
 import { resolveStreamBackTarget, StreamLocationState } from '../utils/streamNavigation';
+import { memberHasDownloadAccess, memberHasStreamAccess, memberIsPaying } from '../utils/accessPermissions';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -39,6 +40,14 @@ const Stream: React.FC = () => {
 
   const playerPost =
     data?.post ?? (navPost && navPost.id === postId ? navPost : null);
+
+  const isPayingMember = memberIsPaying(user?.is_paying ?? data?.is_paying);
+  const canStream = user
+    ? memberHasStreamAccess(user.is_paying, user.access_type)
+    : data?.canStream ?? true;
+  const canDownload = user
+    ? memberHasDownloadAccess(user.is_paying, user.access_type)
+    : !!(data?.canDownload && memberIsPaying(data?.is_paying));
 
   useEffect(() => {
     if (!postId) return;
@@ -182,16 +191,16 @@ const Stream: React.FC = () => {
                 post={playerPost}
                 rssToken={user.rss_token}
                 coverUrl={coverUrl}
-                accessible={data ? data.accessible && data.is_paying : true}
-                canStream={data ? data.canStream : true}
-                canDownload={data ? data.canDownload && data.is_paying : false}
+                accessible={data ? data.accessible && isPayingMember : true}
+                canStream={canStream}
+                canDownload={canDownload}
                 returnPath={returnPath}
               />
             </div>
           </article>
         )}
 
-        {!loading && data && !data.is_paying && (
+        {!loading && data && !isPayingMember && (
           <div className="stream-card stream-card-banner">
             <p className="stream-unavailable" style={{ margin: 0 }}>
               Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen.

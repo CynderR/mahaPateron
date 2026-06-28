@@ -31,10 +31,8 @@ import { buildImageUrl } from '../config';
 import { PODCAST_AUTHOR, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../podcastMeta';
 
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
-
+import { useMemberAccess } from '../hooks/useMemberAccess';
 import { useEpisodeSelection } from '../utils/episodeListHelpers';
-
-import { memberHasDownloadAccess, memberHasStreamAccess } from '../utils/accessPermissions';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -208,21 +206,7 @@ const Feed: React.FC = () => {
 
   const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
-
-
-  const canStream = useMemo(() => {
-    if (user) {
-      return memberHasStreamAccess(user.is_paying, user.access_type);
-    }
-    return !!meta?.is_paying && !!meta?.canStream;
-  }, [user, meta]);
-
-  const canDownload = useMemo(() => {
-    if (user) {
-      return memberHasDownloadAccess(user.is_paying, user.access_type);
-    }
-    return !!meta?.is_paying && !!meta?.canDownload;
-  }, [user, meta]);
+  const { isPayingMember, canStream, canDownload } = useMemberAccess(meta);
 
   const featured = !searchQuery && posts.length > 0 ? posts[0] : null;
 
@@ -388,7 +372,7 @@ const Feed: React.FC = () => {
 
 
 
-        {!loading && meta && !meta.is_paying && (
+        {!loading && !isPayingMember && (
 
           <div className="pod-banner pod-banner-info">
 
@@ -516,7 +500,7 @@ const Feed: React.FC = () => {
 
 
 
-          {!loading && meta && !meta.is_paying && (
+          {!loading && !isPayingMember && (
 
             <div className="ht-banner ht-banner-info">
 
