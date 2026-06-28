@@ -23,10 +23,12 @@ const DownloadEpisodeButton: React.FC<DownloadEpisodeButtonProps> = ({
     return null;
   }
 
+  const rssToken = user.rss_token;
+
   const handleDownload = () => {
     setBusy(true);
     try {
-      const url = buildDownloadUrl(postId, user.rss_token);
+      const url = buildDownloadUrl(postId, rssToken);
       const link = document.createElement('a');
       link.href = url;
       link.download = `${postTitle.replace(/[^\w\s.-]+/g, '').trim() || 'episode'}.mp3`;
