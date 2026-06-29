@@ -220,15 +220,6 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
       )}
 
       <footer className="stream-global-bar stream-desktop-only">
-        <button
-          type="button"
-          className="stream-play-btn stream-play-btn-bar"
-          onClick={() => togglePlayback()}
-          disabled={!canPlay}
-          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
-        >
-          <PlayIcon />
-        </button>
         <PlayerControls
           className="stream-global-bar-controls"
           onPrevious={goPrev}

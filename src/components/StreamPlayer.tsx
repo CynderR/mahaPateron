@@ -244,15 +244,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       )}
 
       <footer className="stream-global-bar stream-desktop-only">
-        <button
-          type="button"
-          className="stream-play-btn stream-play-btn-bar"
-          onClick={() => togglePlayback()}
-          disabled={!canPlay}
-          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
-        >
-          <PlayIcon />
-        </button>
         <PlayerControls
           className="stream-global-bar-controls"
           onPrevious={goPrev}
@@ -327,15 +318,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
               aria-label="Rewind 15 seconds"
             >
               -15
-            </button>
-            <button
-              type="button"
-              className="stream-play-btn stream-play-btn-mobile stream-play-btn-bar-mobile"
-              onClick={() => togglePlayback()}
-              disabled={!canPlay}
-              aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
-            >
-              <PlayIcon />
             </button>
             <button
               type="button"
