@@ -77,7 +77,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     mediaReady,
     getNextPostId,
     getPrevPostId,
-    prepareEpisode,
+    loadEpisodeForStream,
     playNextInQueue,
     togglePlayback,
     seekTo,
@@ -125,9 +125,9 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
 
   useLayoutEffect(() => {
     if (playable) {
-      prepareEpisode(post.id, streamUrl, post.duration_secs);
+      loadEpisodeForStream(post.id, streamUrl, post.duration_secs);
     }
-  }, [playable, post.id, post.duration_secs, streamUrl, prepareEpisode]);
+  }, [playable, post.id, post.duration_secs, streamUrl, loadEpisodeForStream]);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!playable || !effectiveDuration) return;

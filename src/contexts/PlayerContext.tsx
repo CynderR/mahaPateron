@@ -70,6 +70,7 @@ interface PlayerContextType {
   deletePlaylist: (playlistId: string) => Promise<void>;
   prepareEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
   playEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
+  loadEpisodeForStream: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
   togglePlayback: () => void;
   seekTo: (time: number) => void;
   skipBy: (delta: number) => void;
@@ -119,7 +120,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const loadedPostIdRef = useRef<string | null>(null);
   const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
   const blobUrlRef = useRef<string | null>(null);
-  const autoplayOnLoadRef = useRef(false);
+  const autoplayAdvancePostIdRef = useRef<string | null>(null);
   const autoplayDeadlineRef = useRef<number | null>(null);
   const autoplayTimedOutRef = useRef(false);
   const playbackErrorRef = useRef<string | null>(null);
@@ -175,7 +176,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     autoplayDeadlineRef.current = null;
     autoplayTimedOutRef.current = true;
     setAutoplayTimeRemainingMs(null);
-    autoplayOnLoadRef.current = false;
+    autoplayAdvancePostIdRef.current = null;
     if (audio) {
       clearPendingPlay();
       audio.pause();
@@ -472,6 +473,18 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [assignEpisode, preloadEpisodeMedia, requestPlay]
   );
 
+  const loadEpisodeForStream = useCallback(
+    (postId: string, streamUrl: string, durationSecs?: number | null) => {
+      if (autoplayAdvancePostIdRef.current === postId) {
+        autoplayAdvancePostIdRef.current = null;
+        playEpisode(postId, streamUrl, durationSecs);
+        return;
+      }
+      prepareEpisode(postId, streamUrl, durationSecs);
+    },
+    [playEpisode, prepareEpisode]
+  );
+
   const playNextInQueue = useCallback((): QueuePost | null => {
     if (queue.length === 0 || !user?.rss_token) return null;
     if (autoplayTimedOutRef.current || isAutoplayTimeoutExpired()) {
@@ -486,22 +499,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!nextPost) return null;
 
     setCurrentIndex(nextIndex);
-    autoplayOnLoadRef.current = true;
-    const streamUrl = buildStreamUrl(nextPost.id, user.rss_token);
-    prepareEpisode(nextPost.id, streamUrl, nextPost.duration_secs);
+    autoplayAdvancePostIdRef.current = nextPost.id;
     return nextPost;
-  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, prepareEpisode, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
-
-  useEffect(() => {
-    if (!autoplayOnLoadRef.current || mediaLoading || !mediaReady) return;
-    if (isAutoplayTimeoutExpired()) {
-      autoplayOnLoadRef.current = false;
-      stopForAutoplayTimeout();
-      return;
-    }
-    autoplayOnLoadRef.current = false;
-    requestPlay();
-  }, [mediaLoading, mediaReady, activePostId, requestPlay, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
 
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -843,6 +843,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       deletePlaylist: deletePlaylistById,
       prepareEpisode,
       playEpisode,
+      loadEpisodeForStream,
       playNextInQueue,
       togglePlayback,
       seekTo,
@@ -882,6 +883,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       deletePlaylistById,
       prepareEpisode,
       playEpisode,
+      loadEpisodeForStream,
       playNextInQueue,
       togglePlayback,
       seekTo,
