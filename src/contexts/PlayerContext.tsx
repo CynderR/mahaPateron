@@ -94,6 +94,8 @@ const readReplayMode = (): ReplayMode => {
 
 const readShuffle = (): boolean => localStorage.getItem(SHUFFLE_STORAGE_KEY) === 'true';
 
+const SEEK_PLAYBACK_GRACE_MS = 15000;
+
 const audioHasEpisode = (audio: HTMLAudioElement, postId: string, blobUrl: string | null): boolean => {
   const src = audio.currentSrc || audio.src || '';
   if (blobUrl && src === blobUrl) return true;
@@ -439,6 +441,35 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     requestPlayRef.current = requestPlay;
   }, [requestPlay]);
 
+  const resumeAfterSeek = useCallback(
+    (audio: HTMLAudioElement, shouldResume: boolean) => {
+      if (!shouldResume || !assignedSourceRef.current) return;
+
+      playbackGraceUntilRef.current = Date.now() + SEEK_PLAYBACK_GRACE_MS;
+
+      const resume = () => {
+        if (!assignedSourceRef.current) return;
+        if (!audio.paused) {
+          setPlaying(true);
+          return;
+        }
+        const attempt = audio.play();
+        if (attempt) {
+          attempt.catch(() => requestPlay());
+        } else {
+          requestPlay();
+        }
+      };
+
+      if (audio.seeking) {
+        audio.addEventListener('seeked', resume, { once: true });
+      } else {
+        resume();
+      }
+    },
+    [requestPlay]
+  );
+
   const preloadEpisodeMedia = useCallback(
     (postId: string, streamUrl: string) => {
       const forcePrime = !sourceIsPrimed(postId);
@@ -566,9 +597,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     (time: number) => {
       const audio = audioRef.current;
       if (!audio || !assignedSourceRef.current) return;
+      const shouldResume = !audio.paused && !audio.ended;
       audio.currentTime = clampPlaybackTime(time, audio.duration);
+      resumeAfterSeek(audio, shouldResume);
     },
-    [clampPlaybackTime]
+    [clampPlaybackTime, resumeAfterSeek]
   );
 
   const skipBy = useCallback(
@@ -578,32 +611,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const shouldResume = !audio.paused && !audio.ended;
 
       audio.currentTime = clampPlaybackTime(audio.currentTime + delta, audio.duration);
-
-      if (!shouldResume) return;
-
-      playbackGraceUntilRef.current = Date.now() + 15000;
-
-      const resume = () => {
-        if (!assignedSourceRef.current) return;
-        if (!audio.paused) {
-          setPlaying(true);
-          return;
-        }
-        const attempt = audio.play();
-        if (attempt) {
-          attempt.catch(() => requestPlay());
-        } else {
-          requestPlay();
-        }
-      };
-
-      if (audio.seeking) {
-        audio.addEventListener('seeked', resume, { once: true });
-      } else {
-        resume();
-      }
+      resumeAfterSeek(audio, shouldResume);
     },
-    [clampPlaybackTime, requestPlay]
+    [clampPlaybackTime, resumeAfterSeek]
   );
 
   const registerTrackEndedHandler = useCallback((handler: (() => void) | null) => {
@@ -643,7 +653,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
     const onPlaying = () => {
       playRequestedRef.current = false;
-      playbackGraceUntilRef.current = 0;
       if (autoplayAdvancePostIdRef.current === activePostIdRef.current) {
         autoplayAdvancePostIdRef.current = null;
       }
@@ -697,7 +706,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const intervalId = window.setInterval(() => {
       if (!audio || audio.paused) return;
 
-      if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+      if (
+        audio.seeking ||
+        audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA ||
+        audio.networkState === HTMLMediaElement.NETWORK_LOADING
+      ) {
         stalledChecks = 0;
         lastTime = audio.currentTime;
         return;
