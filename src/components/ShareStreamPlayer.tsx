@@ -7,6 +7,7 @@ import PlayerControls from './PlayerControls';
 import EpisodeTransportBar from './EpisodeTransportBar';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 import PlaybackProgressBar from './PlaybackProgressBar';
+import StreamEpisodeMetadata from './StreamEpisodeMetadata';
 import { StreamLocationState } from '../utils/streamNavigation';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 import {
@@ -227,7 +228,11 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
         className="stream-desktop-scrubber stream-desktop-only"
       />
 
-      {post.description && <p className="stream-description stream-desktop-only">{post.description}</p>}
+      <StreamEpisodeMetadata
+        description={post.description}
+        metadataClassName="stream-metadata stream-desktop-only"
+        notesClassName="stream-description stream-desktop-only"
+      />
 
       <div className="stream-card-footer stream-desktop-only">
         <div className="stream-footer-meta">

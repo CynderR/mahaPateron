@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FeedPost } from '../PostCard';
 import { PODCAST_AUTHOR } from '../../podcastMeta';
-import { stripFeedMetadataFromDescription } from '../../utils/feedDescriptionHelpers';
+import StreamEpisodeMetadata from '../StreamEpisodeMetadata';
 import PlaylistPicker from '../PlaylistPicker';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
 
@@ -69,8 +69,6 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   const remaining = Math.max(0, duration - currentTime);
 
   const readyToPlay = canPlay ?? playable;
-
-  const displayDescription = stripFeedMetadataFromDescription(post.description);
 
   return (
     <div className="pod-stream pod-mobile-only">
@@ -162,10 +160,14 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         </Link>
       </div>
 
-      {displayDescription && (
+      {(post.description) && (
         <section className="pod-stream-notes">
           <h2>Show notes</h2>
-          <p>{displayDescription}</p>
+          <StreamEpisodeMetadata
+            description={post.description}
+            metadataClassName="stream-metadata pod-stream-metadata"
+            notesClassName="pod-stream-notes-body"
+          />
         </section>
       )}
     </div>

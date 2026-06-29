@@ -10,6 +10,7 @@ import PlaylistPicker from './PlaylistPicker';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 import PlaybackProgressBar from './PlaybackProgressBar';
+import StreamEpisodeMetadata from './StreamEpisodeMetadata';
 import { buildStreamState } from '../utils/streamNavigation';
 import {
   blurEpisodeTransportFocus
@@ -238,10 +239,18 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
 
       <div className="stream-description-block stream-ht-mobile-only">
         <p className="stream-description-label">Profile description of {PODCAST_AUTHOR}:</p>
-        <p className="stream-description">{post.description || 'Members-only audio from Shyam Akaash.'}</p>
+        {post.description ? (
+          <StreamEpisodeMetadata description={post.description} />
+        ) : (
+          <p className="stream-description">Members-only audio from Shyam Akaash.</p>
+        )}
       </div>
 
-      {post.description && <p className="stream-description stream-desktop-only">{post.description}</p>}
+      <StreamEpisodeMetadata
+        description={post.description}
+        metadataClassName="stream-metadata stream-desktop-only"
+        notesClassName="stream-description stream-desktop-only"
+      />
 
       <div className="stream-card-footer stream-desktop-only">
         <div className="stream-footer-meta">

@@ -1401,6 +1401,15 @@ body.global-now-playing-active .feed-page {
   background: rgba(255, 255, 255, 0.08);
 }
 
+.stream-metadata {
+  grid-area: desc;
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: pre-wrap;
+}
+
 .stream-description {
   grid-area: desc;
   margin: 0;
