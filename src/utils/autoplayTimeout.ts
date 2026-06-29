@@ -3,7 +3,7 @@ export type AutoplayTimeoutHours = 0 | 1 | 2 | 4 | 8 | 12;
 export const AUTOPLAY_TIMEOUT_STORAGE_KEY = 'playerAutoplayTimeoutHours';
 
 export const AUTOPLAY_TIMEOUT_OPTIONS: { value: AutoplayTimeoutHours; label: string }[] = [
-  { value: 0, label: 'Off' },
+  { value: 0, label: 'Replay Timer' },
   { value: 1, label: '1 hour' },
   { value: 2, label: '2 hours' },
   { value: 4, label: '4 hours' },
