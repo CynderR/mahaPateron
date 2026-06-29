@@ -575,9 +575,35 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     (delta: number) => {
       const audio = audioRef.current;
       if (!audio || !assignedSourceRef.current) return;
+      const shouldResume = !audio.paused && !audio.ended;
+
       audio.currentTime = clampPlaybackTime(audio.currentTime + delta, audio.duration);
+
+      if (!shouldResume) return;
+
+      playbackGraceUntilRef.current = Date.now() + 15000;
+
+      const resume = () => {
+        if (!assignedSourceRef.current) return;
+        if (!audio.paused) {
+          setPlaying(true);
+          return;
+        }
+        const attempt = audio.play();
+        if (attempt) {
+          attempt.catch(() => requestPlay());
+        } else {
+          requestPlay();
+        }
+      };
+
+      if (audio.seeking) {
+        audio.addEventListener('seeked', resume, { once: true });
+      } else {
+        resume();
+      }
     },
-    [clampPlaybackTime]
+    [clampPlaybackTime, requestPlay]
   );
 
   const registerTrackEndedHandler = useCallback((handler: (() => void) | null) => {
