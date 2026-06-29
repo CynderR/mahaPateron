@@ -3,6 +3,7 @@ import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminUser } from '../../components/UserTable';
 import { ROUTER_BASENAME } from '../../config';
+import { PAYMENT_CATEGORIES, PAYMENT_CATEGORY_LABELS } from '../../utils/paymentCategories';
 
 interface UsersResponse {
   users: AdminUser[];
@@ -138,10 +139,11 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Payment category</label>
               <select className="pod-select" value={newUser.payment_category} onChange={(e) => setNewUser({ ...newUser, payment_category: e.target.value })}>
-                <option value="full">full</option>
-                <option value="free">free</option>
-                <option value="discounted">discounted</option>
-                <option value="non_card">non_card</option>
+                {PAYMENT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {PAYMENT_CATEGORY_LABELS[category]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="pod-form-group">
@@ -200,10 +202,11 @@ const Users: React.FC = () => {
               <label>Payment</label>
               <select className="pod-select" value={filters.payment_category} onChange={(e) => { setPage(1); setFilters({ ...filters, payment_category: e.target.value }); }}>
                 <option value="">All</option>
-                <option value="full">full</option>
-                <option value="free">free</option>
-                <option value="discounted">discounted</option>
-                <option value="non_card">non_card</option>
+                {PAYMENT_CATEGORIES.map((category) => (
+                  <option key={category} value={category}>
+                    {PAYMENT_CATEGORY_LABELS[category]}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>

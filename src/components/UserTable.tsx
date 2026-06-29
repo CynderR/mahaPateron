@@ -1,6 +1,7 @@
 import React from 'react';
 
 import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
+import { PAYMENT_CATEGORIES, PAYMENT_CATEGORY_LABELS } from '../utils/paymentCategories';
 
 export interface AdminUser {
   id: number;
@@ -22,8 +23,6 @@ interface UserTableProps {
   onUpdate: (id: number, field: string, value: unknown) => void;
   onDelete: (id: number) => void;
 }
-
-const PAYMENT_CATEGORIES = ['full', 'free', 'discounted', 'non_card'];
 
 const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDelete }) => {
   const copyRss = (token: string) => {
@@ -72,7 +71,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
                 >
                   {PAYMENT_CATEGORIES.map((c) => (
                     <option key={c} value={c}>
-                      {c}
+                      {PAYMENT_CATEGORY_LABELS[c]}
                     </option>
                   ))}
                 </select>
