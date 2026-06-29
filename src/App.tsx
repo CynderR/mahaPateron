@@ -24,6 +24,7 @@ import Playlists from './pages/Playlists';
 import PublicShare from './pages/PublicShare';
 import { PlayerProvider } from './contexts/PlayerContext';
 import GlobalNowPlayingBar from './components/GlobalNowPlayingBar';
+import PlaybackKeyboardShortcuts from './components/PlaybackKeyboardShortcuts';
 import './App.css';
 import './styles/themes.css';
 import './styles/podcast.css';
@@ -154,6 +155,7 @@ function App() {
         <PlayerProvider>
           <Router basename={ROUTER_BASENAME}>
             <div className="App">
+              <PlaybackKeyboardShortcuts />
               <AppRoutes />
               <GlobalNowPlayingBar />
             </div>

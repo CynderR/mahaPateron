@@ -10,8 +10,7 @@ import PlaybackProgressBar from './PlaybackProgressBar';
 import { StreamLocationState } from '../utils/streamNavigation';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 import {
-  blurEpisodeTransportFocus,
-  usePlaybackKeyboardShortcuts
+  blurEpisodeTransportFocus
 } from '../hooks/usePlaybackKeyboardShortcuts';
 
 interface ShareStreamPlayerProps {
@@ -134,8 +133,6 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
   useLayoutEffect(() => {
     blurEpisodeTransportFocus();
   }, [post.id]);
-
-  usePlaybackKeyboardShortcuts(playable, canPlay, togglePlayback);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!playable || !effectiveDuration) return;

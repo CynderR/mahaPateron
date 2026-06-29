@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { ROUTER_BASENAME } from '../config';
 
 const isTypingTarget = (target: EventTarget | null): boolean => {
   if (!(target instanceof HTMLElement)) return false;
@@ -19,12 +20,16 @@ const shouldIgnorePlaybackShortcut = (target: EventTarget | null): boolean => {
   return false;
 };
 
-/** Space toggles play/pause (capture phase) so transport buttons keep focus after track changes. */
-export const usePlaybackKeyboardShortcuts = (
-  enabled: boolean,
-  canToggle: boolean,
-  onToggle: () => void
-): void => {
+export const isStreamPlayPath = (pathname: string): boolean => {
+  const path =
+    ROUTER_BASENAME && pathname.startsWith(ROUTER_BASENAME)
+      ? pathname.slice(ROUTER_BASENAME.length) || '/'
+      : pathname;
+  return /\/stream\/[^/]+/.test(path);
+};
+
+/** Space always toggles play/pause in play mode (capture phase). */
+export const usePlaybackKeyboardShortcuts = (enabled: boolean, onToggle: () => void): void => {
   useEffect(() => {
     if (!enabled) return undefined;
 
@@ -32,14 +37,13 @@ export const usePlaybackKeyboardShortcuts = (
       if (event.code !== 'Space' && event.key !== ' ') return;
       if (event.repeat) return;
       if (shouldIgnorePlaybackShortcut(event.target)) return;
-      if (!canToggle) return;
       event.preventDefault();
       onToggle();
     };
 
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [enabled, canToggle, onToggle]);
+  }, [enabled, onToggle]);
 };
 
 export const blurEpisodeTransportFocus = (): void => {
