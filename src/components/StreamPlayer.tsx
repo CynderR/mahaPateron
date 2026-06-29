@@ -5,6 +5,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import FavoriteButton from './FavoriteButton';
 import PlayerControls from './PlayerControls';
+import EpisodeTransportBar from './EpisodeTransportBar';
 import PlaylistPicker from './PlaylistPicker';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
@@ -190,6 +191,16 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <h1 className="stream-title">{post.title}</h1>
       </div>
 
+      <EpisodeTransportBar
+        className="stream-desktop-only"
+        onSkip={skipBy}
+        onPrevious={goPrev}
+        onNext={goNext}
+        canPrevious={!!prevId}
+        canNext={!!nextId}
+        canSkip={playable}
+      />
+
       <div className="stream-author stream-desktop-only">
         <div className="stream-author-avatar" aria-hidden>
           {PODCAST_AUTHOR.charAt(0)}
@@ -246,12 +257,8 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       <footer className="stream-global-bar stream-desktop-only">
         <PlayerControls
           className="stream-global-bar-controls"
-          onPrevious={goPrev}
-          onNext={goNext}
-          canPrevious={!!prevId}
-          canNext={!!nextId}
-          onSkip={skipBy}
-          canSkip={playable}
+          showSkip={false}
+          showTrackNav={false}
         />
         <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
@@ -288,14 +295,15 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         <div className="stream-mobile-bar-player-tools">
           <PlayerControls
             className="stream-mobile-bar-player-controls"
-            onPrevious={goPrev}
-            onNext={goNext}
-            canPrevious={!!prevId}
-            canNext={!!nextId}
-            onSkip={skipBy}
-            canSkip={playable}
+            showSkip={false}
+            showTrackNav={false}
           />
           <FavoriteButton postId={post.id} className="stream-mobile-bar-icon-wrap" />
+          <Link to="/playlists" className="stream-mobile-bar-icon" aria-label="Playlists">
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
+            </svg>
+          </Link>
         </div>
         <div className="stream-mobile-bar-inner">
           {coverUrl ? (
@@ -308,42 +316,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           <div className="stream-mobile-bar-info">
             <p className="stream-mobile-bar-title">{truncate(post.title, 32)}</p>
             <p className="stream-mobile-bar-artist">{PODCAST_AUTHOR}</p>
-          </div>
-          <div className="stream-mobile-bar-controls">
-            <button
-              type="button"
-              className="stream-mobile-bar-skip"
-              onClick={() => skipBy(-15)}
-              disabled={!playable}
-              aria-label="Rewind 15 seconds"
-            >
-              -15
-            </button>
-            <button
-              type="button"
-              className="stream-mobile-bar-skip"
-              onClick={() => skipBy(15)}
-              disabled={!playable}
-              aria-label="Forward 15 seconds"
-            >
-              +15
-            </button>
-            <button
-              type="button"
-              className="stream-mobile-bar-icon"
-              aria-label="Next"
-              onClick={goNext}
-              disabled={!nextId}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
-              </svg>
-            </button>
-            <Link to="/playlists" className="stream-mobile-bar-icon" aria-label="Playlists">
-              <svg viewBox="0 0 24 24" aria-hidden>
-                <path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z" />
-              </svg>
-            </Link>
           </div>
         </div>
       </footer>

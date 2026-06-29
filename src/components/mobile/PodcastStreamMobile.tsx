@@ -90,25 +90,6 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         {published && <p className="pod-stream-date">{published}</p>}
       </div>
 
-      <div className="pod-stream-scrubber">
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={1}
-          value={Math.min(currentTime, duration || 0)}
-          disabled={!playable}
-          onChange={(e) => onSeek(parseFloat(e.target.value))}
-          aria-label="Seek"
-          className="pod-stream-range"
-          style={{ '--pod-progress': `${progress}%` } as React.CSSProperties}
-        />
-        <div className="pod-stream-times">
-          <span>{formatTime(currentTime)}</span>
-          <span>-{formatTime(remaining)}</span>
-        </div>
-      </div>
-
       <div className="pod-stream-transport">
         <button type="button" className="pod-stream-skip" onClick={() => onSkip(-15)} disabled={!playable} aria-label="Back 15 seconds">
           -15
@@ -144,6 +125,25 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         <button type="button" className="pod-stream-skip" onClick={() => onSkip(15)} disabled={!playable} aria-label="Forward 15 seconds">
           +15
         </button>
+      </div>
+
+      <div className="pod-stream-scrubber">
+        <input
+          type="range"
+          min={0}
+          max={duration || 1}
+          step={1}
+          value={Math.min(currentTime, duration || 0)}
+          disabled={!playable}
+          onChange={(e) => onSeek(parseFloat(e.target.value))}
+          aria-label="Seek"
+          className="pod-stream-range"
+          style={{ '--pod-progress': `${progress}%` } as React.CSSProperties}
+        />
+        <div className="pod-stream-times">
+          <span>{formatTime(currentTime)}</span>
+          <span>-{formatTime(remaining)}</span>
+        </div>
       </div>
 
       {mediaLoading && playable && (

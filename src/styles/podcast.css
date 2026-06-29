@@ -966,6 +966,7 @@
   grid-template-columns: 200px 1fr;
   grid-template-areas:
     'cover header'
+    '. transport'
     'author .'
     'wave wave'
     'scrubber scrubber'
@@ -1074,6 +1075,66 @@
   line-height: 1.35;
   color: #fff;
   word-break: break-word;
+}
+
+.stream-episode-transport {
+  grid-area: transport;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-left: calc(3.25rem + 1rem);
+  margin-top: -0.35rem;
+}
+
+.stream-episode-transport-skip {
+  min-width: 2.5rem;
+  padding: 0.35rem 0.5rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.stream-episode-transport-skip:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.stream-episode-transport-skip:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.stream-episode-transport-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: none;
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background-color 0.2s ease;
+}
+
+.stream-episode-transport-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.stream-episode-transport-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.stream-episode-transport-btn svg {
+  width: 1.4rem;
+  height: 1.4rem;
+  pointer-events: none;
 }
 
 .stream-author {

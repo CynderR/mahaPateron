@@ -4,6 +4,7 @@ import { buildPublicShareStreamUrl } from '../config';
 import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import PlayerControls from './PlayerControls';
+import EpisodeTransportBar from './EpisodeTransportBar';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 import PlaybackProgressBar from './PlaybackProgressBar';
 import { StreamLocationState } from '../utils/streamNavigation';
@@ -185,6 +186,16 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
         <h1 className="stream-title">{post.title}</h1>
       </div>
 
+      <EpisodeTransportBar
+        className="stream-desktop-only"
+        onSkip={skipBy}
+        onPrevious={goPrev}
+        onNext={goNext}
+        canPrevious={!!prevId}
+        canNext={!!nextId}
+        canSkip={playable}
+      />
+
       <div className="stream-author stream-desktop-only">
         <div className="stream-author-avatar" aria-hidden>
           {PODCAST_AUTHOR.charAt(0)}
@@ -222,12 +233,8 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
       <footer className="stream-global-bar stream-desktop-only">
         <PlayerControls
           className="stream-global-bar-controls"
-          onPrevious={goPrev}
-          onNext={goNext}
-          canPrevious={!!prevId}
-          canNext={!!nextId}
-          onSkip={skipBy}
-          canSkip={playable}
+          showSkip={false}
+          showTrackNav={false}
         />
         <Link to="/signin" className="pod-btn pod-btn-secondary pod-btn-sm">
           Sign in for RSS

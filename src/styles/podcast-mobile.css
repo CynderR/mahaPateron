@@ -531,7 +531,7 @@
     align-items: center;
     justify-content: center;
     gap: 0.65rem;
-    margin-bottom: 1.25rem;
+    margin: 0.5rem 0 1rem;
   }
 
   .pod-stream-skip {

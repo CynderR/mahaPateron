@@ -10,6 +10,8 @@ interface PlayerControlsProps {
   canNext?: boolean;
   onSkip?: (delta: number) => void;
   canSkip?: boolean;
+  showSkip?: boolean;
+  showTrackNav?: boolean;
   className?: string;
 }
 
@@ -20,6 +22,8 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
   canNext = false,
   onSkip,
   canSkip = true,
+  showSkip = true,
+  showTrackNav = true,
   className = ''
 }) => {
   const { replayMode, shuffle, cycleReplay, toggleShuffle } = usePlayer();
@@ -59,7 +63,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         <span className="player-control-label">Random</span>
       </button>
 
-      {onSkip && (
+      {showSkip && onSkip && (
         <>
           <button
             type="button"
@@ -84,29 +88,33 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
         </>
       )}
 
-      <button
-        type="button"
-        className="player-control-btn"
-        onClick={onPrevious}
-        disabled={!canPrevious}
-        aria-label="Previous track"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden>
-          <path fill="currentColor" d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-        </svg>
-      </button>
+      {showTrackNav && (
+        <>
+          <button
+            type="button"
+            className="player-control-btn"
+            onClick={onPrevious}
+            disabled={!canPrevious}
+            aria-label="Previous track"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path fill="currentColor" d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
+            </svg>
+          </button>
 
-      <button
-        type="button"
-        className="player-control-btn"
-        onClick={onNext}
-        disabled={!canNext}
-        aria-label="Next track"
-      >
-        <svg viewBox="0 0 24 24" aria-hidden>
-          <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
-        </svg>
-      </button>
+          <button
+            type="button"
+            className="player-control-btn"
+            onClick={onNext}
+            disabled={!canNext}
+            aria-label="Next track"
+          >
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
+            </svg>
+          </button>
+        </>
+      )}
 
       <AutoplayTimeoutSelect compact />
     </div>
