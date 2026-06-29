@@ -16,7 +16,7 @@ export const memberHasDownloadAccess = (
 ): boolean => memberIsPaying(isPaying) && memberCanDownload(accessType);
 
 export const memberCanDownload = (accessType?: string | null): boolean =>
-  accessType === 'download' || accessType === 'both' || accessType === 'streaming';
+  accessType === 'download';
 
 export const memberCanStream = (accessType?: string | null): boolean =>
   accessType === 'streaming' || accessType === 'both';

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { buildDownloadUrl } from '../config';
 import { useAuth } from '../contexts/AuthContext';
-import { memberCanDownload } from '../utils/accessPermissions';
+import { memberHasDownloadAccess } from '../utils/accessPermissions';
 
 interface DownloadEpisodeButtonProps {
   postId: string;
@@ -19,7 +19,7 @@ const DownloadEpisodeButton: React.FC<DownloadEpisodeButtonProps> = ({
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  if (!user?.rss_token || !memberCanDownload(user.access_type)) {
+  if (!user?.rss_token || !memberHasDownloadAccess(user.is_paying, user.access_type)) {
     return null;
   }
 

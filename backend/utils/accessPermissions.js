@@ -5,7 +5,7 @@ const accessFlags = (user) => {
   return {
     canRss: type === 'rss' || type === 'both',
     canStream: type === 'streaming' || type === 'both',
-    canDownload: type === 'download' || type === 'both' || type === 'streaming'
+    canDownload: type === 'download'
   };
 };
 
