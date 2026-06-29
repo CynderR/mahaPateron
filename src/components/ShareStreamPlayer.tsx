@@ -9,6 +9,10 @@ import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 import PlaybackProgressBar from './PlaybackProgressBar';
 import { StreamLocationState } from '../utils/streamNavigation';
 import { PODCAST_AUTHOR } from '../podcastMeta';
+import {
+  blurEpisodeTransportFocus,
+  usePlaybackKeyboardShortcuts
+} from '../hooks/usePlaybackKeyboardShortcuts';
 
 interface ShareStreamPlayerProps {
   post: FeedPost;
@@ -126,6 +130,12 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
       loadEpisodeForStream(post.id, streamUrl, post.duration_secs);
     }
   }, [playable, post.id, post.duration_secs, streamUrl, loadEpisodeForStream]);
+
+  useLayoutEffect(() => {
+    blurEpisodeTransportFocus();
+  }, [post.id]);
+
+  usePlaybackKeyboardShortcuts(playable, canPlay, togglePlayback);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!playable || !effectiveDuration) return;

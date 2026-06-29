@@ -11,6 +11,10 @@ import DownloadEpisodeButton from './DownloadEpisodeButton';
 import PodcastStreamMobile from './mobile/PodcastStreamMobile';
 import PlaybackProgressBar from './PlaybackProgressBar';
 import { buildStreamState } from '../utils/streamNavigation';
+import {
+  blurEpisodeTransportFocus,
+  usePlaybackKeyboardShortcuts
+} from '../hooks/usePlaybackKeyboardShortcuts';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -135,6 +139,12 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       loadEpisodeForStream(post.id, streamUrl, post.duration_secs);
     }
   }, [playable, post.id, post.duration_secs, streamUrl, loadEpisodeForStream]);
+
+  useLayoutEffect(() => {
+    blurEpisodeTransportFocus();
+  }, [post.id]);
+
+  usePlaybackKeyboardShortcuts(playable, canPlay, togglePlayback);
 
   const seekFromWaveform = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!playable || !effectiveDuration) return;
