@@ -183,18 +183,18 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
         >
           <PlayIcon large />
         </button>
-        <h1 className="stream-title">{post.title}</h1>
+        <div className="stream-header-copy">
+          <h1 className="stream-title">{post.title}</h1>
+          <EpisodeTransportBar
+            onSkip={skipBy}
+            onPrevious={goPrev}
+            onNext={goNext}
+            canPrevious={!!prevId}
+            canNext={!!nextId}
+            canSkip={playable}
+          />
+        </div>
       </div>
-
-      <EpisodeTransportBar
-        className="stream-desktop-only"
-        onSkip={skipBy}
-        onPrevious={goPrev}
-        onNext={goNext}
-        canPrevious={!!prevId}
-        canNext={!!nextId}
-        canSkip={playable}
-      />
 
       <div className="stream-author stream-desktop-only">
         <div className="stream-author-avatar" aria-hidden>
