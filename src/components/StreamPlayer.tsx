@@ -72,6 +72,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     playing,
     currentTime,
     duration,
+    streamPreviewSeconds,
     playbackError,
     mediaLoading,
     mediaReady,
@@ -89,7 +90,10 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const streamUrl = buildStreamUrl(post.id, rssToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);
   const mobileBarHeights = useMemo(() => seedHeights(`${post.id}-m`, 60), [post.id]);
-  const effectiveDuration = duration || post.duration_secs || 0;
+  const effectiveDuration =
+    streamPreviewSeconds != null
+      ? streamPreviewSeconds
+      : duration || post.duration_secs || 0;
   const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
   const playable = accessible && canStream;
   const canPlay = playable && mediaReady && !mediaLoading;

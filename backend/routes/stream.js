@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
-const { accessFlags } = require('../utils/accessPermissions');
+const { accessFlags, previewMaxByte, userIsNotSubscribed } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -63,15 +63,16 @@ router.get('/:postId', async (req, res) => {
       if (!user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
-      if (!user.is_paying) {
+      if (!user.is_paying && !userIsNotSubscribed(user)) {
         return res.status(403).json({ error: 'Subscription inactive' });
       }
 
       const flags = accessFlags(user);
       const wantsDownload = req.query.download === '1';
+      const previewOnly = userIsNotSubscribed(user);
 
       if (wantsDownload) {
-        if (!flags.canDownload) {
+        if (!flags.canDownload || previewOnly) {
           return res.status(403).json({ error: 'Your plan does not include download access' });
         }
       } else if (!flags.canStream) {
@@ -82,7 +83,7 @@ router.get('/:postId', async (req, res) => {
       if (!post || !post.is_published) {
         return res.status(404).json({ error: 'Episode not found' });
       }
-      if (!userCanAccessPost(user, post)) {
+      if (!previewOnly && !userCanAccessPost(user, post)) {
         return res.status(403).json({ error: 'This episode is not included in your subscription' });
       }
       streamUserId = user.id;
@@ -103,6 +104,8 @@ router.get('/:postId', async (req, res) => {
 
     const fileSize = stat.size;
     const range = req.headers.range;
+    const previewOnly = user && userIsNotSubscribed(user);
+    const previewMax = previewOnly ? previewMaxByte(fileSize, post.duration_secs) : fileSize - 1;
 
     res.set('Accept-Ranges', 'bytes');
     res.set('Content-Type', 'audio/mpeg');
@@ -125,14 +128,33 @@ router.get('/:postId', async (req, res) => {
         return res.end();
       }
 
-      const chunkSize = end - start + 1;
+      if (previewOnly && start > previewMax) {
+        res.status(416).set('Content-Range', `bytes */${fileSize}`);
+        return res.end();
+      }
+
+      const cappedEnd = previewOnly ? Math.min(end, previewMax) : end;
+      const chunkSize = cappedEnd - start + 1;
       res.status(206);
-      res.set('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      res.set('Content-Range', `bytes ${start}-${cappedEnd}/${fileSize}`);
       res.set('Content-Length', chunkSize);
 
       logStreamEvent({ post_id: post.id, user_id: streamUserId, bytes_sent: chunkSize }).catch(() => {});
 
-      const stream = fs.createReadStream(filePath, { start, end });
+      const stream = fs.createReadStream(filePath, { start, end: cappedEnd });
+      stream.on('error', () => res.destroy());
+      return stream.pipe(res);
+    }
+
+    if (previewOnly) {
+      const end = previewMax;
+      const chunkSize = end + 1;
+      res.status(206);
+      res.set('Content-Range', `bytes 0-${end}/${fileSize}`);
+      res.set('Content-Length', chunkSize);
+      logStreamEvent({ post_id: post.id, user_id: streamUserId, bytes_sent: chunkSize }).catch(() => {});
+
+      const stream = fs.createReadStream(filePath, { start: 0, end });
       stream.on('error', () => res.destroy());
       return stream.pipe(res);
     }

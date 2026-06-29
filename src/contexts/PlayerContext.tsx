@@ -10,6 +10,7 @@ import {
   resolveNextIndex,
   resolvePrevIndex
 } from '../utils/playerQueue';
+import { memberStreamPreviewSeconds } from '../utils/accessPermissions';
 import {
   clearStreamBlob,
   getCachedStreamBlob,
@@ -53,6 +54,7 @@ interface PlayerContextType {
   mediaReady: boolean;
   autoplayTimeoutHours: AutoplayTimeoutHours;
   autoplayTimeRemainingMs: number | null;
+  streamPreviewSeconds: number | null;
   setAutoplayTimeoutHours: (hours: AutoplayTimeoutHours) => void;
   cycleReplay: () => void;
   toggleShuffle: () => void;
@@ -129,6 +131,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
   const playbackGraceUntilRef = useRef(0);
+  const streamPreviewLimitRef = useRef<number | null>(null);
   const replayModeRef = useRef<ReplayMode>(readReplayMode());
   const [replayMode, setReplayMode] = useState<ReplayMode>(readReplayMode);
   const [shuffle, setShuffle] = useState(readShuffle);
@@ -146,6 +149,28 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [mediaReady, setMediaReady] = useState(!prefersBlobPlayback());
   const [autoplayTimeoutHours, setAutoplayTimeoutHoursState] = useState<AutoplayTimeoutHours>(readAutoplayTimeoutHours);
   const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
+
+  const streamPreviewSeconds = useMemo(
+    () => (user ? memberStreamPreviewSeconds(user.payment_category) : null),
+    [user]
+  );
+
+  useEffect(() => {
+    streamPreviewLimitRef.current = streamPreviewSeconds;
+  }, [streamPreviewSeconds]);
+
+  const clampPlaybackTime = useCallback(
+    (time: number, audioDuration?: number) => {
+      const limit = streamPreviewLimitRef.current;
+      const audioMax =
+        audioDuration != null && Number.isFinite(audioDuration) && audioDuration > 0
+          ? audioDuration
+          : duration;
+      const max = limit != null ? Math.min(limit, audioMax || limit) : audioMax || time;
+      return Math.max(0, Math.min(time, max || time));
+    },
+    [duration]
+  );
 
   useEffect(() => {
     replayModeRef.current = replayMode;
@@ -537,19 +562,23 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   }, [clearPendingPlay, primeAudioSource, requestPlay]);
 
-  const seekTo = useCallback((time: number) => {
-    const audio = audioRef.current;
-    if (!audio || !assignedSourceRef.current) return;
-    const max = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : duration;
-    audio.currentTime = Math.max(0, Math.min(time, max || time));
-  }, [duration]);
+  const seekTo = useCallback(
+    (time: number) => {
+      const audio = audioRef.current;
+      if (!audio || !assignedSourceRef.current) return;
+      audio.currentTime = clampPlaybackTime(time, audio.duration);
+    },
+    [clampPlaybackTime]
+  );
 
-  const skipBy = useCallback((delta: number) => {
-    const audio = audioRef.current;
-    if (!audio || !assignedSourceRef.current) return;
-    const max = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : duration;
-    audio.currentTime = Math.max(0, Math.min(audio.currentTime + delta, max || audio.currentTime + delta));
-  }, [duration]);
+  const skipBy = useCallback(
+    (delta: number) => {
+      const audio = audioRef.current;
+      if (!audio || !assignedSourceRef.current) return;
+      audio.currentTime = clampPlaybackTime(audio.currentTime + delta, audio.duration);
+    },
+    [clampPlaybackTime]
+  );
 
   const registerTrackEndedHandler = useCallback((handler: (() => void) | null) => {
     onTrackEndedRef.current = handler;
@@ -569,11 +598,21 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!audio) return;
 
     const onTimeUpdate = () => {
+      const limit = streamPreviewLimitRef.current;
+      if (limit != null && audio.currentTime >= limit - 0.05) {
+        audio.currentTime = limit;
+        audio.pause();
+        setPlaying(false);
+        setCurrentTime(limit);
+        setPlaybackError('Preview limit reached. Subscribe for full access.');
+        return;
+      }
       setCurrentTime(audio.currentTime);
     };
     const onDurationChange = () => {
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
-        setDuration(audio.duration);
+        const limit = streamPreviewLimitRef.current;
+        setDuration(limit != null ? Math.min(limit, audio.duration) : audio.duration);
       }
     };
     const onPlaying = () => {
@@ -844,6 +883,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       mediaReady,
       autoplayTimeoutHours,
       autoplayTimeRemainingMs,
+      streamPreviewSeconds,
       setAutoplayTimeoutHours,
       cycleReplay,
       toggleShuffle,
@@ -885,6 +925,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       mediaReady,
       autoplayTimeoutHours,
       autoplayTimeRemainingMs,
+      streamPreviewSeconds,
       setAutoplayTimeoutHours,
       cycleReplay,
       toggleShuffle,

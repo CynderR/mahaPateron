@@ -30,7 +30,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   const { prepareEpisode } = usePlayer();
   const streamState = useStreamLinkState(post);
   const showPlayControls =
-    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type);
+    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const primePlay = () => {

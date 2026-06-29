@@ -1,7 +1,7 @@
 const express = require('express');
 
 const { BASE_URL } = require('../config');
-const { accessFlags } = require('../utils/accessPermissions');
+const { accessFlags, streamPreviewSeconds, userIsNotSubscribed } = require('../utils/accessPermissions');
 const {
   getUserById,
   getUserByEmail,
@@ -28,6 +28,7 @@ router.get('/feed', async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     const { canStream, canRss, canDownload } = accessFlags(user);
+    const previewSecs = streamPreviewSeconds(user);
     const mapPost = (p) => ({
       id: p.id,
       title: p.title,
@@ -41,7 +42,8 @@ router.get('/feed', async (req, res) => {
       back_catalog_access: !!user.back_catalog_access,
       canStream,
       canRss,
-      canDownload
+      canDownload,
+      streamPreviewSeconds: previewSecs
     };
 
     const { page, limit, q } = req.query;
@@ -83,7 +85,8 @@ router.get('/episodes/:id', async (req, res) => {
     }
 
     const { canStream, canRss, canDownload } = accessFlags(user);
-    const accessible = userCanAccessPost(user, post);
+    const accessible = userIsNotSubscribed(user) || userCanAccessPost(user, post);
+    const previewSecs = streamPreviewSeconds(user);
 
     res.json({
       is_paying: !!user.is_paying,
@@ -91,6 +94,7 @@ router.get('/episodes/:id', async (req, res) => {
       canRss,
       canDownload,
       accessible,
+      streamPreviewSeconds: previewSecs,
       post: {
         id: post.id,
         title: post.title,
@@ -136,6 +140,7 @@ router.get('/library', async (req, res) => {
       genre
     });
     const { canStream, canRss, canDownload } = accessFlags(user);
+    const previewSecs = streamPreviewSeconds(user);
 
     res.json({
       is_paying: !!user.is_paying,
@@ -143,6 +148,7 @@ router.get('/library', async (req, res) => {
       canStream,
       canRss,
       canDownload,
+      streamPreviewSeconds: previewSecs,
       total: result.total,
       catalogTotal: result.catalogTotal,
       accessible: result.accessible,

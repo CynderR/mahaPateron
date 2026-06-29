@@ -27,6 +27,7 @@ interface LibraryResponse {
   back_catalog_access: boolean;
   canStream: boolean;
   canDownload: boolean;
+  streamPreviewSeconds?: number | null;
   total: number;
   catalogTotal: number;
   accessible: number;
@@ -107,7 +108,7 @@ const Library: React.FC = () => {
   const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
   const lockedCount = meta ? meta.catalogTotal - meta.accessible : 0;
-  const { isPayingMember, canStream, canDownload } = useMemberAccess(meta);
+  const { isPayingMember, isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(meta);
 
   const handleSearch = (query: string) => {
     setSearchQuery(query);
@@ -175,7 +176,13 @@ const Library: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && !isPayingMember && (
+        {!loading && isNotSubscribed && (
+          <div className="pod-banner pod-banner-info">
+            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
+          </div>
+        )}
+
+        {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
@@ -196,7 +203,7 @@ const Library: React.FC = () => {
                 <PodcastEpisodeCard
                   key={entry.id}
                   post={entry}
-                  canStream={canStream && entry.accessible}
+                  canStream={canStream && (entry.accessible || isNotSubscribed)}
                   canDownload={canDownload && entry.accessible}
                   selected={selectedIds.has(entry.id)}
                   onSelectChange={selectionProps.onSelectChange}
@@ -215,7 +222,13 @@ const Library: React.FC = () => {
       <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && !isPayingMember && (
+        {!loading && isNotSubscribed && (
+          <div className="pod-banner pod-banner-info">
+            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
+          </div>
+        )}
+
+        {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
             Your subscription is inactive. <Link to="/account/billing">Reactivate it</Link> to listen to episodes.
           </div>
@@ -238,9 +251,9 @@ const Library: React.FC = () => {
                   key={entry.id}
                   post={entry}
                   rssToken={user?.rss_token}
-                  canStream={canStream && entry.accessible}
+                  canStream={canStream && (entry.accessible || isNotSubscribed)}
                   canDownload={canDownload && entry.accessible}
-                  locked={!entry.accessible}
+                  locked={!entry.accessible && !isNotSubscribed}
                   selected={selectedIds.has(entry.id)}
                   onSelectChange={selectionProps.onSelectChange}
                 />

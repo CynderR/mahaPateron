@@ -47,6 +47,8 @@ interface FeedAccessMeta {
 
   canRss: boolean;
 
+  streamPreviewSeconds?: number | null;
+
 }
 
 
@@ -206,7 +208,7 @@ const Feed: React.FC = () => {
 
   const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
-  const { isPayingMember, canStream, canDownload } = useMemberAccess(meta);
+  const { isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(meta);
 
   const featured = !searchQuery && posts.length > 0 ? posts[0] : null;
 
@@ -372,7 +374,19 @@ const Feed: React.FC = () => {
 
 
 
-        {!loading && !isPayingMember && (
+        {!loading && isNotSubscribed && (
+
+          <div className="pod-banner pod-banner-info">
+
+            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
+
+          </div>
+
+        )}
+
+
+
+        {!loading && isInactive && (
 
           <div className="pod-banner pod-banner-info">
 
@@ -500,7 +514,19 @@ const Feed: React.FC = () => {
 
 
 
-          {!loading && !isPayingMember && (
+          {!loading && isNotSubscribed && (
+
+            <div className="ht-banner ht-banner-info">
+
+              Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
+
+            </div>
+
+          )}
+
+
+
+          {!loading && isInactive && (
 
             <div className="ht-banner ht-banner-info">
 
