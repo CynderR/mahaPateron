@@ -1460,6 +1460,7 @@ body.global-now-playing-active .feed-page {
   align-items: center;
   justify-content: space-between;
   padding: 0 1.25rem;
+  overflow: visible;
 }
 
 .stream-volume {
@@ -1714,11 +1715,13 @@ body.global-now-playing-active .feed-page {
     gap: 0.5rem;
     padding: 0.35rem 0.75rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    overflow: visible;
   }
 
   .stream-mobile-bar-player-controls {
     flex: 1;
     min-width: 0;
+    overflow: visible;
   }
 
   .stream-mobile-bar-progress {
@@ -2577,6 +2580,7 @@ body.global-now-playing-active .feed-page {
   flex-wrap: wrap;
   align-items: center;
   gap: 0.35rem;
+  overflow: visible;
 }
 
 .stream-player-tools {
@@ -2667,6 +2671,12 @@ body.global-now-playing-active .feed-page {
   align-items: flex-start;
   gap: 0.15rem;
   min-width: 0;
+  overflow: visible;
+}
+
+.player-autoplay-timeout-menu-wrap {
+  position: relative;
+  overflow: visible;
 }
 
 .player-autoplay-timeout-label {
@@ -2677,10 +2687,78 @@ body.global-now-playing-active .feed-page {
 }
 
 .player-autoplay-timeout-select {
-  min-width: 6.5rem;
-  padding: 0.3rem 0.5rem;
+  min-width: 7.25rem;
+  width: auto;
+  padding: 0.3rem 0.65rem;
   font-size: 0.72rem;
   border-radius: 999px;
+  white-space: nowrap;
+  text-align: left;
+  cursor: pointer;
+}
+
+.player-autoplay-timeout-menu {
+  position: absolute;
+  bottom: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 200;
+  margin: 0;
+  padding: 0.3rem 0;
+  list-style: none;
+  min-width: 100%;
+  width: max-content;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.player-autoplay-timeout-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.45rem 0.85rem;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 0.78rem;
+  font-family: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.player-autoplay-timeout-menu-item:hover,
+.player-autoplay-timeout-menu-item:focus-visible {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+}
+
+.player-autoplay-timeout-menu-item-active {
+  color: #feb2b2;
+  background: rgba(229, 62, 62, 0.12);
+}
+
+.ht-page .player-autoplay-timeout-menu,
+.playlists-page .player-autoplay-timeout-menu,
+.pod-stream-tools .player-autoplay-timeout-menu {
+  background: var(--bg-elevated, var(--bg-secondary));
+  border-color: var(--border-primary);
+  box-shadow: var(--shadow-md, 0 8px 24px rgba(0, 0, 0, 0.2));
+}
+
+.ht-page .player-autoplay-timeout-menu-item,
+.playlists-page .player-autoplay-timeout-menu-item,
+.pod-stream-tools .player-autoplay-timeout-menu-item {
+  color: var(--text-primary);
+}
+
+.ht-page .player-autoplay-timeout-menu-item:hover,
+.playlists-page .player-autoplay-timeout-menu-item:hover,
+.pod-stream-tools .player-autoplay-timeout-menu-item:hover,
+.ht-page .player-autoplay-timeout-menu-item:focus-visible,
+.playlists-page .player-autoplay-timeout-menu-item:focus-visible,
+.pod-stream-tools .player-autoplay-timeout-menu-item:focus-visible {
+  background: var(--bg-hover);
 }
 
 .stream-player-tools .player-autoplay-timeout-select,
