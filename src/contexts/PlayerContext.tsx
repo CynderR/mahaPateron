@@ -71,6 +71,7 @@ interface PlayerContextType {
   prepareEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
   playEpisode: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
   loadEpisodeForStream: (postId: string, streamUrl: string, durationSecs?: number | null) => void;
+  advanceToPost: (postId: string) => void;
   togglePlayback: () => void;
   seekTo: (time: number) => void;
   skipBy: (delta: number) => void;
@@ -476,7 +477,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const loadEpisodeForStream = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
       if (autoplayAdvancePostIdRef.current === postId) {
-        autoplayAdvancePostIdRef.current = null;
         playEpisode(postId, streamUrl, durationSecs);
         return;
       }
@@ -484,6 +484,14 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     },
     [playEpisode, prepareEpisode]
   );
+
+  const advanceToPost = useCallback((postId: string) => {
+    const index = queue.findIndex((p) => p.id === postId);
+    if (index >= 0) {
+      setCurrentIndex(index);
+    }
+    autoplayAdvancePostIdRef.current = postId;
+  }, [queue]);
 
   const playNextInQueue = useCallback((): QueuePost | null => {
     if (queue.length === 0 || !user?.rss_token) return null;
@@ -498,10 +506,17 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const nextPost = queue[nextIndex];
     if (!nextPost) return null;
 
-    setCurrentIndex(nextIndex);
-    autoplayAdvancePostIdRef.current = nextPost.id;
+    advanceToPost(nextPost.id);
     return nextPost;
-  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, advanceToPost, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+
+  useEffect(() => {
+    const postId = autoplayAdvancePostIdRef.current;
+    if (!postId || postId !== activePostId) return;
+    if (mediaLoading || !mediaReady) return;
+    if (playing) return;
+    requestPlay();
+  }, [activePostId, mediaLoading, mediaReady, playing, requestPlay]);
 
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
@@ -564,6 +579,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const onPlaying = () => {
       playRequestedRef.current = false;
       playbackGraceUntilRef.current = 0;
+      if (autoplayAdvancePostIdRef.current === activePostIdRef.current) {
+        autoplayAdvancePostIdRef.current = null;
+      }
       setPlaying(true);
     };
     const onPause = () => syncPlayingState();
@@ -844,6 +862,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       prepareEpisode,
       playEpisode,
       loadEpisodeForStream,
+      advanceToPost,
       playNextInQueue,
       togglePlayback,
       seekTo,
@@ -884,6 +903,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       prepareEpisode,
       playEpisode,
       loadEpisodeForStream,
+      advanceToPost,
       playNextInQueue,
       togglePlayback,
       seekTo,

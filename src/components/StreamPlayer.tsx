@@ -78,6 +78,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     getNextPostId,
     getPrevPostId,
     loadEpisodeForStream,
+    advanceToPost,
     playNextInQueue,
     togglePlayback,
     seekTo,
@@ -104,8 +105,10 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   );
 
   const goNext = useCallback(() => {
-    if (nextId) navigate(`/stream/${nextId}`, { state: buildStreamState(returnPath) });
-  }, [navigate, nextId, returnPath]);
+    if (!nextId) return;
+    advanceToPost(nextId);
+    navigate(`/stream/${nextId}`, { state: buildStreamState(returnPath) });
+  }, [advanceToPost, navigate, nextId, returnPath]);
 
   const goPrev = useCallback(() => {
     if (prevId) navigate(`/stream/${prevId}`, { state: buildStreamState(returnPath) });

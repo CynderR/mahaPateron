@@ -73,6 +73,7 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
     getNextPostId,
     getPrevPostId,
     loadEpisodeForStream,
+    advanceToPost,
     playNextInQueue,
     togglePlayback,
     seekTo,
@@ -99,8 +100,10 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
   );
 
   const goNext = useCallback(() => {
-    if (nextId) navigate(streamPath(nextId), { state: streamState() });
-  }, [navigate, nextId, streamPath, streamState]);
+    if (!nextId) return;
+    advanceToPost(nextId);
+    navigate(streamPath(nextId), { state: streamState() });
+  }, [advanceToPost, navigate, nextId, streamPath, streamState]);
 
   const goPrev = useCallback(() => {
     if (prevId) navigate(streamPath(prevId), { state: streamState() });
