@@ -169,7 +169,7 @@ router.get('/:shareToken/episodes/:id', async (req, res) => {
         return res.status(404).json({ error: 'Episode not found' });
       }
       const flags = accessFlags(user);
-      const accessible = userIsNotSubscribed(user) || userCanAccessPost(user, post);
+      const accessible = userCanAccessPost(user, post);
       return res.json({
         share_token: anchor.share_token,
         ...memberShareMeta(user),

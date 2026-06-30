@@ -58,10 +58,6 @@ router.get('/:postId', async (req, res) => {
       user = await resolveUser(req);
 
       if (user && userHasShareMemberFullAccess(user)) {
-        if (userSubscriptionInactive(user)) {
-          return res.status(403).json({ error: 'Subscription inactive' });
-        }
-
         const flags = accessFlags(user);
         if (!flags.canStream) {
           return res.status(403).json({ error: 'Your plan does not include streaming access' });
@@ -127,7 +123,7 @@ router.get('/:postId', async (req, res) => {
 
     const fileSize = stat.size;
     const range = req.headers.range;
-    const previewOnly = user && userIsNotSubscribed(user);
+    const previewOnly = user && userIsNotSubscribed(user) && !shareToken;
     const previewMax = previewOnly ? previewMaxByte(fileSize, post.duration_secs) : fileSize - 1;
 
     res.set('Accept-Ranges', 'bytes');

@@ -23,10 +23,8 @@ export const memberHasFullStreamAccess = (
   return memberIsPaying(isPaying) && !memberIsNotSubscribed(paymentCategory);
 };
 
-export const memberHasShareFullAccess = (
-  isPaying?: boolean | number | null,
-  paymentCategory?: string | null
-): boolean => memberHasFullStreamAccess(isPaying, paymentCategory);
+export const memberHasShareFullAccess = (paymentCategory?: string | null): boolean =>
+  !memberIsNotSubscribed(paymentCategory);
 
 export const memberStreamPreviewSeconds = (paymentCategory?: string | null): number | null =>
   memberIsNotSubscribed(paymentCategory) ? PREVIEW_STREAM_SECONDS : null;

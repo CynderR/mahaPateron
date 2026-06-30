@@ -174,7 +174,8 @@ const ShareLibrary: React.FC = () => {
             : 'This link includes the shared episode only.'}{' '}
           {!memberAccess && (
             <>
-              <Link to="/signin">Sign in</Link> with a paid or free account for full access.
+              <Link to="/signin">Sign in</Link> with a subscribed, free, discounted, or non-card account for full
+              access.
             </>
           )}
         </p>
@@ -206,7 +207,8 @@ const ShareLibrary: React.FC = () => {
             : 'This link includes the shared episode only.'}{' '}
           {!memberAccess && (
             <>
-              <Link to="/signin">Sign in</Link> with a paid or free account for full access.
+              <Link to="/signin">Sign in</Link> with a subscribed, free, discounted, or non-card account for full
+              access.
             </>
           )}
         </p>

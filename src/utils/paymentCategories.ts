@@ -19,8 +19,13 @@ export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
   non_card: 'non_card'
 };
 
+export const SUBSCRIBED_PAYMENT_CATEGORIES = ['free', 'discounted', 'non_card'] as const;
+
 export const subscriptionStatusFromCategory = (paymentCategory: string): SubscriptionStatus =>
   paymentCategory === NOT_SUBSCRIBED_PAYMENT_CATEGORY ? 'not_subscribed' : 'subscribed';
+
+export const paymentCategoryHasShareFullAccess = (paymentCategory: string): boolean =>
+  paymentCategory !== NOT_SUBSCRIBED_PAYMENT_CATEGORY;
 
 export const subscriptionFieldsFromStatus = (
   status: SubscriptionStatus,

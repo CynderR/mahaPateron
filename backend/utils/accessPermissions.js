@@ -12,7 +12,11 @@ const userHasFullStreamAccess = (user) => {
   return !!user.is_paying && !userIsNotSubscribed(user);
 };
 
-const userHasShareMemberFullAccess = (user) => userHasFullStreamAccess(user);
+const userHasShareMemberFullAccess = (user) => {
+  if (!user) return false;
+  // Share links: only non–not-subscribed members (free, discounted, non_card) get full catalog.
+  return !userIsNotSubscribed(user);
+};
 
 const userSubscriptionInactive = (user) => {
   if (!user) return true;

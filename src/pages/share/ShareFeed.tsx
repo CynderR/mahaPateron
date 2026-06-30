@@ -82,7 +82,7 @@ const ShareFeed: React.FC = () => {
         <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
           {memberAccess
             ? 'Signed in with member access — browse and stream your full catalog.'
-            : 'This link includes the shared episode only. Sign in with a paid or free account for full access.'}{' '}
+            : 'This link includes the shared episode only. Sign in with a subscribed, free, discounted, or non-card account for full access.'}{' '}
           {!memberAccess && <Link to="/signin">Sign in</Link>}
         </p>
 
@@ -142,7 +142,7 @@ const ShareFeed: React.FC = () => {
           <p className="pod-banner pod-banner-info">
             {memberAccess
               ? 'Signed in with member access — browse and stream your full catalog.'
-              : 'This link includes the shared episode only. Sign in with a paid or free account for full access.'}{' '}
+              : 'This link includes the shared episode only. Sign in with a subscribed, free, discounted, or non-card account for full access.'}{' '}
             {!memberAccess && <Link to="/signin">Sign in</Link>}
           </p>
 
