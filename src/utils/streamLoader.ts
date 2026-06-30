@@ -7,6 +7,9 @@
 
 const blobCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
+const prefetchInflight = new Map<string, Promise<void>>();
+
+const PREFETCH_RANGE_BYTES = 512 * 1024;
 
 export const isIOSDevice = (): boolean => {
   if (typeof navigator === 'undefined') return false;
@@ -43,6 +46,7 @@ export const clearStreamBlob = (postId: string): void => {
     blobCache.delete(postId);
   }
   inflight.delete(postId);
+  prefetchInflight.delete(postId);
 };
 
 export async function loadStreamBlob(postId: string, streamUrl: string): Promise<string> {
@@ -93,4 +97,60 @@ export async function loadStreamBlob(postId: string, streamUrl: string): Promise
 
   inflight.set(postId, promise);
   return promise;
+}
+
+export async function prefetchStreamMedia(postId: string, streamUrl: string): Promise<void> {
+  if (blobCache.has(postId)) return;
+
+  const blobPromise = inflight.get(postId);
+  if (blobPromise) {
+    await blobPromise.catch(() => {});
+    return;
+  }
+
+  const existingPrefetch = prefetchInflight.get(postId);
+  if (existingPrefetch) {
+    await existingPrefetch.catch(() => {});
+    return;
+  }
+
+  if (prefersBlobPlayback()) {
+    const promise = loadStreamBlob(postId, streamUrl)
+      .then(() => undefined)
+      .catch(() => undefined);
+    prefetchInflight.set(postId, promise);
+    await promise;
+    prefetchInflight.delete(postId);
+    return;
+  }
+
+  const promise = (async () => {
+    const token = getStoredAuthToken();
+    const headers: Record<string, string> = {
+      Range: `bytes=0-${PREFETCH_RANGE_BYTES - 1}`
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const res = await fetch(streamUrl, {
+      method: 'GET',
+      headers,
+      credentials: 'same-origin',
+      cache: 'default'
+    });
+
+    if (!res.ok && res.status !== 206) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    await res.arrayBuffer();
+  })()
+    .catch(() => {})
+    .finally(() => {
+      prefetchInflight.delete(postId);
+    });
+
+  prefetchInflight.set(postId, promise);
+  await promise;
 }

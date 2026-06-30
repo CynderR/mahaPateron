@@ -16,6 +16,7 @@ import {
   getCachedStreamBlob,
   getInflightStreamBlob,
   loadStreamBlob,
+  prefetchStreamMedia,
   prefersBlobPlayback
 } from '../utils/streamLoader';
 import {
@@ -58,7 +59,7 @@ interface PlayerContextType {
   setAutoplayTimeoutHours: (hours: AutoplayTimeoutHours) => void;
   cycleReplay: () => void;
   toggleShuffle: () => void;
-  setQueue: (posts: QueuePost[], currentPostId: string) => void;
+  setQueue: (posts: QueuePost[], currentPostId: string, options?: { fromPlaylist?: boolean }) => void;
   playQueueFromPlaylist: (posts: QueuePost[], startPostId: string) => void;
   getNextPostId: () => string | null;
   getPrevPostId: () => string | null;
@@ -126,6 +127,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const pendingPlayCleanupRef = useRef<(() => void) | null>(null);
   const blobUrlRef = useRef<string | null>(null);
   const autoplayAdvancePostIdRef = useRef<string | null>(null);
+  const queueFromPlaylistRef = useRef(false);
+  const prefetchedNextPostIdRef = useRef<string | null>(null);
   const autoplayDeadlineRef = useRef<number | null>(null);
   const autoplayTimedOutRef = useRef(false);
   const playbackErrorRef = useRef<string | null>(null);
@@ -777,7 +780,14 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [loadFavorites, refreshPlaylists]);
 
   const setQueue = useCallback(
-    (posts: QueuePost[], currentPostId: string) => {
+    (posts: QueuePost[], currentPostId: string, options?: { fromPlaylist?: boolean }) => {
+      if (options?.fromPlaylist === true) {
+        queueFromPlaylistRef.current = true;
+      } else if (options?.fromPlaylist === false) {
+        queueFromPlaylistRef.current = false;
+        prefetchedNextPostIdRef.current = null;
+      }
+
       const index = posts.findIndex((p) => p.id === currentPostId);
       const safeIndex = index >= 0 ? index : 0;
       setQueueState(posts);
@@ -789,7 +799,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const playQueueFromPlaylist = useCallback(
     (posts: QueuePost[], startPostId: string) => {
-      setQueue(posts, startPostId);
+      setQueue(posts, startPostId, { fromPlaylist: true });
     },
     [setQueue]
   );
@@ -831,6 +841,35 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (prevIndex == null) return null;
     return queue[prevIndex]?.id ?? null;
   }, [currentIndex, queue, replayMode, shuffle, shuffleOrder]);
+
+  const prefetchNextInPlaylistQueue = useCallback(() => {
+    if (!queueFromPlaylistRef.current || !user?.rss_token || !activePostId) return;
+
+    const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+    if (nextIndex == null) return;
+
+    const nextPost = queue[nextIndex];
+    if (!nextPost || nextPost.id === activePostId) return;
+    if (prefetchedNextPostIdRef.current === nextPost.id) return;
+
+    prefetchedNextPostIdRef.current = nextPost.id;
+    const streamUrl = buildStreamUrl(nextPost.id, user.rss_token);
+    prefetchStreamMedia(nextPost.id, streamUrl).catch(() => {});
+  }, [activePostId, currentIndex, queue, replayMode, shuffle, shuffleOrder, user?.rss_token]);
+
+  useEffect(() => {
+    if (!queueFromPlaylistRef.current || !playing || !mediaReady || !activePostId) return;
+    prefetchNextInPlaylistQueue();
+  }, [
+    activePostId,
+    currentIndex,
+    mediaReady,
+    playing,
+    prefetchNextInPlaylistQueue,
+    queue,
+    replayMode,
+    shuffle
+  ]);
 
   const isFavorite = useCallback((postId: string) => favorites.has(postId), [favorites]);
 

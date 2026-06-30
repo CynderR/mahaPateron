@@ -160,7 +160,7 @@ const Stream: React.FC = () => {
 
       .get<{ posts: FeedPost[] }>('/account/feed')
 
-      .then((res) => setQueue(res.data.posts, postId))
+      .then((res) => setQueue(res.data.posts, postId, { fromPlaylist: false }))
 
       .catch(() => {});
 
