@@ -12,6 +12,8 @@ export interface ShareContextValue {
   shareToken: string;
   basePath: string;
   access: ShareAccess;
+  memberAccess: boolean;
+  anchorPostId: string | null;
   streamPath: (postId: string) => string;
   streamState: (post?: FeedPost) => ReturnType<typeof buildStreamState>;
 }
@@ -22,6 +24,8 @@ interface ShareProviderProps {
   shareToken: string;
   basePath: string;
   access: ShareAccess;
+  memberAccess: boolean;
+  anchorPostId: string | null;
   children: ReactNode;
 }
 
@@ -29,12 +33,16 @@ export const ShareProvider: React.FC<ShareProviderProps> = ({
   shareToken,
   basePath,
   access,
+  memberAccess,
+  anchorPostId,
   children
 }) => {
   const value: ShareContextValue = {
     shareToken,
     basePath,
     access,
+    memberAccess,
+    anchorPostId,
     streamPath: (postId: string) => `${basePath}/stream/${encodeURIComponent(postId)}`,
     streamState: (post?: FeedPost) => buildStreamState(basePath, post)
   };

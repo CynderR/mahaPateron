@@ -3,6 +3,7 @@ export type AccessType = 'rss' | 'streaming' | 'both' | 'download';
 export const ACCESS_TYPE_OPTIONS: AccessType[] = ['streaming', 'rss', 'both', 'download'];
 
 export const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
+export const FREE_PAYMENT_CATEGORY = 'free';
 export const PREVIEW_STREAM_SECONDS = 60;
 
 export const memberIsPaying = (value?: boolean | number | null): boolean =>
@@ -14,7 +15,15 @@ export const memberIsNotSubscribed = (paymentCategory?: string | null): boolean 
 export const memberHasFullStreamAccess = (
   isPaying?: boolean | number | null,
   paymentCategory?: string | null
-): boolean => memberIsPaying(isPaying) && !memberIsNotSubscribed(paymentCategory);
+): boolean => {
+  if (paymentCategory === FREE_PAYMENT_CATEGORY) return true;
+  return memberIsPaying(isPaying) && !memberIsNotSubscribed(paymentCategory);
+};
+
+export const memberHasShareFullAccess = (
+  isPaying?: boolean | number | null,
+  paymentCategory?: string | null
+): boolean => memberHasFullStreamAccess(isPaying, paymentCategory);
 
 export const memberStreamPreviewSeconds = (paymentCategory?: string | null): number | null =>
   memberIsNotSubscribed(paymentCategory) ? PREVIEW_STREAM_SECONDS : null;

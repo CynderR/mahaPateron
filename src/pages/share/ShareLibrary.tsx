@@ -30,7 +30,7 @@ interface ShareLibraryResponse {
 }
 
 const ShareLibrary: React.FC = () => {
-  const { shareToken, basePath } = useShare();
+  const { shareToken, basePath, memberAccess } = useShare();
   const [meta, setMeta] = useState<Omit<ShareLibraryResponse, 'entries' | 'page' | 'limit'> | null>(null);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -169,7 +169,14 @@ const ShareLibrary: React.FC = () => {
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
-          Full published catalog via this share link. <Link to="/signin">Sign in</Link> for RSS and downloads.
+          {memberAccess
+            ? 'Signed in with member access — your full library is available.'
+            : 'This link includes the shared episode only.'}{' '}
+          {!memberAccess && (
+            <>
+              <Link to="/signin">Sign in</Link> with a paid or free account for full access.
+            </>
+          )}
         </p>
 
         {loading ? (
@@ -194,7 +201,14 @@ const ShareLibrary: React.FC = () => {
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <p className="pod-banner pod-banner-info">
-          Full published catalog via this share link. <Link to="/signin">Sign in</Link> for RSS feeds and downloads.
+          {memberAccess
+            ? 'Signed in with member access — your full library is available.'
+            : 'This link includes the shared episode only.'}{' '}
+          {!memberAccess && (
+            <>
+              <Link to="/signin">Sign in</Link> with a paid or free account for full access.
+            </>
+          )}
         </p>
 
         {loading ? (

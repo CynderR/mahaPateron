@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 import { usePlayer } from '../../contexts/PlayerContext';
 import { buildImageUrl } from '../../config';
 import ShareStreamPlayer from '../../components/ShareStreamPlayer';
@@ -20,7 +21,8 @@ const ShareStream: React.FC = () => {
   const { postId } = useParams<{ postId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const { shareToken, access, streamPath, streamState } = useShare();
+  const { shareToken, access, streamPath, streamState, memberAccess } = useShare();
+  const { user } = useAuth();
   const { setQueue, queue } = usePlayer();
   const queueRef = useRef(queue);
   queueRef.current = queue;
@@ -61,11 +63,15 @@ const ShareStream: React.FC = () => {
       setQueue(activeQueue, postId);
       return;
     }
+    const feedUrl =
+      memberAccess && user
+        ? '/account/feed'
+        : `/share/${encodeURIComponent(shareToken)}/feed`;
     axios
-      .get<{ posts: FeedPost[] }>(`/share/${encodeURIComponent(shareToken)}/feed`)
+      .get<{ posts: FeedPost[] }>(feedUrl)
       .then((res) => setQueue(res.data.posts, postId))
       .catch(() => {});
-  }, [postId, shareToken, access.canStream, setQueue]);
+  }, [postId, shareToken, access.canStream, memberAccess, user, setQueue]);
 
   const coverUrl = playerPost?.image_filename ? buildImageUrl(playerPost.image_filename) : null;
   const bgStyle = coverUrl

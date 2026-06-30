@@ -16,12 +16,13 @@ import { filterAdminItems } from '../../utils/adminTableHelpers';
 
 interface ShareFeedResponse {
   canStream: boolean;
+  member_access: boolean;
   post: FeedPost;
   posts: FeedPost[];
 }
 
 const ShareFeed: React.FC = () => {
-  const { shareToken, basePath, streamPath, streamState } = useShare();
+  const { shareToken, basePath, streamPath, streamState, memberAccess } = useShare();
   const [data, setData] = useState<ShareFeedResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -79,8 +80,10 @@ const ShareFeed: React.FC = () => {
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
-          Shared listening link — browse and stream all published episodes. RSS and downloads require a
-          member account.
+          {memberAccess
+            ? 'Signed in with member access — browse and stream your full catalog.'
+            : 'This link includes the shared episode only. Sign in with a paid or free account for full access.'}{' '}
+          {!memberAccess && <Link to="/signin">Sign in</Link>}
         </p>
 
         {loading ? (
@@ -137,8 +140,10 @@ const ShareFeed: React.FC = () => {
           </div>
 
           <p className="pod-banner pod-banner-info">
-            Shared listening link — browse and stream all published episodes. RSS and downloads require a
-            member account.
+            {memberAccess
+              ? 'Signed in with member access — browse and stream your full catalog.'
+              : 'This link includes the shared episode only. Sign in with a paid or free account for full access.'}{' '}
+            {!memberAccess && <Link to="/signin">Sign in</Link>}
           </p>
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}

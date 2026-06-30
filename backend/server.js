@@ -22,6 +22,7 @@ const {
 const { sendPasswordResetEmail } = require('./emailService');
 
 const authenticateToken = require('./middleware/authenticateToken');
+const optionalAuthenticateToken = require('./middleware/optionalAuthenticateToken');
 const requireAdmin = require('./middleware/requireAdmin');
 const authRateLimiter = require('./middleware/authRateLimit');
 const { JWT_SECRET } = authenticateToken;
@@ -308,7 +309,7 @@ core.post('/auth/reset-password', authRateLimiter, async (req, res) => {
 const API_PREFIXES = ['/api', '/shyam_akaash/api'];
 API_PREFIXES.forEach((prefix) => {
   app.use(prefix, core);
-  app.use(`${prefix}/share`, shareRouter);
+  app.use(`${prefix}/share`, optionalAuthenticateToken, shareRouter);
   app.use(`${prefix}/admin/users`, authenticateToken, requireAdmin, adminUsersRouter);
   app.use(`${prefix}/admin/posts`, authenticateToken, requireAdmin, adminPostsRouter);
   app.use(`${prefix}/admin/library`, authenticateToken, requireAdmin, adminLibraryRouter);

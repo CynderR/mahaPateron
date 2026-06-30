@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../../contexts/AuthContext';
 import { ShareAccess, ShareProvider } from '../../contexts/ShareContext';
 import ShareFeed from './ShareFeed';
 import ShareLibrary from './ShareLibrary';
@@ -11,10 +12,13 @@ interface ShareBootstrap {
   canStream: boolean;
   canRss: boolean;
   canDownload: boolean;
+  member_access: boolean;
+  anchor_post_id: string | null;
 }
 
 const ShareLayout: React.FC = () => {
   const { shareToken, titleSlug } = useParams<{ shareToken?: string; titleSlug?: string }>();
+  const { user } = useAuth();
   const token = shareToken || '';
   const basePath = titleSlug ? `/share/${titleSlug}/${token}` : `/share/${token}`;
   const [bootstrap, setBootstrap] = useState<ShareBootstrap | null>(null);
@@ -41,7 +45,7 @@ const ShareLayout: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [token]);
+  }, [token, user?.id, user?.payment_category, user?.is_paying]);
 
   if (!token) {
     return <Navigate to="/" replace />;
@@ -74,7 +78,13 @@ const ShareLayout: React.FC = () => {
   };
 
   return (
-    <ShareProvider shareToken={bootstrap.share_token || token} basePath={basePath} access={access}>
+    <ShareProvider
+      shareToken={bootstrap.share_token || token}
+      basePath={basePath}
+      access={access}
+      memberAccess={!!bootstrap.member_access}
+      anchorPostId={bootstrap.anchor_post_id ?? null}
+    >
       <Routes>
         <Route index element={<ShareFeed />} />
         <Route path="library" element={<ShareLibrary />} />

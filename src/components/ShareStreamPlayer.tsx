@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { buildPublicShareStreamUrl } from '../config';
+import { buildPublicShareStreamUrl, buildStreamUrl } from '../config';
+import { useAuth } from '../contexts/AuthContext';
 import { usePlayer } from '../contexts/PlayerContext';
+import { useShare } from '../contexts/ShareContext';
 import { FeedPost } from './PostCard';
 import PlayerControls from './PlayerControls';
 import EpisodeTransportBar from './EpisodeTransportBar';
@@ -67,6 +69,8 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
   streamState
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { memberAccess } = useShare();
   const {
     playing,
     currentTime,
@@ -85,7 +89,10 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
     registerTrackEndedHandler
   } = usePlayer();
 
-  const streamUrl = buildPublicShareStreamUrl(post.id, shareToken);
+  const streamUrl =
+    memberAccess && user?.rss_token
+      ? buildStreamUrl(post.id, user.rss_token)
+      : buildPublicShareStreamUrl(post.id, shareToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);
   const mobileBarHeights = useMemo(() => seedHeights(`${post.id}-m`, 60), [post.id]);
   const effectiveDuration = duration || post.duration_secs || 0;

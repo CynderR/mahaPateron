@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
-const { accessFlags, previewMaxByte, userIsNotSubscribed } = require('../utils/accessPermissions');
+const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -54,16 +54,39 @@ router.get('/:postId', async (req, res) => {
       if (!anchor || !anchor.is_published) {
         return res.status(404).json({ error: 'Episode not found' });
       }
-      post = await getPostById(req.params.postId);
-      if (!post || !post.is_published) {
-        return res.status(404).json({ error: 'Episode not found' });
+
+      user = await resolveUser(req);
+
+      if (user && userHasShareMemberFullAccess(user)) {
+        if (userSubscriptionInactive(user)) {
+          return res.status(403).json({ error: 'Subscription inactive' });
+        }
+
+        const flags = accessFlags(user);
+        if (!flags.canStream) {
+          return res.status(403).json({ error: 'Your plan does not include streaming access' });
+        }
+
+        post = await getPostById(req.params.postId);
+        if (!post || !post.is_published) {
+          return res.status(404).json({ error: 'Episode not found' });
+        }
+        if (!userIsNotSubscribed(user) && !userCanAccessPost(user, post)) {
+          return res.status(403).json({ error: 'This episode is not included in your subscription' });
+        }
+        streamUserId = user.id;
+      } else {
+        if (req.params.postId !== anchor.id) {
+          return res.status(403).json({ error: 'This share link only includes the shared episode' });
+        }
+        post = anchor;
       }
     } else {
       user = await resolveUser(req);
       if (!user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
-      if (!user.is_paying && !userIsNotSubscribed(user)) {
+      if (userSubscriptionInactive(user)) {
         return res.status(403).json({ error: 'Subscription inactive' });
       }
 
