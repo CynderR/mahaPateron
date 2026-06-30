@@ -283,7 +283,7 @@ const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
-    const { is_paying, payment_category, access_type, is_admin, includeDeleted = false } = filters;
+    const { is_paying, payment_category, subscription_status, access_type, is_admin, includeDeleted = false } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 20));
     const where = [];
@@ -297,6 +297,12 @@ const getUsersFiltered = (filters = {}) => {
     if (payment_category) {
       where.push('payment_category = ?');
       params.push(payment_category);
+    }
+    if (subscription_status === 'not_subscribed') {
+      where.push('payment_category = ?');
+      params.push('full');
+    } else if (subscription_status === 'subscribed') {
+      where.push("payment_category != 'full'");
     }
     if (access_type) {
       where.push('access_type = ?');

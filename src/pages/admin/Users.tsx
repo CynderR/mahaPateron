@@ -3,7 +3,12 @@ import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminUser } from '../../components/UserTable';
 import { ROUTER_BASENAME } from '../../config';
-import { PAYMENT_CATEGORIES, PAYMENT_CATEGORY_LABELS } from '../../utils/paymentCategories';
+import {
+  NOT_SUBSCRIBED_PAYMENT_CATEGORY,
+  SUBSCRIPTION_STATUS_OPTIONS,
+  SubscriptionStatus,
+  subscriptionFieldsFromStatus
+} from '../../utils/paymentCategories';
 
 interface UsersResponse {
   users: AdminUser[];
@@ -17,7 +22,8 @@ const emptyNewUser = {
   email: '',
   whatsapp_id: '',
   signal_id: '',
-  payment_category: 'full',
+  subscription_status: 'not_subscribed' as SubscriptionStatus,
+  payment_category: NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   access_type: 'streaming',
   subscription_price: '',
   is_paying: false,
@@ -28,7 +34,12 @@ const emptyNewUser = {
 
 const Users: React.FC = () => {
   const [data, setData] = useState<UsersResponse | null>(null);
-  const [filters, setFilters] = useState({ is_paying: '', payment_category: '', access_type: '', is_admin: '' });
+  const [filters, setFilters] = useState({
+    is_paying: '',
+    subscription_status: '',
+    access_type: '',
+    is_admin: ''
+  });
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -43,7 +54,7 @@ const Users: React.FC = () => {
     try {
       const params: Record<string, string | number> = { page, limit };
       if (filters.is_paying) params.is_paying = filters.is_paying;
-      if (filters.payment_category) params.payment_category = filters.payment_category;
+      if (filters.subscription_status) params.subscription_status = filters.subscription_status;
       if (filters.access_type) params.access_type = filters.access_type;
       if (filters.is_admin) params.is_admin = filters.is_admin;
       const res = await axios.get<UsersResponse>('/admin/users', { params });
@@ -67,6 +78,20 @@ const Users: React.FC = () => {
     }
   };
 
+  const handleSubscriptionChange = async (
+    id: number,
+    status: SubscriptionStatus,
+    currentCategory: string
+  ) => {
+    setError('');
+    try {
+      await axios.put(`/admin/users/${id}`, subscriptionFieldsFromStatus(status, currentCategory));
+      load();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Update failed.');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this user? Their RSS feed will be disabled.')) return;
     try {
@@ -82,7 +107,9 @@ const Users: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      await axios.post('/admin/users', newUser);
+      const { subscription_status, ...rest } = newUser;
+      const subscriptionFields = subscriptionFieldsFromStatus(subscription_status, rest.payment_category);
+      await axios.post('/admin/users', { ...rest, ...subscriptionFields });
       setMessage(`User ${newUser.username} created.`);
       setNewUser({ ...emptyNewUser });
       setShowAdd(false);
@@ -137,11 +164,22 @@ const Users: React.FC = () => {
               </select>
             </div>
             <div className="pod-form-group">
-              <label>Payment category</label>
-              <select className="pod-select" value={newUser.payment_category} onChange={(e) => setNewUser({ ...newUser, payment_category: e.target.value })}>
-                {PAYMENT_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {PAYMENT_CATEGORY_LABELS[category]}
+              <label>Subscription</label>
+              <select
+                className="pod-select"
+                value={newUser.subscription_status}
+                onChange={(e) => {
+                  const subscription_status = e.target.value as SubscriptionStatus;
+                  setNewUser({
+                    ...newUser,
+                    subscription_status,
+                    ...subscriptionFieldsFromStatus(subscription_status, newUser.payment_category)
+                  });
+                }}
+              >
+                {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -199,12 +237,19 @@ const Users: React.FC = () => {
               </select>
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Payment</label>
-              <select className="pod-select" value={filters.payment_category} onChange={(e) => { setPage(1); setFilters({ ...filters, payment_category: e.target.value }); }}>
+              <label>Subscription</label>
+              <select
+                className="pod-select"
+                value={filters.subscription_status}
+                onChange={(e) => {
+                  setPage(1);
+                  setFilters({ ...filters, subscription_status: e.target.value });
+                }}
+              >
                 <option value="">All</option>
-                {PAYMENT_CATEGORIES.map((category) => (
-                  <option key={category} value={category}>
-                    {PAYMENT_CATEGORY_LABELS[category]}
+                {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))}
               </select>
@@ -223,7 +268,13 @@ const Users: React.FC = () => {
         </div>
 
         {data && (
-          <UserTable users={data.users} rssBaseUrl={rssBaseUrl} onUpdate={handleUpdate} onDelete={handleDelete} />
+          <UserTable
+            users={data.users}
+            rssBaseUrl={rssBaseUrl}
+            onUpdate={handleUpdate}
+            onSubscriptionChange={handleSubscriptionChange}
+            onDelete={handleDelete}
+          />
         )}
 
         <div className="pod-inline-actions" style={{ marginTop: '1.5rem', justifyContent: 'center' }}>

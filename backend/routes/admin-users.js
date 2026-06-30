@@ -26,8 +26,16 @@ const sanitizeUser = (user) => {
 // GET / — paginated list with filters.
 router.get('/', async (req, res) => {
   try {
-    const { page, limit, is_paying, payment_category, access_type, is_admin } = req.query;
-    const result = await getUsersFiltered({ page, limit, is_paying, payment_category, access_type, is_admin });
+    const { page, limit, is_paying, payment_category, subscription_status, access_type, is_admin } = req.query;
+    const result = await getUsersFiltered({
+      page,
+      limit,
+      is_paying,
+      payment_category,
+      subscription_status,
+      access_type,
+      is_admin
+    });
     res.json(result);
   } catch (error) {
     console.error('Admin list users error:', error);

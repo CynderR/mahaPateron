@@ -1,7 +1,11 @@
 import React from 'react';
 
 import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
-import { PAYMENT_CATEGORIES, PAYMENT_CATEGORY_LABELS } from '../utils/paymentCategories';
+import {
+  SUBSCRIPTION_STATUS_OPTIONS,
+  SubscriptionStatus,
+  subscriptionStatusFromCategory
+} from '../utils/paymentCategories';
 
 export interface AdminUser {
   id: number;
@@ -21,10 +25,17 @@ interface UserTableProps {
   users: AdminUser[];
   rssBaseUrl: string;
   onUpdate: (id: number, field: string, value: unknown) => void;
+  onSubscriptionChange: (id: number, status: SubscriptionStatus, currentCategory: string) => void;
   onDelete: (id: number) => void;
 }
 
-const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDelete }) => {
+const UserTable: React.FC<UserTableProps> = ({
+  users,
+  rssBaseUrl,
+  onUpdate,
+  onSubscriptionChange,
+  onDelete
+}) => {
   const copyRss = (token: string) => {
     navigator.clipboard.writeText(`${rssBaseUrl}/rss/${token}`).catch(() => {});
   };
@@ -36,7 +47,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
           <tr>
             <th>User</th>
             <th>Role</th>
-            <th>Payment</th>
+            <th>Subscription</th>
             <th>Paying</th>
             <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th title="User is billed monthly via Stripe">Monthly</th>
@@ -66,12 +77,18 @@ const UserTable: React.FC<UserTableProps> = ({ users, rssBaseUrl, onUpdate, onDe
               <td>
                 <select
                   className="pod-select"
-                  value={u.payment_category}
-                  onChange={(e) => onUpdate(u.id, 'payment_category', e.target.value)}
+                  value={subscriptionStatusFromCategory(u.payment_category)}
+                  onChange={(e) =>
+                    onSubscriptionChange(
+                      u.id,
+                      e.target.value as SubscriptionStatus,
+                      u.payment_category
+                    )
+                  }
                 >
-                  {PAYMENT_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {PAYMENT_CATEGORY_LABELS[c]}
+                  {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>
