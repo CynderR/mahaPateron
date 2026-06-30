@@ -1,14 +1,13 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl, buildStreamUrl } from '../config';
+import { buildImageUrl } from '../config';
 import { useAuth } from '../contexts/AuthContext';
-import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
-import { useStreamLinkState } from '../hooks/useStreamLinkState';
+import { useEpisodePlayback } from '../hooks/useEpisodePlayback';
 import { memberHasStreamAccess } from '../utils/accessPermissions';
 
 interface ProfileFeaturedTrackProps {
@@ -27,15 +26,14 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   onSelectChange
 }) => {
   const { user } = useAuth();
-  const { prepareEpisode } = usePlayer();
-  const streamState = useStreamLinkState(post);
   const showPlayControls =
     canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
+  const { streamPath, streamState, startPlayback } = useEpisodePlayback(post, showPlayControls);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
-  const primePlay = () => {
-    if (!user?.rss_token || !showPlayControls) return;
-    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+  const primePlay = (e: React.MouseEvent) => {
+    e.preventDefault();
+    startPlayback();
   };
 
   const cover = coverUrl ? (
@@ -51,7 +49,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
       <div className="ht-featured-top">
         {showPlayControls ? (
           <Link
-            to={`/stream/${post.id}`}
+            to={streamPath}
             state={streamState}
             className="ht-play-btn"
             aria-label={`Play ${post.title}`}
@@ -70,7 +68,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         )}
         <div className="ht-featured-info">
           {showPlayControls ? (
-            <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-title-link" onClick={primePlay}>
+            <Link to={streamPath} state={streamState} className="ht-featured-title-link" onClick={primePlay}>
               <h2 className="ht-featured-title">{post.title}</h2>
             </Link>
           ) : (
@@ -112,7 +110,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         </label>
       )}
       {showPlayControls ? (
-        <Link to={`/stream/${post.id}`} state={streamState} className="ht-featured-cover-link" onClick={primePlay}>
+        <Link to={streamPath} state={streamState} className="ht-featured-cover-link" onClick={primePlay}>
           {cover}
         </Link>
       ) : (

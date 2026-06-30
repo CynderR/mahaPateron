@@ -99,6 +99,50 @@ export async function loadStreamBlob(postId: string, streamUrl: string): Promise
   return promise;
 }
 
+const waitForAudioReady = (audio: HTMLAudioElement): Promise<void> => {
+  if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+    return Promise.resolve();
+  }
+
+  return new Promise((resolve, reject) => {
+    const cleanup = () => {
+      audio.removeEventListener('canplay', onReady);
+      audio.removeEventListener('error', onError);
+    };
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+    const onError = () => {
+      cleanup();
+      reject(new Error('Episode could not be loaded.'));
+    };
+    audio.addEventListener('canplay', onReady);
+    audio.addEventListener('error', onError);
+  });
+};
+
+export async function resolvePlaybackSource(postId: string, streamUrl: string): Promise<string> {
+  if (prefersBlobPlayback()) {
+    return loadStreamBlob(postId, streamUrl);
+  }
+  return streamUrl;
+}
+
+export async function playStreamInAudioElement(
+  audio: HTMLAudioElement,
+  postId: string,
+  streamUrl: string
+): Promise<void> {
+  const src = await resolvePlaybackSource(postId, streamUrl);
+  if (audio.src !== src) {
+    audio.src = src;
+    audio.load();
+  }
+  await waitForAudioReady(audio);
+  await audio.play();
+}
+
 export async function prefetchStreamMedia(postId: string, streamUrl: string): Promise<void> {
   if (blobCache.has(postId)) return;
 

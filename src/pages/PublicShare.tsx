@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import axios from 'axios';
 import ThemeToggle from '../components/ThemeToggle';
 import PublicShareEpisodeRow, { PublicSharePost } from '../components/PublicShareEpisodeRow';
+import { playStreamInAudioElement } from '../utils/streamLoader';
 
 interface ShareResponse {
   share_token: string;
@@ -17,6 +18,7 @@ const PublicShare: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [playingId, setPlayingId] = useState<string | null>(null);
+  const [loadingId, setLoadingId] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
@@ -45,16 +47,17 @@ const PublicShare: React.FC = () => {
       return;
     }
 
-    if (audio.src !== streamUrl) {
-      audio.src = streamUrl;
-      audio.load();
-    }
+    setError('');
+    setLoadingId(postId);
 
     try {
-      await audio.play();
+      await playStreamInAudioElement(audio, postId, streamUrl);
       setPlayingId(postId);
     } catch {
-      setError('Could not start playback in this browser.');
+      setError('Could not start playback. Tap play again.');
+      setPlayingId(null);
+    } finally {
+      setLoadingId(null);
     }
   };
 
@@ -98,7 +101,7 @@ const PublicShare: React.FC = () => {
               downloads are not included — sign in as a member for those options.
             </p>
 
-            <audio ref={audioRef} preload="none" onEnded={() => setPlayingId(null)} />
+            <audio ref={audioRef} preload="none" playsInline onEnded={() => setPlayingId(null)} />
 
             {featured && (
               <div className="pod-card public-share-card">
@@ -107,6 +110,7 @@ const PublicShare: React.FC = () => {
                   shareToken={shareTokenValue}
                   featured
                   playing={playingId === featured.id}
+                  loading={loadingId === featured.id}
                   onTogglePlay={handleTogglePlay}
                 />
               </div>
@@ -122,6 +126,7 @@ const PublicShare: React.FC = () => {
                       post={post}
                       shareToken={shareTokenValue}
                       playing={playingId === post.id}
+                      loading={loadingId === post.id}
                       onTogglePlay={handleTogglePlay}
                     />
                   ))}

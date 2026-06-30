@@ -16,6 +16,7 @@ interface PublicShareEpisodeRowProps {
   shareToken: string;
   featured?: boolean;
   playing: boolean;
+  loading?: boolean;
   onTogglePlay: (postId: string, streamUrl: string) => void;
 }
 
@@ -31,6 +32,7 @@ const PublicShareEpisodeRow: React.FC<PublicShareEpisodeRowProps> = ({
   shareToken,
   featured = false,
   playing,
+  loading = false,
   onTogglePlay
 }) => {
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
@@ -67,8 +69,9 @@ const PublicShareEpisodeRow: React.FC<PublicShareEpisodeRowProps> = ({
           type="button"
           className="pod-btn pod-btn-sm public-share-row-play"
           onClick={() => onTogglePlay(post.id, streamUrl)}
+          disabled={loading}
         >
-          {playing ? 'Pause' : 'Play'}
+          {loading ? 'Loading…' : playing ? 'Pause' : 'Play'}
         </button>
       </div>
     </article>

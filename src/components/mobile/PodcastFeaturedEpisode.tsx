@@ -1,13 +1,10 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { buildImageUrl, buildStreamUrl } from '../../config';
-import { useAuth } from '../../contexts/AuthContext';
-import { usePlayer } from '../../contexts/PlayerContext';
+import { buildImageUrl } from '../../config';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
-import { useStreamLinkState } from '../../hooks/useStreamLinkState';
+import { useEpisodePlayback } from '../../hooks/useEpisodePlayback';
 
 interface PodcastFeaturedEpisodeProps {
   post: FeedPost;
@@ -24,17 +21,8 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
   selected = false,
   onSelectChange
 }) => {
-  const navigate = useNavigate();
-  const { user } = useAuth();
-  const { prepareEpisode } = usePlayer();
-  const streamState = useStreamLinkState(post);
+  const { startPlayback } = useEpisodePlayback(post, canStream);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
-
-  const handlePlay = () => {
-    if (!user?.rss_token || !canStream) return;
-    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
-    navigate(`/stream/${post.id}`, { state: streamState });
-  };
 
   return (
     <section className="pod-featured pod-mobile-only">
@@ -70,7 +58,7 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
         </p>
         <div className="pod-featured-actions">
           {canStream ? (
-            <button type="button" className="pod-btn pod-featured-play" onClick={handlePlay}>
+            <button type="button" className="pod-btn pod-featured-play" onClick={startPlayback}>
               Play latest episode
             </button>
           ) : canDownload ? (
