@@ -1,12 +1,15 @@
-export type AccessType = 'rss' | 'streaming' | 'both' | 'download';
+export type AccessType = 'rss' | 'streaming' | 'both';
 
-export const ACCESS_TYPE_OPTIONS: AccessType[] = ['streaming', 'rss', 'both', 'download'];
+export const ACCESS_TYPE_OPTIONS: AccessType[] = ['streaming', 'rss', 'both'];
 
 export const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 export const FREE_PAYMENT_CATEGORY = 'free';
 export const PREVIEW_STREAM_SECONDS = 60;
 
 export const memberIsPaying = (value?: boolean | number | null): boolean =>
+  value === true || value === 1;
+
+export const memberHasDownloadEnabled = (value?: boolean | number | null): boolean =>
   value === true || value === 1;
 
 export const memberIsNotSubscribed = (paymentCategory?: string | null): boolean =>
@@ -32,9 +35,13 @@ export const memberHasStreamAccess = (
   isPaying?: boolean | number | null,
   accessType?: string | null,
   paymentCategory?: string | null
-): boolean =>
-  memberCanStream(accessType) &&
-  (memberHasFullStreamAccess(isPaying, paymentCategory) || memberIsNotSubscribed(paymentCategory));
+): boolean => {
+  const streamType = accessType === 'download' ? 'streaming' : accessType;
+  return (
+    memberCanStream(streamType) &&
+    (memberHasFullStreamAccess(isPaying, paymentCategory) || memberIsNotSubscribed(paymentCategory))
+  );
+};
 
 export const memberCanPlayEpisode = (
   isPaying?: boolean | number | null,
@@ -47,18 +54,19 @@ export const memberCanPlayEpisode = (
 
 export const memberHasDownloadAccess = (
   isPaying?: boolean | number | null,
-  accessType?: string | null,
+  downloadAccess?: boolean | number | null,
   paymentCategory?: string | null
 ): boolean =>
   memberIsPaying(isPaying) &&
   !memberIsNotSubscribed(paymentCategory) &&
-  memberCanDownload(accessType);
+  memberHasDownloadEnabled(downloadAccess);
 
-export const memberCanDownload = (accessType?: string | null): boolean =>
-  accessType === 'download';
+export const memberCanStream = (accessType?: string | null): boolean => {
+  const streamType = accessType === 'download' ? 'streaming' : accessType;
+  return streamType === 'streaming' || streamType === 'both';
+};
 
-export const memberCanStream = (accessType?: string | null): boolean =>
-  accessType === 'streaming' || accessType === 'both';
-
-export const memberCanRss = (accessType?: string | null): boolean =>
-  accessType === 'rss' || accessType === 'both';
+export const memberCanRss = (accessType?: string | null): boolean => {
+  const streamType = accessType === 'download' ? 'streaming' : accessType;
+  return streamType === 'rss' || streamType === 'both';
+};

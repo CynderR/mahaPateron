@@ -25,6 +25,7 @@ const emptyNewUser = {
   subscription_status: 'not_subscribed' as SubscriptionStatus,
   payment_category: NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   access_type: 'streaming',
+  download_access: false,
   subscription_price: '',
   is_paying: false,
   is_admin: false,
@@ -190,8 +191,17 @@ const Users: React.FC = () => {
                 <option value="streaming">streaming</option>
                 <option value="rss">rss</option>
                 <option value="both">both</option>
-                <option value="download">download</option>
               </select>
+            </div>
+            <div className="pod-form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={newUser.download_access}
+                  onChange={(e) => setNewUser({ ...newUser, download_access: e.target.checked })}
+                />{' '}
+                Download access
+              </label>
             </div>
             <div className="pod-form-group">
               <label>Subscription price (leave blank for platform default)</label>
@@ -261,7 +271,6 @@ const Users: React.FC = () => {
                 <option value="both">both</option>
                 <option value="rss">rss</option>
                 <option value="streaming">streaming</option>
-                <option value="download">download</option>
               </select>
             </div>
           </div>

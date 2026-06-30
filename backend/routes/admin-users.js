@@ -49,7 +49,7 @@ router.post('/', async (req, res) => {
     const {
       username, email, password, whatsapp_id, signal_id,
       payment_category, access_type, subscription_price, is_admin, is_paying,
-      back_catalog_access, monthly_payments
+      back_catalog_access, monthly_payments, download_access
     } = req.body;
 
     if (!username || !email) {
@@ -86,7 +86,8 @@ router.post('/', async (req, res) => {
       is_admin: !!is_admin,
       is_paying: !!is_paying,
       back_catalog_access: !!back_catalog_access,
-      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false'
+      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false',
+      download_access: !!download_access
     });
 
     const created = await getUserById(newUser.id);
@@ -129,6 +130,9 @@ router.put('/:id', async (req, res) => {
     if (data.is_free !== undefined) data.is_free = data.is_free ? 1 : 0;
     if (data.back_catalog_access !== undefined) {
       data.back_catalog_access = data.back_catalog_access ? 1 : 0;
+    }
+    if (data.download_access !== undefined) {
+      data.download_access = data.download_access ? 1 : 0;
     }
     if (data.monthly_payments !== undefined) {
       data.monthly_payments = data.monthly_payments ? 1 : 0;

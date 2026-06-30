@@ -5,6 +5,7 @@ const { runPodcastMigration } = require('./migrations/20260531120000_podcast_pla
 const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_player_features');
 const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
 const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
+const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -74,6 +75,7 @@ const initDatabase = () => {
     .then(() => runPlayerFeaturesMigration(db))
     .then(() => runLibraryAudioMetadataMigration(db))
     .then(() => runPostShareTokenMigration(db))
+    .then(() => runUserDownloadAccessMigration(db))
     .then(() => {
       libraryMetadataReady = true;
     });
@@ -85,22 +87,24 @@ const createUser = (userData) => {
     const {
       username, email, password, is_free, is_admin,
       whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying,
-      back_catalog_access, monthly_payments
+      back_catalog_access, monthly_payments, download_access
     } = userData;
     const rss_token = userData.rss_token || uuidv4();
     const subscribed_at = is_paying ? (userData.subscribed_at || new Date().toISOString()) : null;
     const sql = `INSERT INTO users (
                    username, email, password, is_free, is_admin,
                    whatsapp_id, signal_id, payment_category, access_type, subscription_price,
-                   is_paying, rss_token, subscribed_at, back_catalog_access, monthly_payments
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                   is_paying, rss_token, subscribed_at, back_catalog_access, monthly_payments,
+                   download_access
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
       username, email, password, is_free || false, is_admin || false,
       whatsapp_id || null, signal_id || null, payment_category || 'full', access_type || 'streaming',
       subscription_price != null ? subscription_price : null, is_paying ? 1 : 0, rss_token,
       subscribed_at, back_catalog_access ? 1 : 0,
-      monthly_payments === false || monthly_payments === 0 ? 0 : 1
+      monthly_payments === false || monthly_payments === 0 ? 0 : 1,
+      download_access ? 1 : 0
     ], function(err) {
       if (err) {
         reject(err);
@@ -244,7 +248,7 @@ const USER_UPDATABLE_FIELDS = [
   'username', 'email', 'is_free', 'is_admin',
   'whatsapp_id', 'signal_id', 'payment_category', 'is_paying', 'access_type',
   'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at',
-  'subscribed_at', 'back_catalog_access', 'monthly_payments'
+  'subscribed_at', 'back_catalog_access', 'monthly_payments', 'download_access'
 ];
 
 // Dynamic update used by the admin and account routes; only whitelisted
@@ -279,7 +283,7 @@ const softDeleteUser = (id) => {
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
   stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
-  subscribed_at, back_catalog_access, monthly_payments, created_at, updated_at`;
+  subscribed_at, back_catalog_access, monthly_payments, download_access, created_at, updated_at`;
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
@@ -437,7 +441,7 @@ const getPublishedPosts = () => {
 
 const userCanAccessPost = (user, post) => {
   if (!user || !post || !post.is_published || post.deleted_at) return false;
-  if (user.back_catalog_access || user.access_type === 'download') return true;
+  if (user.back_catalog_access) return true;
   const cutoff = user.subscribed_at || user.created_at;
   if (!cutoff) return true;
   return new Date(post.published_at) >= new Date(cutoff);
@@ -445,7 +449,7 @@ const userCanAccessPost = (user, post) => {
 
 const getPublishedPostsForUser = (user) => {
   return new Promise((resolve, reject) => {
-    if (user.back_catalog_access || user.access_type === 'download') {
+    if (user.back_catalog_access) {
       return getPublishedPosts().then(resolve).catch(reject);
     }
     const cutoff = user.subscribed_at || user.created_at;
@@ -504,7 +508,7 @@ const getPostsPaginated = (options = {}) => {
 
 const getPublishedPostsForUserPaginated = (user, options = {}) => {
   const base = { publishedOnly: true, ...options };
-  if (user.back_catalog_access || user.access_type === 'download') {
+  if (user.back_catalog_access) {
     return getPostsPaginated(base);
   }
   const cutoff = user.subscribed_at || user.created_at;

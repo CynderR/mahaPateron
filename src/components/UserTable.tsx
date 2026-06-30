@@ -16,7 +16,8 @@ export interface AdminUser {
   back_catalog_access: boolean | number;
   monthly_payments: boolean | number;
   payment_category: 'full' | 'free' | 'discounted' | 'non_card';
-  access_type: 'rss' | 'streaming' | 'both' | 'download';
+  access_type: 'rss' | 'streaming' | 'both';
+  download_access: boolean | number;
   subscription_price: number | null;
   rss_token: string;
 }
@@ -52,6 +53,7 @@ const UserTable: React.FC<UserTableProps> = ({
             <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th title="User is billed monthly via Stripe">Monthly</th>
             <th>Access</th>
+            <th title="Allow episode downloads for this user">Download</th>
             <th>Price</th>
             <th>RSS</th>
             <th></th>
@@ -119,7 +121,7 @@ const UserTable: React.FC<UserTableProps> = ({
               <td>
                 <select
                   className="pod-select"
-                  value={u.access_type}
+                  value={u.access_type === 'download' ? 'streaming' : u.access_type}
                   onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
                 >
                   {ACCESS_TYPE_OPTIONS.map((a) => (
@@ -128,6 +130,14 @@ const UserTable: React.FC<UserTableProps> = ({
                     </option>
                   ))}
                 </select>
+              </td>
+              <td>
+                <input
+                  type="checkbox"
+                  checked={!!u.download_access}
+                  title="Episode download access"
+                  onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
+                />
               </td>
               <td>
                 <input

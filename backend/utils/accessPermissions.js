@@ -1,4 +1,4 @@
-const ACCESS_TYPES = ['rss', 'streaming', 'both', 'download'];
+const ACCESS_TYPES = ['rss', 'streaming', 'both'];
 const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 const FREE_PAYMENT_CATEGORY = 'free';
 const PREVIEW_STREAM_SECONDS = 60;
@@ -23,17 +23,23 @@ const userSubscriptionInactive = (user) => {
 
 const streamPreviewSeconds = (user) => (userIsNotSubscribed(user) ? PREVIEW_STREAM_SECONDS : null);
 
+const userHasDownloadAccess = (user) =>
+  !!user?.download_access &&
+  !!user?.is_paying &&
+  !userIsNotSubscribed(user);
+
 const accessFlags = (user) => {
   const type = user?.access_type || 'streaming';
-  const canStreamType = type === 'streaming' || type === 'both';
+  const streamType = type === 'download' ? 'streaming' : type;
+  const canStreamType = streamType === 'streaming' || streamType === 'both';
   const canStreamMember =
     userHasFullStreamAccess(user) ||
     userIsNotSubscribed(user) ||
     user?.payment_category === FREE_PAYMENT_CATEGORY;
   return {
-    canRss: type === 'rss' || type === 'both',
+    canRss: streamType === 'rss' || streamType === 'both',
     canStream: canStreamType && canStreamMember,
-    canDownload: type === 'download'
+    canDownload: userHasDownloadAccess(user)
   };
 };
 
@@ -44,8 +50,6 @@ const previewMaxByte = (fileSize, durationSecs) => {
   }
   return Math.min(fileSize - 1, PREVIEW_STREAM_SECONDS * 16 * 1024);
 };
-
-const userHasDownloadCatalogAccess = (user) => user?.access_type === 'download';
 
 module.exports = {
   ACCESS_TYPES,
@@ -59,5 +63,5 @@ module.exports = {
   userSubscriptionInactive,
   streamPreviewSeconds,
   previewMaxByte,
-  userHasDownloadCatalogAccess
+  userHasDownloadAccess
 };

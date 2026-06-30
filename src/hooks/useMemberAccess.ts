@@ -34,7 +34,7 @@ export const useMemberAccess = (meta?: AccessMeta | null) => {
       : !!(meta?.canStream);
 
     const canDownload = user
-      ? memberHasDownloadAccess(user.is_paying, user.access_type, user.payment_category)
+      ? memberHasDownloadAccess(user.is_paying, user.download_access, user.payment_category)
       : !!(meta?.canDownload);
 
     const streamPreviewSeconds = user

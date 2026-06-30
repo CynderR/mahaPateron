@@ -19,7 +19,7 @@ const DownloadEpisodeButton: React.FC<DownloadEpisodeButtonProps> = ({
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
 
-  if (!user?.rss_token || !memberHasDownloadAccess(user.is_paying, user.access_type, user.payment_category)) {
+  if (!user?.rss_token || !memberHasDownloadAccess(user.is_paying, user.download_access, user.payment_category)) {
     return null;
   }
 
