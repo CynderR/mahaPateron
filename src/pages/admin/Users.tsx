@@ -6,10 +6,27 @@ import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import { ROUTER_BASENAME } from '../../config';
 import {
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
+  PaymentCategory,
   SUBSCRIPTION_STATUS_OPTIONS,
   SubscriptionStatus,
   subscriptionFieldsFromStatus
 } from '../../utils/paymentCategories';
+
+interface NewUserForm {
+  username: string;
+  email: string;
+  whatsapp_id: string;
+  signal_id: string;
+  subscription_status: SubscriptionStatus;
+  payment_category: PaymentCategory;
+  access_type: string;
+  download_access: boolean;
+  subscription_price: string;
+  is_paying: boolean;
+  is_admin: boolean;
+  back_catalog_access: boolean;
+  monthly_payments: boolean;
+}
 
 interface UsersResponse {
   users: AdminUser[];
@@ -18,7 +35,7 @@ interface UsersResponse {
   limit: number;
 }
 
-const emptyNewUser = {
+const emptyNewUser: NewUserForm = {
   username: '',
   email: '',
   whatsapp_id: '',
@@ -46,7 +63,7 @@ const Users: React.FC = () => {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showAdd, setShowAdd] = useState(false);
-  const [newUser, setNewUser] = useState({ ...emptyNewUser });
+  const [newUser, setNewUser] = useState<NewUserForm>({ ...emptyNewUser });
 
   const rssBaseUrl = `${window.location.origin}${ROUTER_BASENAME}`;
   const limit = 20;

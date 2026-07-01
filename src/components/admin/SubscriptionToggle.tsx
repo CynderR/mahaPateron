@@ -1,5 +1,5 @@
 import React from 'react';
-import { SubscriptionStatus, subscriptionStatusLabel } from '../utils/paymentCategories';
+import { SubscriptionStatus, subscriptionStatusLabel } from '../../utils/paymentCategories';
 
 interface SubscriptionToggleProps {
   value: SubscriptionStatus;

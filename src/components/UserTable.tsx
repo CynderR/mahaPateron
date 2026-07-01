@@ -108,7 +108,7 @@ const UserTable: React.FC<UserTableProps> = ({
               <td>
                 <select
                   className="pod-select"
-                  value={u.access_type === 'download' ? 'streaming' : u.access_type}
+                  value={u.access_type}
                   onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
                 >
                   {ACCESS_TYPE_OPTIONS.map((a) => (
