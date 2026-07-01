@@ -8,6 +8,7 @@ import ShareMobileNav, { ShareMobileHeader } from '../../components/mobile/Share
 import PodcastFeaturedEpisode from '../../components/mobile/PodcastFeaturedEpisode';
 import PodcastEpisodeCard from '../../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../../components/MemberEpisodeToolbar';
+import ShareAccessNotice from '../../components/share/ShareAccessNotice';
 import { FeedPost } from '../../components/PostCard';
 import { buildImageUrl } from '../../config';
 import { useShare } from '../../contexts/ShareContext';
@@ -79,12 +80,11 @@ const ShareFeed: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
-          {memberAccess
-            ? 'Signed in with member access — browse and stream your full catalog.'
-            : 'This link includes the shared episode only. Sign in with a subscribed, free, discounted, or non-card account for full access.'}{' '}
-          {!memberAccess && <Link to="/signin">Sign in</Link>}
-        </p>
+        <ShareAccessNotice
+          memberAccess={memberAccess}
+          memberMessage="Signed in with member access — browse and stream your full catalog."
+          style={{ margin: '0.75rem 1rem 0' }}
+        />
 
         {loading ? (
           <div className="pod-empty">Loading episodes…</div>
@@ -139,12 +139,10 @@ const ShareFeed: React.FC = () => {
             {toolbar}
           </div>
 
-          <p className="pod-banner pod-banner-info">
-            {memberAccess
-              ? 'Signed in with member access — browse and stream your full catalog.'
-              : 'This link includes the shared episode only. Sign in with a subscribed, free, discounted, or non-card account for full access.'}{' '}
-            {!memberAccess && <Link to="/signin">Sign in</Link>}
-          </p>
+          <ShareAccessNotice
+            memberAccess={memberAccess}
+            memberMessage="Signed in with member access — browse and stream your full catalog."
+          />
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
 

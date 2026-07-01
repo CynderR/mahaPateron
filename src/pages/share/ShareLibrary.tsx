@@ -6,6 +6,7 @@ import PostCard, { FeedPost } from '../../components/PostCard';
 import ShareMobileNav, { ShareMobileHeader } from '../../components/mobile/ShareMobileNav';
 import PodcastEpisodeCard from '../../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../../components/MemberEpisodeToolbar';
+import ShareAccessNotice from '../../components/share/ShareAccessNotice';
 import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import { useShare } from '../../contexts/ShareContext';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
@@ -168,17 +169,11 @@ const ShareLibrary: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        <p className="pod-banner pod-banner-info" style={{ margin: '0.75rem 1rem 0' }}>
-          {memberAccess
-            ? 'Signed in with member access — your full library is available.'
-            : 'This link includes the shared episode only.'}{' '}
-          {!memberAccess && (
-            <>
-              <Link to="/signin">Sign in</Link> with a subscribed, free, discounted, or non-card account for full
-              access.
-            </>
-          )}
-        </p>
+        <ShareAccessNotice
+          memberAccess={memberAccess}
+          memberMessage="Signed in with member access — your full library is available."
+          style={{ margin: '0.75rem 1rem 0' }}
+        />
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
@@ -201,17 +196,10 @@ const ShareLibrary: React.FC = () => {
       <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        <p className="pod-banner pod-banner-info">
-          {memberAccess
-            ? 'Signed in with member access — your full library is available.'
-            : 'This link includes the shared episode only.'}{' '}
-          {!memberAccess && (
-            <>
-              <Link to="/signin">Sign in</Link> with a subscribed, free, discounted, or non-card account for full
-              access.
-            </>
-          )}
-        </p>
+        <ShareAccessNotice
+          memberAccess={memberAccess}
+          memberMessage="Signed in with member access — your full library is available."
+        />
 
         {loading ? (
           <div className="pod-empty">Loading library…</div>
