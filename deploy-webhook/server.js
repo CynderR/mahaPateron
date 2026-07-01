@@ -236,6 +236,15 @@ function isLogAccessAllowed(req, url, status) {
   return status.state === 'failed' || status.state === 'running';
 }
 
+function withToken(href, req, url) {
+  const token = extractLogToken(req, url);
+  if (!token) {
+    return href;
+  }
+  const separator = href.includes('?') ? '&' : '?';
+  return `${href}${separator}token=${encodeURIComponent(token)}`;
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -308,10 +317,16 @@ function handleLogRequest(req, res, url, logPath, title) {
     const links = [];
     const buildLog = path.join(LOG_DIR, 'last-build.log');
     if (logPath !== buildLog && fs.existsSync(buildLog)) {
-      links.push({ href: `${WEBHOOK_PATH}/logs/build`, label: 'Build log only' });
+      links.push({
+        href: withToken(`${WEBHOOK_PATH}/logs/build`, req, url),
+        label: 'Build log only',
+      });
     }
     if (status.log && logPath !== status.log) {
-      links.push({ href: `${WEBHOOK_PATH}/logs/latest`, label: 'Full deploy log' });
+      links.push({
+        href: withToken(`${WEBHOOK_PATH}/logs/latest`, req, url),
+        label: 'Full deploy log',
+      });
     }
     links.push({ href: `${WEBHOOK_PATH}/status`, label: 'Status JSON' });
     sendHtml(res, 200, renderLogPage(title, status, content, links));
@@ -328,16 +343,7 @@ function handleFailedPage(req, res, url) {
     return;
   }
 
-  if (!isLogAccessAllowed(req, url, status)) {
-    sendJson(res, 403, {
-      error: 'Log access denied',
-      hint: LOG_TOKEN
-        ? 'Provide ?token=... or Authorization: Bearer ...'
-        : 'Failed deploy page is available without a token after a failure',
-    });
-    return;
-  }
-
+  // Public after a failure — no token required so you can open this in a browser.
   const buildLog = path.join(LOG_DIR, 'last-build.log');
   const logPath = fs.existsSync(buildLog) ? buildLog : status.log;
   const content = readLogContent(logPath, { tail: url.searchParams.get('tail') }) || '';
@@ -352,8 +358,8 @@ function handleFailedPage(req, res, url) {
     res,
     200,
     renderLogPage(title, status, content, [
-      { href: `${WEBHOOK_PATH}/logs/build`, label: 'Build log' },
-      { href: `${WEBHOOK_PATH}/logs/latest`, label: 'Full deploy log' },
+      { href: withToken(`${WEBHOOK_PATH}/logs/build`, req, url), label: 'Build log' },
+      { href: withToken(`${WEBHOOK_PATH}/logs/latest`, req, url), label: 'Full deploy log' },
       { href: `${WEBHOOK_PATH}/status`, label: 'Status JSON' },
     ])
   );
