@@ -24,6 +24,7 @@ print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 NODE_VERSION="${NODE_VERSION:-22.21.0}"
 RELOAD_NGINX="${RELOAD_NGINX:-1}"
 GIT_BRANCH="${GIT_BRANCH:-main}"
+DEPLOY_LOG_DIR="${DEPLOY_LOG_DIR:-/var/log/deploy-webhook}"
 
 echo "🔄 Updating Shyam Akaash production app..."
 echo "=================================================="
@@ -62,8 +63,40 @@ npm install
 print_status "Installing backend dependencies..."
 (cd backend && npm install --omit=dev)
 
+write_build_failure() {
+  local reason="${1:-Frontend build failed}"
+  local failure_file="$DEPLOY_LOG_DIR/last-build-failure.json"
+  local build_log="$DEPLOY_LOG_DIR/last-build.log"
+  local commit
+  commit="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  mkdir -p "$DEPLOY_LOG_DIR"
+  python3 - "$failure_file" "$build_log" "$commit" "$reason" <<'PY'
+import json
+import sys
+from datetime import datetime, timezone
+
+failure_file, build_log, commit, reason = sys.argv[1:5]
+payload = {
+    "reason": reason,
+    "commit": commit,
+    "buildLog": build_log,
+    "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+}
+with open(failure_file, "w", encoding="utf-8") as handle:
+    json.dump(payload, handle)
+    handle.write("\n")
+PY
+}
+
+clear_build_failure() {
+  rm -f "$DEPLOY_LOG_DIR/last-build-failure.json"
+}
+
 build_frontend() {
   local backup_dir=""
+  local build_log="$DEPLOY_LOG_DIR/last-build.log"
+  mkdir -p "$DEPLOY_LOG_DIR"
+
   if [ -f build/index.html ]; then
     backup_dir="$(mktemp -d)"
     print_status "Backing up current build to $backup_dir ..."
@@ -72,24 +105,31 @@ build_frontend() {
 
   print_status "Building React app (homepage /shyam_akaash)..."
   # Webhook shells may set CI=1, which turns ESLint warnings into build failures.
-  if ! CI=false DISABLE_ESLINT_PLUGIN=true npm run build; then
+  if ! (
+    set -o pipefail
+    CI=false DISABLE_ESLINT_PLUGIN=true npm run build 2>&1 | tee "$build_log"
+  ); then
     if [ -n "$backup_dir" ] && [ -f "$backup_dir/build/index.html" ]; then
       print_warning "Build failed — restoring previous build so the site stays online"
       rm -rf build
       cp -a "$backup_dir/build" .
     fi
     rm -rf "$backup_dir"
-    print_error "Frontend build failed"
+    write_build_failure "Frontend build failed"
+    print_error "Frontend build failed (see $build_log)"
     return 1
   fi
 
   rm -rf "$backup_dir"
+  clear_build_failure
 
   if ! ls build/static/js/main.*.js >/dev/null 2>&1; then
+    write_build_failure "Build finished but main.*.js is missing"
     print_error "Build finished but main.*.js is missing"
     return 1
   fi
   if [ ! -f build/index.html ]; then
+    write_build_failure "Build finished but build/index.html is missing"
     print_error "Build finished but build/index.html is missing"
     return 1
   fi

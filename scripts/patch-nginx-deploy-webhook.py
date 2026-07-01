@@ -43,7 +43,10 @@ def find_block_end(text: str, open_brace: int) -> int:
 
 
 def remove_deploy_webhook_locations(text: str) -> str:
-    pattern = re.compile(r"^\s*location\s+=\s+/hooks/github-deploy", re.MULTILINE)
+    pattern = re.compile(
+        r"^\s*location\s+(?:=\s+|\^~\s+)?/hooks/github-deploy",
+        re.MULTILINE,
+    )
     while True:
         match = pattern.search(text)
         if not match:

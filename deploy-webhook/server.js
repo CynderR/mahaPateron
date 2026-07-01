@@ -19,7 +19,9 @@ const DEPLOY_BRANCH = process.env.DEPLOY_BRANCH || 'main';
 const TRIGGER_SCRIPT =
   process.env.DEPLOY_TRIGGER_SCRIPT || path.join(SCRIPT_DIR, 'trigger-deploy.sh');
 const LOG_DIR = process.env.DEPLOY_LOG_DIR || '/var/log/deploy-webhook';
+const LOG_TOKEN = process.env.DEPLOY_LOG_TOKEN || '';
 const WEBHOOK_PATH = '/hooks/github-deploy';
+const DEPLOY_LOG_PATTERN = /^deploy-\d{8}_\d{6}\.log$/;
 
 function loadEnvFile(filePath) {
   if (!fs.existsSync(filePath)) {
@@ -159,6 +161,204 @@ function readDeployStatus() {
   }
 }
 
+function resolveLogPath(candidatePath) {
+  if (!candidatePath) {
+    return null;
+  }
+
+  const resolved = path.resolve(candidatePath);
+  const logRoot = path.resolve(LOG_DIR);
+  if (resolved !== logRoot && !resolved.startsWith(`${logRoot}${path.sep}`)) {
+    return null;
+  }
+
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    return null;
+  }
+
+  return resolved;
+}
+
+function readLogContent(logPath, options = {}) {
+  const resolved = resolveLogPath(logPath);
+  if (!resolved) {
+    return null;
+  }
+
+  let content = fs.readFileSync(resolved, 'utf8');
+  const tail = Number(options.tail);
+  if (Number.isFinite(tail) && tail > 0) {
+    content = content.split('\n').slice(-tail).join('\n');
+  }
+
+  return content;
+}
+
+function listDeployLogs(limit = 20) {
+  if (!fs.existsSync(LOG_DIR)) {
+    return [];
+  }
+
+  return fs
+    .readdirSync(LOG_DIR)
+    .filter((name) => DEPLOY_LOG_PATTERN.test(name))
+    .map((name) => {
+      const filePath = path.join(LOG_DIR, name);
+      const stats = fs.statSync(filePath);
+      return {
+        name,
+        at: stats.mtime.toISOString(),
+        bytes: stats.size,
+      };
+    })
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, limit);
+}
+
+function extractLogToken(req, url) {
+  const auth = req.headers.authorization || '';
+  if (auth.startsWith('Bearer ')) {
+    return auth.slice('Bearer '.length).trim();
+  }
+
+  return url.searchParams.get('token') || '';
+}
+
+function isLogAccessAllowed(req, url, status) {
+  if (LOG_TOKEN) {
+    const provided = extractLogToken(req, url);
+    if (!provided || provided.length !== LOG_TOKEN.length) {
+      return false;
+    }
+    return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(LOG_TOKEN));
+  }
+
+  return status.state === 'failed' || status.state === 'running';
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function sendText(res, statusCode, content, contentType = 'text/plain; charset=utf-8') {
+  res.writeHead(statusCode, { 'Content-Type': contentType });
+  res.end(content);
+}
+
+function sendHtml(res, statusCode, html) {
+  sendText(res, statusCode, html, 'text/html; charset=utf-8');
+}
+
+function wantsHtml(req) {
+  const accept = req.headers.accept || '';
+  return accept.includes('text/html');
+}
+
+function renderLogPage(title, status, content, links = []) {
+  const linkHtml = links
+    .map((link) => `<a href="${escapeHtml(link.href)}">${escapeHtml(link.label)}</a>`)
+    .join(' &middot; ');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 1.5rem; background: #111; color: #eee; }
+    h1 { font-size: 1.1rem; font-family: system-ui, sans-serif; }
+    .meta { font-family: system-ui, sans-serif; color: #bbb; margin-bottom: 1rem; }
+    .links { font-family: system-ui, sans-serif; margin-bottom: 1rem; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #1b1b1b; padding: 1rem; border-radius: 6px; overflow: auto; }
+  </style>
+</head>
+<body>
+  <h1>${escapeHtml(title)}</h1>
+  <div class="meta">state=${escapeHtml(status.state)} &middot; ${escapeHtml(status.message || '')} &middot; ${escapeHtml(status.at || '')}</div>
+  ${linkHtml ? `<div class="links">${linkHtml}</div>` : ''}
+  <pre>${escapeHtml(content || '(empty log)')}</pre>
+</body>
+</html>`;
+}
+
+function handleLogRequest(req, res, url, logPath, title) {
+  const status = readDeployStatus();
+  if (!isLogAccessAllowed(req, url, status)) {
+    sendJson(res, 403, {
+      error: 'Log access denied',
+      hint: LOG_TOKEN
+        ? 'Provide ?token=... or Authorization: Bearer ...'
+        : 'Logs are only available while a deploy is running or after a failure',
+    });
+    return;
+  }
+
+  const content = readLogContent(logPath, { tail: url.searchParams.get('tail') });
+  if (content === null) {
+    sendJson(res, 404, { error: 'Log not found' });
+    return;
+  }
+
+  if (wantsHtml(req)) {
+    const links = [];
+    const buildLog = path.join(LOG_DIR, 'last-build.log');
+    if (logPath !== buildLog && fs.existsSync(buildLog)) {
+      links.push({ href: `${WEBHOOK_PATH}/logs/build`, label: 'Build log only' });
+    }
+    if (status.log && logPath !== status.log) {
+      links.push({ href: `${WEBHOOK_PATH}/logs/latest`, label: 'Full deploy log' });
+    }
+    links.push({ href: `${WEBHOOK_PATH}/status`, label: 'Status JSON' });
+    sendHtml(res, 200, renderLogPage(title, status, content, links));
+    return;
+  }
+
+  sendText(res, 200, content);
+}
+
+function handleFailedPage(req, res, url) {
+  const status = readDeployStatus();
+  if (status.state !== 'failed') {
+    sendJson(res, 404, { error: 'No failed deploy to show', state: status.state });
+    return;
+  }
+
+  if (!isLogAccessAllowed(req, url, status)) {
+    sendJson(res, 403, {
+      error: 'Log access denied',
+      hint: LOG_TOKEN
+        ? 'Provide ?token=... or Authorization: Bearer ...'
+        : 'Failed deploy page is available without a token after a failure',
+    });
+    return;
+  }
+
+  const buildLog = path.join(LOG_DIR, 'last-build.log');
+  const logPath = fs.existsSync(buildLog) ? buildLog : status.log;
+  const content = readLogContent(logPath, { tail: url.searchParams.get('tail') }) || '';
+  const title = fs.existsSync(buildLog) ? 'Build failed' : 'Deploy failed';
+
+  if (!wantsHtml(req)) {
+    sendText(res, 200, content);
+    return;
+  }
+
+  sendHtml(
+    res,
+    200,
+    renderLogPage(title, status, content, [
+      { href: `${WEBHOOK_PATH}/logs/build`, label: 'Build log' },
+      { href: `${WEBHOOK_PATH}/logs/latest`, label: 'Full deploy log' },
+      { href: `${WEBHOOK_PATH}/status`, label: 'Status JSON' },
+    ])
+  );
+}
+
 function collectRequestBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -181,6 +381,54 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === 'GET' && url.pathname === `${WEBHOOK_PATH}/failed`) {
+    handleFailedPage(req, res, url);
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === `${WEBHOOK_PATH}/logs`) {
+    const status = readDeployStatus();
+    if (!isLogAccessAllowed(req, url, status)) {
+      sendJson(res, 403, {
+        error: 'Log access denied',
+        hint: LOG_TOKEN
+          ? 'Provide ?token=... or Authorization: Bearer ...'
+          : 'Logs are only available while a deploy is running or after a failure',
+      });
+      return;
+    }
+
+    sendJson(res, 200, {
+      logs: listDeployLogs(),
+      latest: status.log ? path.basename(status.log) : null,
+      buildLog: fs.existsSync(path.join(LOG_DIR, 'last-build.log')) ? 'last-build.log' : null,
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === `${WEBHOOK_PATH}/logs/latest`) {
+    const status = readDeployStatus();
+    handleLogRequest(req, res, url, status.log, 'Latest deploy log');
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === `${WEBHOOK_PATH}/logs/build`) {
+    handleLogRequest(req, res, url, path.join(LOG_DIR, 'last-build.log'), 'Build log');
+    return;
+  }
+
+  const logNameMatch = url.pathname.match(new RegExp(`^${WEBHOOK_PATH}/logs/([^/]+)$`));
+  if (req.method === 'GET' && logNameMatch) {
+    const logName = logNameMatch[1];
+    if (!DEPLOY_LOG_PATTERN.test(logName)) {
+      sendJson(res, 404, { error: 'Unknown log file' });
+      return;
+    }
+
+    handleLogRequest(req, res, url, path.join(LOG_DIR, logName), logName);
+    return;
+  }
+
   if (req.method === 'POST' && url.pathname === WEBHOOK_PATH) {
     try {
       const rawBody = await collectRequestBody(req);
@@ -200,5 +448,10 @@ server.listen(PORT, HOST, () => {
   console.log(`deploy-webhook listening on http://${HOST}:${PORT}`);
   if (!SECRET) {
     console.warn('WARNING: GITHUB_WEBHOOK_SECRET is not set — all webhook calls will be rejected');
+  }
+  if (!LOG_TOKEN) {
+    console.warn(
+      'WARNING: DEPLOY_LOG_TOKEN is not set — log endpoints are only available after a failed/running deploy'
+    );
   }
 });

@@ -25,18 +25,31 @@ mkdir -p "$LOG_DIR"
 write_status() {
   local state="$1"
   local message="$2"
-  python3 - "$state" "$message" "$DEPLOY_LOG" "$STATUS_FILE" <<'PY'
+  python3 - "$state" "$message" "$DEPLOY_LOG" "$STATUS_FILE" "$LOG_DIR" <<'PY'
 import json
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 
-state, message, log_path, status_file = sys.argv[1:5]
+state, message, log_path, status_file, log_dir = sys.argv[1:6]
 payload = {
     "state": state,
     "message": message,
     "at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
     "log": log_path,
 }
+failure_file = Path(log_dir) / "last-build-failure.json"
+if failure_file.is_file():
+    try:
+        failure = json.loads(failure_file.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        failure = {}
+    if failure.get("buildLog"):
+        payload["buildLog"] = failure["buildLog"]
+    if failure.get("commit"):
+        payload["commit"] = failure["commit"]
+    if failure.get("reason"):
+        payload["buildError"] = failure["reason"]
 with open(status_file, "w", encoding="utf-8") as handle:
     json.dump(payload, handle)
     handle.write("\n")
@@ -61,6 +74,7 @@ set +e
 {
   echo "=== Deploy started $(date -Iseconds) ==="
   cd "$REPO_ROOT"
+  export DEPLOY_LOG_DIR="$LOG_DIR"
 
   if [ -f "${HOME}/.nvm/nvm.sh" ]; then
     # shellcheck source=/dev/null

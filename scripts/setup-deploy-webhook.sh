@@ -35,13 +35,24 @@ touch "$LOG_DIR/webhook.log"
 if [ ! -f "$ENV_FILE" ]; then
   print_status "Creating deploy-webhook/.env with a new webhook secret..."
   SECRET="$(openssl rand -hex 32)"
+  LOG_TOKEN="$(openssl rand -hex 32)"
   cp "$ENV_EXAMPLE" "$ENV_FILE"
   sed -i "s/^GITHUB_WEBHOOK_SECRET=.*/GITHUB_WEBHOOK_SECRET=$SECRET/" "$ENV_FILE"
+  if grep -q '^# DEPLOY_LOG_TOKEN=' "$ENV_FILE"; then
+    sed -i "s/^# DEPLOY_LOG_TOKEN=.*/DEPLOY_LOG_TOKEN=$LOG_TOKEN/" "$ENV_FILE"
+  else
+    echo "DEPLOY_LOG_TOKEN=$LOG_TOKEN" >> "$ENV_FILE"
+  fi
   chmod 600 "$ENV_FILE"
   print_warning "Saved secret to $ENV_FILE — you will need this for GitHub."
 else
   print_status "Using existing $ENV_FILE"
   SECRET="$(grep '^GITHUB_WEBHOOK_SECRET=' "$ENV_FILE" | cut -d= -f2-)"
+  if ! grep -q '^DEPLOY_LOG_TOKEN=' "$ENV_FILE"; then
+    LOG_TOKEN="$(openssl rand -hex 32)"
+    echo "DEPLOY_LOG_TOKEN=$LOG_TOKEN" >> "$ENV_FILE"
+    print_warning "Added DEPLOY_LOG_TOKEN to $ENV_FILE for log endpoint access."
+  fi
 fi
 
 if [ -z "$SECRET" ]; then
@@ -102,5 +113,10 @@ echo ""
 echo "After saving the webhook, push to main and watch:"
 echo "  tail -f /var/log/deploy-webhook/webhook.log"
 echo "  curl -s https://4thstate.ca/hooks/github-deploy/status"
+echo ""
+echo "If a build fails, open in a browser:"
+echo "  https://4thstate.ca/hooks/github-deploy/failed"
+echo "Or fetch logs (use DEPLOY_LOG_TOKEN from deploy-webhook/.env if set):"
+echo "  curl -s 'https://4thstate.ca/hooks/github-deploy/logs/build?token=YOUR_TOKEN'"
 echo ""
 print_status "Setup complete"
