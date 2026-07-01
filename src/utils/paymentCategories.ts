@@ -8,12 +8,15 @@ export const DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY = 'discounted' as const;
 export type SubscriptionStatus = 'not_subscribed' | 'subscribed';
 
 export const SUBSCRIPTION_STATUS_OPTIONS: { value: SubscriptionStatus; label: string }[] = [
-  { value: 'not_subscribed', label: 'Not subscribed' },
+  { value: 'not_subscribed', label: 'Not Subscribed' },
   { value: 'subscribed', label: 'Subscribed' }
 ];
 
+export const subscriptionStatusLabel = (status: SubscriptionStatus): string =>
+  SUBSCRIPTION_STATUS_OPTIONS.find((option) => option.value === status)?.label ?? 'Not Subscribed';
+
 export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
-  full: 'Not subscribed',
+  full: 'Not Subscribed',
   free: 'free',
   discounted: 'discounted',
   non_card: 'non_card'

@@ -1,8 +1,8 @@
 import React from 'react';
 
 import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
+import SubscriptionToggle from './admin/SubscriptionToggle';
 import {
-  SUBSCRIPTION_STATUS_OPTIONS,
   SubscriptionStatus,
   subscriptionStatusFromCategory
 } from '../utils/paymentCategories';
@@ -48,7 +48,7 @@ const UserTable: React.FC<UserTableProps> = ({
           <tr>
             <th>User</th>
             <th>Role</th>
-            <th>Subscription</th>
+            <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
             <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th title="User is billed monthly via Stripe">Monthly</th>
@@ -77,23 +77,10 @@ const UserTable: React.FC<UserTableProps> = ({
                 </select>
               </td>
               <td>
-                <select
-                  className="pod-select"
+                <SubscriptionToggle
                   value={subscriptionStatusFromCategory(u.payment_category)}
-                  onChange={(e) =>
-                    onSubscriptionChange(
-                      u.id,
-                      e.target.value as SubscriptionStatus,
-                      u.payment_category
-                    )
-                  }
-                >
-                  {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(status) => onSubscriptionChange(u.id, status, u.payment_category)}
+                />
               </td>
               <td>
                 <input

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminUser } from '../../components/UserTable';
+import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import { ROUTER_BASENAME } from '../../config';
 import {
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
@@ -165,25 +166,17 @@ const Users: React.FC = () => {
               </select>
             </div>
             <div className="pod-form-group">
-              <label>Subscription</label>
-              <select
-                className="pod-select"
+              <label>Payment</label>
+              <SubscriptionToggle
                 value={newUser.subscription_status}
-                onChange={(e) => {
-                  const subscription_status = e.target.value as SubscriptionStatus;
+                onChange={(subscription_status) => {
                   setNewUser({
                     ...newUser,
                     subscription_status,
                     ...subscriptionFieldsFromStatus(subscription_status, newUser.payment_category)
                   });
                 }}
-              >
-                {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
             <div className="pod-form-group">
               <label>Access type</label>
@@ -206,11 +199,6 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Subscription price (leave blank for platform default)</label>
               <input className="pod-input" type="number" step="0.01" min="0" value={newUser.subscription_price} onChange={(e) => setNewUser({ ...newUser, subscription_price: e.target.value })} />
-            </div>
-            <div className="pod-form-group">
-              <label>
-                <input type="checkbox" checked={newUser.is_paying} onChange={(e) => setNewUser({ ...newUser, is_paying: e.target.checked })} /> Mark as paying
-              </label>
             </div>
             <div className="pod-form-group">
               <label>
@@ -247,7 +235,7 @@ const Users: React.FC = () => {
               </select>
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Subscription</label>
+              <label>Payment</label>
               <select
                 className="pod-select"
                 value={filters.subscription_status}
