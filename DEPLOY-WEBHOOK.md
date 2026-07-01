@@ -101,8 +101,9 @@ curl -s "https://4thstate.ca/hooks/github-deploy/logs/latest?token=$TOKEN&tail=1
 ```
 
 Without `DEPLOY_LOG_TOKEN`, log endpoints are only readable while a deploy is **running**
-or after it **failed**. `/hooks/github-deploy/failed` is always public when the last
-deploy failed (no token needed). Other log URLs still require a token if one is configured.
+or after it **failed**. When the last deploy failed, `/failed`, `/logs/build`, and
+`/logs/latest` all work in a browser with no token. A token is only needed to read logs
+after a **successful** deploy.
 
 On the server, raw files live under `/var/log/deploy-webhook/`:
 
@@ -130,7 +131,7 @@ On the server, raw files live under `/var/log/deploy-webhook/`:
 | `401 Invalid signature` | Secret mismatch between GitHub and `.env` |
 | `Deploy already in progress` | Previous deploy still running; wait or inspect latest log |
 | Deploy fails mid-run | `curl -s https://4thstate.ca/hooks/github-deploy/failed` or `tail -100 /var/log/deploy-webhook/deploy-*.log` |
-| `403` on `/logs/*` URLs | Pass `?token=...` from `DEPLOY_LOG_TOKEN` in `.env` |
+| `403` on `/logs/*` URLs | Last deploy succeeded — pass `?token=...` from `DEPLOY_LOG_TOKEN`, or wait for a failure |
 | `404` on `/hooks/github-deploy/failed` | Last deploy succeeded — use `/logs/build?token=...` instead |
 | nginx 502 | `pm2 status` — is `deploy-webhook` online? |
 

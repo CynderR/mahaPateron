@@ -225,6 +225,11 @@ function extractLogToken(req, url) {
 }
 
 function isLogAccessAllowed(req, url, status) {
+  // After a failure (or while running), logs are readable without a token.
+  if (status.state === 'failed' || status.state === 'running') {
+    return true;
+  }
+
   if (LOG_TOKEN) {
     const provided = extractLogToken(req, url);
     if (!provided || provided.length !== LOG_TOKEN.length) {
@@ -233,7 +238,7 @@ function isLogAccessAllowed(req, url, status) {
     return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(LOG_TOKEN));
   }
 
-  return status.state === 'failed' || status.state === 'running';
+  return false;
 }
 
 function withToken(href, req, url) {
