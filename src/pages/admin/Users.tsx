@@ -2,11 +2,15 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminUser } from '../../components/UserTable';
+import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import { ROUTER_BASENAME } from '../../config';
 import {
+  fieldsFromPayingTier,
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
+  PayingTier,
   PaymentCategory,
+  PAYING_TIER_OPTIONS,
   SUBSCRIPTION_STATUS_OPTIONS,
   SubscriptionStatus,
   subscriptionFieldsFromStatus
@@ -18,6 +22,7 @@ interface NewUserForm {
   whatsapp_id: string;
   signal_id: string;
   subscription_status: SubscriptionStatus;
+  paying_tier: PayingTier;
   payment_category: PaymentCategory;
   access_type: string;
   download_access: boolean;
@@ -41,6 +46,7 @@ const emptyNewUser: NewUserForm = {
   whatsapp_id: '',
   signal_id: '',
   subscription_status: 'not_subscribed' as SubscriptionStatus,
+  paying_tier: 'paying_subscriber' as PayingTier,
   payment_category: NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   access_type: 'streaming',
   download_access: false,
@@ -54,7 +60,7 @@ const emptyNewUser: NewUserForm = {
 const Users: React.FC = () => {
   const [data, setData] = useState<UsersResponse | null>(null);
   const [filters, setFilters] = useState({
-    is_paying: '',
+    payment_category: '',
     subscription_status: '',
     access_type: '',
     is_admin: ''
@@ -72,7 +78,7 @@ const Users: React.FC = () => {
     setError('');
     try {
       const params: Record<string, string | number> = { page, limit };
-      if (filters.is_paying) params.is_paying = filters.is_paying;
+      if (filters.payment_category) params.payment_category = filters.payment_category;
       if (filters.subscription_status) params.subscription_status = filters.subscription_status;
       if (filters.access_type) params.access_type = filters.access_type;
       if (filters.is_admin) params.is_admin = filters.is_admin;
@@ -111,6 +117,16 @@ const Users: React.FC = () => {
     }
   };
 
+  const handlePayingTierChange = async (id: number, tier: PayingTier) => {
+    setError('');
+    try {
+      await axios.put(`/admin/users/${id}`, fieldsFromPayingTier(tier));
+      load();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Update failed.');
+    }
+  };
+
   const handleDelete = async (id: number) => {
     if (!window.confirm('Delete this user? Their RSS feed will be disabled.')) return;
     try {
@@ -126,9 +142,16 @@ const Users: React.FC = () => {
     setError('');
     setMessage('');
     try {
-      const { subscription_status, ...rest } = newUser;
-      const subscriptionFields = subscriptionFieldsFromStatus(subscription_status, rest.payment_category);
-      await axios.post('/admin/users', { ...rest, ...subscriptionFields });
+      const { subscription_status, paying_tier, ...rest } = newUser;
+      const subscriptionFields = subscriptionFieldsFromStatus(
+        subscription_status,
+        subscription_status === 'subscribed'
+          ? fieldsFromPayingTier(paying_tier).payment_category
+          : rest.payment_category
+      );
+      const payingFields =
+        subscription_status === 'subscribed' ? fieldsFromPayingTier(paying_tier) : subscriptionFields;
+      await axios.post('/admin/users', { ...rest, ...payingFields });
       setMessage(`User ${newUser.username} created.`);
       setNewUser({ ...emptyNewUser });
       setShowAdd(false);
@@ -187,14 +210,35 @@ const Users: React.FC = () => {
               <SubscriptionToggle
                 value={newUser.subscription_status}
                 onChange={(subscription_status) => {
+                  const subscriptionFields = subscriptionFieldsFromStatus(
+                    subscription_status,
+                    subscription_status === 'subscribed'
+                      ? fieldsFromPayingTier(newUser.paying_tier).payment_category
+                      : newUser.payment_category
+                  );
                   setNewUser({
                     ...newUser,
                     subscription_status,
-                    ...subscriptionFieldsFromStatus(subscription_status, newUser.payment_category)
+                    ...subscriptionFields
                   });
                 }}
               />
             </div>
+            {newUser.subscription_status === 'subscribed' && (
+              <div className="pod-form-group">
+                <label>Paying</label>
+                <PayingTierSelect
+                  paymentCategory={fieldsFromPayingTier(newUser.paying_tier).payment_category}
+                  onChange={(paying_tier) => {
+                    setNewUser({
+                      ...newUser,
+                      paying_tier,
+                      ...fieldsFromPayingTier(paying_tier)
+                    });
+                  }}
+                />
+              </div>
+            )}
             <div className="pod-form-group">
               <label>Access type</label>
               <select className="pod-select" value={newUser.access_type} onChange={(e) => setNewUser({ ...newUser, access_type: e.target.value })}>
@@ -237,10 +281,20 @@ const Users: React.FC = () => {
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>Paying</label>
-              <select className="pod-select" value={filters.is_paying} onChange={(e) => { setPage(1); setFilters({ ...filters, is_paying: e.target.value }); }}>
+              <select
+                className="pod-select"
+                value={filters.payment_category}
+                onChange={(e) => {
+                  setPage(1);
+                  setFilters({ ...filters, payment_category: e.target.value });
+                }}
+              >
                 <option value="">All</option>
-                <option value="true">Paying</option>
-                <option value="false">Not paying</option>
+                {PAYING_TIER_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.payment_category}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
@@ -287,6 +341,7 @@ const Users: React.FC = () => {
             rssBaseUrl={rssBaseUrl}
             onUpdate={handleUpdate}
             onSubscriptionChange={handleSubscriptionChange}
+            onPayingTierChange={handlePayingTierChange}
             onDelete={handleDelete}
           />
         )}

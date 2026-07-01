@@ -1,8 +1,10 @@
 import React from 'react';
 
 import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
+import PayingTierSelect from './admin/PayingTierSelect';
 import SubscriptionToggle from './admin/SubscriptionToggle';
 import {
+  PayingTier,
   SubscriptionStatus,
   subscriptionStatusFromCategory
 } from '../utils/paymentCategories';
@@ -27,6 +29,7 @@ interface UserTableProps {
   rssBaseUrl: string;
   onUpdate: (id: number, field: string, value: unknown) => void;
   onSubscriptionChange: (id: number, status: SubscriptionStatus, currentCategory: string) => void;
+  onPayingTierChange: (id: number, tier: PayingTier) => void;
   onDelete: (id: number) => void;
 }
 
@@ -35,6 +38,7 @@ const UserTable: React.FC<UserTableProps> = ({
   rssBaseUrl,
   onUpdate,
   onSubscriptionChange,
+  onPayingTierChange,
   onDelete
 }) => {
   const copyRss = (token: string) => {
@@ -83,10 +87,9 @@ const UserTable: React.FC<UserTableProps> = ({
                 />
               </td>
               <td>
-                <input
-                  type="checkbox"
-                  checked={!!u.is_paying}
-                  onChange={(e) => onUpdate(u.id, 'is_paying', e.target.checked)}
+                <PayingTierSelect
+                  paymentCategory={u.payment_category}
+                  onChange={(tier) => onPayingTierChange(u.id, tier)}
                 />
               </td>
               <td>
