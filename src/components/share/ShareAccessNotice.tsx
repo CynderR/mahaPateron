@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { buildSignInUrl } from '../../config';
 
 interface ShareAccessNoticeProps {
   memberAccess: boolean;
@@ -13,17 +13,21 @@ const ShareAccessNotice: React.FC<ShareAccessNoticeProps> = ({
   memberMessage,
   className = 'pod-banner pod-banner-info',
   style
-}) => (
-  <p className={className} style={style}>
-    {memberAccess ? (
-      memberMessage
-    ) : (
-      <>
-        This link includes the shared episode only. <Link to="/signin">Sign in</Link> to your account for full
-        access.
-      </>
-    )}
-  </p>
-);
+}) => {
+  const signInUrl = buildSignInUrl();
+
+  return (
+    <p className={className} style={style}>
+      {memberAccess ? (
+        memberMessage
+      ) : (
+        <>
+          This link includes the shared episode only. Sign in to your account for full access.{' '}
+          <a href={signInUrl}>{signInUrl}</a>
+        </>
+      )}
+    </p>
+  );
+};
 
 export default ShareAccessNotice;

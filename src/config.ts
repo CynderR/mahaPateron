@@ -64,3 +64,11 @@ export const buildPublicShareStreamUrl = (postId: string, shareToken: string): s
   }
   return path;
 };
+
+export const buildSignInUrl = (): string => {
+  const path = `${ROUTER_BASENAME}/signin`;
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return `https://4thstate.ca${path}`;
+};
