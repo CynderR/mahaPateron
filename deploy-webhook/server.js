@@ -56,33 +56,53 @@ function loadEnvFile(filePath) {
 }
 
 function appendWebhookLog(message) {
-  fs.mkdirSync(LOG_DIR, { recursive: true });
-  const logPath = path.join(LOG_DIR, 'webhook.log');
-  fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n`);
+  try {
+    fs.mkdirSync(LOG_DIR, { recursive: true });
+    const logPath = path.join(LOG_DIR, 'webhook.log');
+    fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${message}\n`);
+  } catch (error) {
+    console.error(`appendWebhookLog failed: ${error.message}`);
+  }
 }
 
 // #region agent log
 function debugLog(hypothesisId, message, data = {}) {
-  const payload = {
-    sessionId: '4aa1ca',
-    hypothesisId,
-    location: 'deploy-webhook/server.js',
-    message,
-    data,
-    timestamp: Date.now(),
-  };
-  const line = `${JSON.stringify(payload)}\n`;
   try {
-    fs.mkdirSync(LOG_DIR, { recursive: true });
-    fs.appendFileSync(path.join(LOG_DIR, 'debug-4aa1ca.log'), line);
-  } catch {
-    // ignore
+    const payload = {
+      sessionId: '4aa1ca',
+      hypothesisId,
+      location: 'deploy-webhook/server.js',
+      message,
+      data,
+      timestamp: Date.now(),
+    };
+    const line = `${JSON.stringify(payload)}\n`;
+    try {
+      fs.mkdirSync(LOG_DIR, { recursive: true });
+      fs.appendFileSync(path.join(LOG_DIR, 'debug-4aa1ca.log'), line);
+    } catch {
+      // ignore file write errors on production log dir
+    }
+    if (typeof fetch === 'function') {
+      fetch('http://127.0.0.1:7243/ingest/6e2f4ce6-d23e-49c6-a2a1-a23bf82f5433', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '4aa1ca' },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    }
+  } catch (error) {
+    console.error(`debugLog failed: ${error.message}`);
   }
-  fetch('http://127.0.0.1:7243/ingest/6e2f4ce6-d23e-49c6-a2a1-a23bf82f5433', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '4aa1ca' },
-    body: JSON.stringify(payload),
-  }).catch(() => {});
+}
+
+function logWebhookError(error, context = {}) {
+  const detail = {
+    message: error && error.message ? error.message : String(error),
+    stack: error && error.stack ? error.stack : undefined,
+    ...context,
+  };
+  appendWebhookLog(`Request error: ${detail.message}`);
+  debugLog('H6', 'webhook handler exception', detail);
 }
 // #endregion
 
@@ -496,8 +516,12 @@ const server = http.createServer(async (req, res) => {
       const rawBody = await collectRequestBody(req);
       handleWebhook(req, res, rawBody);
     } catch (error) {
-      appendWebhookLog(`Request error: ${error.message}`);
-      sendJson(res, 500, { error: 'Internal server error' });
+      // #region agent log
+      logWebhookError(error, { path: url.pathname });
+      // #endregion
+      if (!res.headersSent) {
+        sendJson(res, 500, { error: 'Internal server error' });
+      }
     }
     return;
   }

@@ -181,8 +181,8 @@ else
   write_status "failed" "Deploy failed (exit $rc)"
   log_line "Deploy failed with exit code $rc"
   # #region agent log
-  tail_hint="$(tail -3 "$DEPLOY_LOG" 2>/dev/null | tr '\n' ' ')"
-  debug_log "H4" "deploy failed" "{\"exitCode\":$rc,\"logTail\":\"$tail_hint\"}"
+  tail_hint="$(tail -3 "$DEPLOY_LOG" 2>/dev/null | tr '\n' ' ' | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+  debug_log "H4" "deploy failed" "{\"exitCode\":$rc,\"logTail\":$tail_hint}"
   # #endregion
   exit "$rc"
 fi
