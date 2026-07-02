@@ -16,16 +16,21 @@ const ShareAccessNotice: React.FC<ShareAccessNoticeProps> = ({
 }) => {
   const signInUrl = buildSignInUrl();
 
+  if (memberAccess) {
+    return (
+      <p className={className} style={style}>
+        {memberMessage}
+      </p>
+    );
+  }
+
   return (
-    <p className={className} style={style}>
-      {memberAccess ? (
-        memberMessage
-      ) : (
-        <>
-          This link includes the shared episode only. Sign in to your account for full access.{' '}
-          <a href={signInUrl}>{signInUrl}</a>
-        </>
-      )}
+    <p className="share-access-notice pod-banner" style={style}>
+      This link includes the shared episode only.{' '}
+      <a href={signInUrl} className="share-access-notice-link">
+        Sign in
+      </a>{' '}
+      to your account for full access.
     </p>
   );
 };

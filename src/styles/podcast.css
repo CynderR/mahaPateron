@@ -284,6 +284,34 @@
   color: var(--text-info);
 }
 
+.share-access-notice {
+  background: var(--bg-info);
+  color: #000;
+  font-weight: 500;
+}
+
+.share-access-notice-link {
+  color: #1a4d8f;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.share-access-notice-link:hover {
+  color: #0f3a6b;
+}
+
+[data-theme="dark"] .share-access-notice {
+  color: #f5f5f5;
+}
+
+[data-theme="dark"] .share-access-notice-link {
+  color: #5b9fd4;
+}
+
+[data-theme="dark"] .share-access-notice-link:hover {
+  color: #7eb8e8;
+}
+
 /* Tables */
 .pod-table-wrap {
   overflow-x: auto;
