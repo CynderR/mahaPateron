@@ -321,7 +321,7 @@ const getUsersFiltered = (filters = {}) => {
     const offset = (page - 1) * limit;
 
     db.all(
-      `SELECT ${USER_PUBLIC_COLUMNS} FROM users ${whereSql} ORDER BY id DESC LIMIT ? OFFSET ?`,
+      `SELECT ${USER_PUBLIC_COLUMNS} FROM users ${whereSql} ORDER BY LOWER(username) ASC, id ASC LIMIT ? OFFSET ?`,
       [...params, limit, offset],
       (err, rows) => {
         if (err) return reject(err);
