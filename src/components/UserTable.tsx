@@ -15,7 +15,6 @@ export interface AdminUser {
   email: string;
   is_admin: boolean | number;
   is_paying: boolean | number;
-  back_catalog_access: boolean | number;
   payment_category: 'full' | 'free' | 'discounted' | 'non_card';
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
@@ -53,7 +52,6 @@ const UserTable: React.FC<UserTableProps> = ({
             <th>Role</th>
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
-            <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
             <th>Access</th>
             <th title="Allow episode downloads for this user">Download</th>
             <th>Price</th>
@@ -88,14 +86,6 @@ const UserTable: React.FC<UserTableProps> = ({
                 <PayingTierSelect
                   paymentCategory={u.payment_category}
                   onChange={(tier) => onPayingTierChange(u.id, tier)}
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={!!u.back_catalog_access}
-                  title="Archive access — all prior episodes"
-                  onChange={(e) => onUpdate(u.id, 'back_catalog_access', e.target.checked)}
                 />
               </td>
               <td>

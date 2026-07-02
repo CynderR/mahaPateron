@@ -29,7 +29,6 @@ interface NewUserForm {
   subscription_price: string;
   is_paying: boolean;
   is_admin: boolean;
-  back_catalog_access: boolean;
 }
 
 interface UsersResponse {
@@ -51,8 +50,7 @@ const emptyNewUser: NewUserForm = {
   download_access: false,
   subscription_price: '',
   is_paying: false,
-  is_admin: false,
-  back_catalog_access: false
+  is_admin: false
 };
 
 const Users: React.FC = () => {
@@ -258,11 +256,6 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Subscription price (leave blank for platform default)</label>
               <input className="pod-input" type="number" step="0.01" min="0" value={newUser.subscription_price} onChange={(e) => setNewUser({ ...newUser, subscription_price: e.target.value })} />
-            </div>
-            <div className="pod-form-group">
-              <label>
-                <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Archive access
-              </label>
             </div>
             <button type="submit" className="pod-btn">
               Create user
