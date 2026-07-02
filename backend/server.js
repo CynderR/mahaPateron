@@ -248,18 +248,19 @@ core.post('/auth/forgot-password', authRateLimiter, async (req, res) => {
   const genericMessage = 'If an account exists with this email, a password reset link has been sent.';
   try {
     const { email } = req.body;
-    if (!email) {
+    const normalizedEmail = typeof email === 'string' ? email.trim() : '';
+    if (!normalizedEmail) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    const user = await getUserByEmail(email);
+    const user = await getUserByEmail(normalizedEmail);
     if (user && !user.deleted_at) {
       const resetToken = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 1);
-      await setPasswordResetToken(email, resetToken, expiresAt.toISOString());
+      await setPasswordResetToken(user.email, resetToken, expiresAt.toISOString());
 
-      const emailResult = await sendPasswordResetEmail(email, resetToken);
+      const emailResult = await sendPasswordResetEmail(user.email, resetToken);
       if (!emailResult.success) {
         console.error('Failed to send password reset email:', emailResult.error);
       }

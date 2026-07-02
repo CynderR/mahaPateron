@@ -29,14 +29,25 @@ const createTransporter = () => {
   return transporter;
 };
 
+const buildResetPasswordUrl = (resetToken) => {
+  const origin = (process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000').replace(
+    /\/$/,
+    ''
+  );
+  const appPath = (process.env.APP_BASE_PATH || '/shyam_akaash').replace(/\/$/, '');
+  const base =
+    process.env.NODE_ENV === 'production' && appPath && !origin.endsWith(appPath)
+      ? `${origin}${appPath}`
+      : origin;
+  return `${base}/reset-password?token=${encodeURIComponent(resetToken)}`;
+};
+
 // Send password reset email
 const sendPasswordResetEmail = async (email, resetToken) => {
   try {
     const transporter = createTransporter();
-    
-    // Get frontend URL from environment or use default
-    const frontendUrl = process.env.FRONTEND_URL || process.env.CORS_ORIGIN || 'http://localhost:3000';
-    const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
+
+    const resetUrl = buildResetPasswordUrl(resetToken);
 
     const mailOptions = {
       from: process.env.SMTP_FROM || process.env.SMTP_USER,
@@ -95,6 +106,7 @@ const sendPasswordResetEmail = async (email, resetToken) => {
 module.exports = {
   sendPasswordResetEmail,
   createTransporter,
+  buildResetPasswordUrl,
 };
 
 

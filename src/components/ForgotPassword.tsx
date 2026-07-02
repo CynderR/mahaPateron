@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { ThemeToggleFixed } from './ThemeToggle';
@@ -11,6 +11,9 @@ axios.defaults.baseURL = API_BASE_URL;
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
 
 const ForgotPassword: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialEmail = searchParams.get('email') ?? '';
+
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
 
@@ -19,11 +22,18 @@ const ForgotPassword: React.FC = () => {
     setSelectedImage(backgroundImages[randomIndex]);
   }, []);
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fromUrl = searchParams.get('email');
+    if (fromUrl) {
+      setEmail(fromUrl);
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,8 +42,11 @@ const ForgotPassword: React.FC = () => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/auth/forgot-password', { email });
-      setSuccess(response.data.message);
+      const response = await axios.post('/auth/forgot-password', { email: email.trim() });
+      setSuccess(
+        response.data.message ||
+          `If an account exists for ${email.trim()}, a password reset link has been sent to that email address.`
+      );
       // Optionally redirect after a delay
       setTimeout(() => {
         navigate('/signin');
@@ -63,7 +76,7 @@ const ForgotPassword: React.FC = () => {
         <div className="auth-card">
           <div className="auth-header">
             <h1>Forgot Password</h1>
-            <p>Enter your email address and we'll send you a link to reset your password</p>
+            <p>Enter the email address for your account and we&apos;ll send a reset link there.</p>
           </div>
 
           {error && (

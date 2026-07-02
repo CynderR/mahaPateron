@@ -99,7 +99,14 @@ const SignIn: React.FC = () => {
               />
               Remember me
             </label>
-            <Link to="/forgot-password" className="auth-link auth-forgot-link">
+            <Link
+              to={
+                email.trim()
+                  ? `/forgot-password?email=${encodeURIComponent(email.trim())}`
+                  : '/forgot-password'
+              }
+              className="auth-link auth-forgot-link"
+            >
               Forgot password?
             </Link>
           </div>
