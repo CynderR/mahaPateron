@@ -16,7 +16,6 @@ export interface AdminUser {
   is_admin: boolean | number;
   is_paying: boolean | number;
   back_catalog_access: boolean | number;
-  monthly_payments: boolean | number;
   payment_category: 'full' | 'free' | 'discounted' | 'non_card';
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
@@ -55,7 +54,6 @@ const UserTable: React.FC<UserTableProps> = ({
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
             <th title="Grants access to all episodes published before the user subscribed">Archive access</th>
-            <th title="User is billed monthly via Stripe">Monthly</th>
             <th>Access</th>
             <th title="Allow episode downloads for this user">Download</th>
             <th>Price</th>
@@ -98,14 +96,6 @@ const UserTable: React.FC<UserTableProps> = ({
                   checked={!!u.back_catalog_access}
                   title="Archive access — all prior episodes"
                   onChange={(e) => onUpdate(u.id, 'back_catalog_access', e.target.checked)}
-                />
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={u.monthly_payments !== false && u.monthly_payments !== 0}
-                  title="Bill via Stripe monthly"
-                  onChange={(e) => onUpdate(u.id, 'monthly_payments', e.target.checked)}
                 />
               </td>
               <td>

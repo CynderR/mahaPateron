@@ -30,7 +30,6 @@ interface NewUserForm {
   is_paying: boolean;
   is_admin: boolean;
   back_catalog_access: boolean;
-  monthly_payments: boolean;
 }
 
 interface UsersResponse {
@@ -53,8 +52,7 @@ const emptyNewUser: NewUserForm = {
   subscription_price: '',
   is_paying: false,
   is_admin: false,
-  back_catalog_access: false,
-  monthly_payments: true
+  back_catalog_access: false
 };
 
 const Users: React.FC = () => {
@@ -264,11 +262,6 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>
                 <input type="checkbox" checked={newUser.back_catalog_access} onChange={(e) => setNewUser({ ...newUser, back_catalog_access: e.target.checked })} /> Archive access
-              </label>
-            </div>
-            <div className="pod-form-group">
-              <label>
-                <input type="checkbox" checked={newUser.monthly_payments} onChange={(e) => setNewUser({ ...newUser, monthly_payments: e.target.checked })} /> Require monthly Stripe payments
               </label>
             </div>
             <button type="submit" className="pod-btn">
