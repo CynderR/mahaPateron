@@ -19,6 +19,8 @@ import {
 interface NewUserForm {
   username: string;
   email: string;
+  password: string;
+  confirmPassword: string;
   whatsapp_id: string;
   signal_id: string;
   subscription_status: SubscriptionStatus;
@@ -41,6 +43,8 @@ interface UsersResponse {
 const emptyNewUser: NewUserForm = {
   username: '',
   email: '',
+  password: '',
+  confirmPassword: '',
   whatsapp_id: '',
   signal_id: '',
   subscription_status: 'not_subscribed' as SubscriptionStatus,
@@ -137,8 +141,18 @@ const Users: React.FC = () => {
     e.preventDefault();
     setError('');
     setMessage('');
+    if (newUser.password || newUser.confirmPassword) {
+      if (newUser.password.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (newUser.password !== newUser.confirmPassword) {
+        setError('Password and confirmation do not match.');
+        return;
+      }
+    }
     try {
-      const { subscription_status, paying_tier, ...rest } = newUser;
+      const { subscription_status, paying_tier, confirmPassword, password, ...rest } = newUser;
       const subscriptionFields = subscriptionFieldsFromStatus(
         subscription_status,
         subscription_status === 'subscribed'
@@ -147,7 +161,11 @@ const Users: React.FC = () => {
       );
       const payingFields =
         subscription_status === 'subscribed' ? fieldsFromPayingTier(paying_tier) : subscriptionFields;
-      await axios.post('/admin/users', { ...rest, ...payingFields });
+      await axios.post('/admin/users', {
+        ...rest,
+        ...payingFields,
+        ...(password ? { password } : {})
+      });
       setMessage(`User ${newUser.username} created.`);
       setNewUser({ ...emptyNewUser });
       setShowAdd(false);
@@ -185,6 +203,31 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Email</label>
               <input className="pod-input" type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required />
+            </div>
+            <div className="pod-form-group">
+              <label>Password</label>
+              <input
+                className="pod-input"
+                type="password"
+                value={newUser.password}
+                onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                placeholder="Optional — 8+ characters"
+                autoComplete="new-password"
+              />
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Leave blank to generate a random password (user can reset via forgot password).
+              </p>
+            </div>
+            <div className="pod-form-group">
+              <label>Confirm password</label>
+              <input
+                className="pod-input"
+                type="password"
+                value={newUser.confirmPassword}
+                onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
+                placeholder="Re-enter password"
+                autoComplete="new-password"
+              />
             </div>
             <div className="pod-form-group">
               <label>WhatsApp ID</label>

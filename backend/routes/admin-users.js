@@ -12,6 +12,7 @@ const {
   softDeleteUser
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
+const { validatePassword } = require('../utils/passwordPolicy');
 
 const router = express.Router();
 
@@ -67,6 +68,13 @@ router.post('/', async (req, res) => {
     }
     if (await getUserByUsername(username)) {
       return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    if (password) {
+      const passwordError = validatePassword(password);
+      if (passwordError) {
+        return res.status(400).json({ error: passwordError });
+      }
     }
 
     // Admin-created accounts get a random password they can reset via the
