@@ -1999,12 +1999,13 @@ body.global-now-playing-active .feed-page {
 }
 
 .ht-profile-avatar {
-  width: 120px;
-  height: 120px;
+  width: 128px;
+  height: 128px;
+  box-sizing: border-box;
   border-radius: 50%;
   object-fit: cover;
   object-position: center center;
-  border: 3px solid rgba(255, 255, 255, 0.92);
+  border: 1.5px solid rgba(255, 255, 255, 0.92);
   flex-shrink: 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
