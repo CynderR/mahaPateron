@@ -15,6 +15,7 @@ import {
   SubscriptionStatus,
   subscriptionFieldsFromStatus
 } from '../../utils/paymentCategories';
+import { ADMIN_ACCESS_TYPE_OPTIONS } from '../../utils/accessPermissions';
 
 interface NewUserForm {
   username: string;
@@ -281,10 +282,15 @@ const Users: React.FC = () => {
             <div className="pod-form-group">
               <label>Access type</label>
               <select className="pod-select" value={newUser.access_type} onChange={(e) => setNewUser({ ...newUser, access_type: e.target.value })}>
-                <option value="streaming">streaming</option>
-                <option value="rss">rss</option>
-                <option value="both">both</option>
+                {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                streaming — stream talks in the web player. rss — stream talks and include a podcast RSS feed link.
+              </p>
             </div>
             <div className="pod-form-group">
               <label>
@@ -356,9 +362,11 @@ const Users: React.FC = () => {
               <label>Access</label>
               <select className="pod-select" value={filters.access_type} onChange={(e) => { setPage(1); setFilters({ ...filters, access_type: e.target.value }); }}>
                 <option value="">All</option>
-                <option value="both">both</option>
-                <option value="rss">rss</option>
-                <option value="streaming">streaming</option>
+                {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
               </select>
             </div>
           </div>

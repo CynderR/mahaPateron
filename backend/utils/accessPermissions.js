@@ -35,7 +35,7 @@ const userHasDownloadAccess = (user) =>
 const accessFlags = (user) => {
   const type = user?.access_type || 'streaming';
   const streamType = type === 'download' ? 'streaming' : type;
-  const canStreamType = streamType === 'streaming' || streamType === 'both';
+  const canStreamType = streamType === 'streaming' || streamType === 'rss' || streamType === 'both';
   const canStreamMember =
     userHasFullStreamAccess(user) ||
     userIsNotSubscribed(user) ||

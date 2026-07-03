@@ -1,6 +1,9 @@
 import React from 'react';
 
-import { ACCESS_TYPE_OPTIONS } from '../utils/accessPermissions';
+import {
+  ADMIN_ACCESS_TYPE_OPTIONS,
+  adminAccessTypeValue
+} from '../utils/accessPermissions';
 import PayingTierSelect from './admin/PayingTierSelect';
 import SubscriptionToggle from './admin/SubscriptionToggle';
 import {
@@ -52,7 +55,7 @@ const UserTable: React.FC<UserTableProps> = ({
             <th>Role</th>
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
-            <th>Access</th>
+            <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
             <th title="Allow episode downloads for this user">Download</th>
             <th>Price</th>
             <th>RSS</th>
@@ -91,12 +94,12 @@ const UserTable: React.FC<UserTableProps> = ({
               <td>
                 <select
                   className="pod-select"
-                  value={u.access_type}
+                  value={adminAccessTypeValue(u.access_type)}
                   onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
                 >
-                  {ACCESS_TYPE_OPTIONS.map((a) => (
-                    <option key={a} value={a}>
-                      {a}
+                  {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>

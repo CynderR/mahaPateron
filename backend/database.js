@@ -308,7 +308,9 @@ const getUsersFiltered = (filters = {}) => {
     } else if (subscription_status === 'subscribed') {
       where.push("payment_category != 'full'");
     }
-    if (access_type) {
+    if (access_type === 'rss') {
+      where.push("(access_type = 'rss' OR access_type = 'both')");
+    } else if (access_type) {
       where.push('access_type = ?');
       params.push(access_type);
     }
