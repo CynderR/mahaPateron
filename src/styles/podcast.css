@@ -1977,15 +1977,13 @@ body.global-now-playing-active .feed-page {
 .ht-profile-banner {
   position: relative;
   background-size: cover;
-  background-position: 72% 35%;
+  background-position: center 38%;
   min-height: 240px;
   overflow: hidden;
 }
 
 .ht-profile-banner-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, rgba(0, 0, 0, 0.72) 0%, rgba(0, 0, 0, 0.45) 55%, rgba(0, 0, 0, 0.35) 100%);
+  display: none;
 }
 
 .ht-profile-banner-inner {
@@ -2004,16 +2002,17 @@ body.global-now-playing-active .feed-page {
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  object-position: 62% 24%;
-  border: 3px solid rgba(255, 255, 255, 0.85);
+  object-position: 68% 28%;
+  border: 3px solid rgba(255, 255, 255, 0.92);
   flex-shrink: 0;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 .ht-profile-copy {
   color: #fff;
   min-width: 0;
   padding-top: 0.25rem;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .ht-profile-heading {
@@ -2021,6 +2020,7 @@ body.global-now-playing-active .feed-page {
   font-size: clamp(1.35rem, 3vw, 1.85rem);
   font-weight: 700;
   line-height: 1.2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .ht-profile-location {
@@ -2058,7 +2058,8 @@ body.global-now-playing-active .feed-page {
   max-width: 640px;
   font-size: 0.88rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .ht-layout {
