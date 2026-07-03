@@ -1995,6 +1995,7 @@ body.global-now-playing-active .feed-page {
   display: flex;
   align-items: flex-start;
   gap: 1.25rem;
+  transform: translateX(-1.5cm);
 }
 
 .ht-profile-avatar {
