@@ -28,7 +28,7 @@ import { FeedPost } from '../components/PostCard';
 
 import { buildImageUrl } from '../config';
 
-import { PODCAST_AUTHOR, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../podcastMeta';
+import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../podcastMeta';
 
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
@@ -456,7 +456,7 @@ const Feed: React.FC = () => {
 
         <div className="ht-profile-banner-inner">
 
-          <img className="ht-profile-avatar" src={PODCAST_BANNER_URL} alt="" />
+          <img className="ht-profile-avatar" src={PODCAST_AVATAR_URL} alt="" />
 
           <div className="ht-profile-copy">
 

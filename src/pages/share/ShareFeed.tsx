@@ -12,7 +12,7 @@ import ShareAccessNotice from '../../components/share/ShareAccessNotice';
 import { FeedPost } from '../../components/PostCard';
 import { buildImageUrl } from '../../config';
 import { useShare } from '../../contexts/ShareContext';
-import { PODCAST_AUTHOR, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../../podcastMeta';
+import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../../podcastMeta';
 import { filterAdminItems } from '../../utils/adminTableHelpers';
 
 interface ShareFeedResponse {
@@ -115,7 +115,7 @@ const ShareFeed: React.FC = () => {
       >
         <div className="ht-profile-banner-overlay" />
         <div className="ht-profile-banner-inner">
-          <img className="ht-profile-avatar" src={PODCAST_BANNER_URL} alt="" />
+          <img className="ht-profile-avatar" src={PODCAST_AVATAR_URL} alt="" />
           <div className="ht-profile-copy">
             <h1 className="ht-profile-heading">{PODCAST_AUTHOR}</h1>
             <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>

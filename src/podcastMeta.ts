@@ -6,6 +6,7 @@ export const PODCAST_PROFILE_TITLE = PODCAST_AUTHOR;
 export const PODCAST_PROFILE_BIO = 'Satsang talks from Swami Shyam';
 export const PODCAST_GENRE = 'Spiritual';
 export const PODCAST_BANNER_URL = `${publicUrl}/shyam-akaash-banner.png`;
+export const PODCAST_AVATAR_URL = `${publicUrl}/shyam-akaash-avatar.png`;
 
 export const formatDuration = (secs?: number | null): string => {
   if (secs === null || secs === undefined) return '';
