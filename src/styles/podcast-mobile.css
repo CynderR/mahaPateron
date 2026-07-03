@@ -176,7 +176,10 @@
   }
 
   .pod-featured-show p {
-    display: none;
+    margin: 0;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--text-secondary);
   }
 
   .pod-featured-latest {
