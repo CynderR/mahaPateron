@@ -14,6 +14,23 @@ export const API_BASE_URL = isProd ? '/shyam_akaash/api' : 'http://localhost:500
 // Origin used to build absolute media URLs (audio streaming).
 export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000';
 
+// Public origin for RSS feed URLs (must match backend BASE_URL in production).
+export const buildRssBaseUrl = (): string => {
+  if (isProd) {
+    if (typeof window !== 'undefined' && window.location?.origin) {
+      return `${window.location.origin}${ROUTER_BASENAME}`;
+    }
+    return 'https://4thstate.ca/shyam_akaash';
+  }
+  return 'http://localhost:5000';
+};
+
+export const buildRssUrl = (token: string): string =>
+  `${buildRssBaseUrl()}/rss/${encodeURIComponent(token)}`;
+
+export const rssTokenFromUrl = (url: string): string | null =>
+  url.match(/\/rss\/([^/?#]+)/)?.[1] ?? null;
+
 // Build the streaming URL for a post, authenticated with the user's RSS token.
 // JWT is sent via Authorization header in fetch-based playback; it is not
 // appended to the URL to avoid leaking session tokens in logs and history.

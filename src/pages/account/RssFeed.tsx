@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import RssCopyWidget from '../../components/RssCopyWidget';
+import { buildRssUrl, rssTokenFromUrl } from '../../config';
 
 interface RssResponse {
   rssUrl: string;
@@ -30,6 +31,11 @@ const RssFeed: React.FC = () => {
   }, []);
 
   const available = data && data.canRss && data.is_paying;
+  const rssUrl = useMemo(() => {
+    if (!data?.rssUrl) return '';
+    const token = rssTokenFromUrl(data.rssUrl);
+    return token ? buildRssUrl(token) : data.rssUrl;
+  }, [data?.rssUrl]);
 
   return (
     <div className="podcast-page">
@@ -46,7 +52,7 @@ const RssFeed: React.FC = () => {
             <p style={{ marginTop: 0 }}>
               This URL is unique to your account. Keep it private — anyone with it can access your episodes.
             </p>
-            <RssCopyWidget url={data!.rssUrl} />
+            <RssCopyWidget url={rssUrl} />
 
             <h3 style={{ marginBottom: '0.5rem' }}>Add it to your podcast app</h3>
             <ol className="pod-instructions">

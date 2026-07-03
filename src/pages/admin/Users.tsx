@@ -4,7 +4,7 @@ import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminUser } from '../../components/UserTable';
 import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
-import { ROUTER_BASENAME } from '../../config';
+import { buildRssBaseUrl } from '../../config';
 import {
   fieldsFromPayingTier,
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
@@ -72,7 +72,7 @@ const Users: React.FC = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [newUser, setNewUser] = useState<NewUserForm>({ ...emptyNewUser });
 
-  const rssBaseUrl = `${window.location.origin}${ROUTER_BASENAME}`;
+  const rssBaseUrl = buildRssBaseUrl();
   const limit = 20;
 
   const load = useCallback(async () => {

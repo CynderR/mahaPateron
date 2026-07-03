@@ -9,7 +9,10 @@ const IMAGE_DIR = path.join(UPLOAD_DIR, 'images');
 
 // Public base URL used to build absolute RSS enclosure and stream links.
 // In production this is the subpath origin, e.g. https://4thstate.ca/shyam_akaash.
-const BASE_URL = (process.env.BASE_URL || 'http://localhost:5000').replace(/\/$/, '');
+const isProd = process.env.NODE_ENV === 'production';
+const BASE_URL = (
+  process.env.BASE_URL || (isProd ? 'https://4thstate.ca/shyam_akaash' : 'http://localhost:5000')
+).replace(/\/$/, '');
 
 const ensureDirs = () => {
   [UPLOAD_DIR, AUDIO_DIR, IMAGE_DIR].forEach((dir) => {
