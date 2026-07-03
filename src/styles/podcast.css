@@ -2002,17 +2002,16 @@ body.global-now-playing-active .feed-page {
   height: 120px;
   border-radius: 50%;
   object-fit: cover;
-  object-position: 68% 28%;
+  object-position: center center;
   border: 3px solid rgba(255, 255, 255, 0.92);
   flex-shrink: 0;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
 }
 
 .ht-profile-copy {
-  color: #fff;
+  color: #000;
   min-width: 0;
   padding-top: 0.25rem;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
 }
 
 .ht-profile-heading {
@@ -2020,7 +2019,7 @@ body.global-now-playing-active .feed-page {
   font-size: clamp(1.35rem, 3vw, 1.85rem);
   font-weight: 700;
   line-height: 1.2;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
+  color: #000;
 }
 
 .ht-profile-location {
@@ -2058,8 +2057,7 @@ body.global-now-playing-active .feed-page {
   max-width: 640px;
   font-size: 0.88rem;
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.95);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75), 0 0 10px rgba(0, 0, 0, 0.45);
+  color: #000;
 }
 
 .ht-layout {
