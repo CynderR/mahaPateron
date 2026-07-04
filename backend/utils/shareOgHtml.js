@@ -1,5 +1,6 @@
 const { BASE_URL } = require('../config');
 const { escapeHtml } = require('./escapeHtml');
+const { getPodcastChannelImageUrl } = require('./podcastBranding');
 
 const SITE_NAME = process.env.PODCAST_TITLE || 'Shyam Akaash';
 
@@ -25,7 +26,7 @@ const buildShareImageUrl = (post) => {
   if (post.image_filename) {
     return `${BASE_URL}/uploads/images/${encodeURIComponent(post.image_filename)}`;
   }
-  return `${BASE_URL}/logo512.png`;
+  return getPodcastChannelImageUrl() || `${BASE_URL}/podcast-cover.jpg`;
 };
 
 const truncateDescription = (text, maxLen = 200) => {
