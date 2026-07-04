@@ -10,7 +10,8 @@ const {
   updateUserFields,
   activateUserSubscription,
   softDeleteUser,
-  purgeDeletedUserByEmail
+  purgeDeletedUserByEmail,
+  permanentlyDeleteUser
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
@@ -182,12 +183,19 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /:id — soft delete and invalidate the RSS feed.
+// DELETE /:id — admin can either permanently delete or anonymize identifiers.
 router.delete('/:id', async (req, res) => {
   try {
-    const result = await softDeleteUser(req.params.id);
+    const mode = req.body?.mode === 'permanent' ? 'permanent' : 'reuse_email';
+    const result =
+      mode === 'permanent'
+        ? await permanentlyDeleteUser(req.params.id)
+        : await softDeleteUser(req.params.id);
+
     if (result.deleted) {
-      res.json({ message: 'User deleted' });
+      res.json({
+        message: mode === 'permanent' ? 'User permanently deleted' : 'User deleted and email cleared'
+      });
     } else {
       res.status(404).json({ error: 'User not found' });
     }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
-import UserTable, { AdminUser } from '../../components/UserTable';
+import UserTable, { AdminDeleteMode, AdminUser } from '../../components/UserTable';
 import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import { buildRssBaseUrl } from '../../config';
@@ -128,10 +128,14 @@ const Users: React.FC = () => {
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!window.confirm('Delete this user? Their RSS feed will be disabled.')) return;
+  const handleDelete = async (id: number, mode: AdminDeleteMode) => {
+    const confirmation =
+      mode === 'permanent'
+        ? 'Permanently delete this user and all account records? This cannot be undone.'
+        : 'Delete this user and clear their email address so it can be reused? Their RSS feed will be disabled.';
+    if (!window.confirm(confirmation)) return;
     try {
-      await axios.delete(`/admin/users/${id}`);
+      await axios.delete(`/admin/users/${id}`, { data: { mode } });
       load();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Delete failed.');

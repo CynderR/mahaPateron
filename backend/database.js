@@ -319,6 +319,19 @@ const purgeDeletedUserByEmail = async (email) => {
   return { deleted: result.changes > 0, userId: user.id };
 };
 
+const permanentlyDeleteUser = async (id) => {
+  await runSql(
+    'DELETE FROM playlist_items WHERE playlist_id IN (SELECT id FROM playlists WHERE user_id = ?)',
+    [id]
+  );
+  await runSql('DELETE FROM playlists WHERE user_id = ?', [id]);
+  await runSql('DELETE FROM user_favorites WHERE user_id = ?', [id]);
+  await runSql('DELETE FROM stream_events WHERE user_id = ?', [id]);
+  const result = await runSql('DELETE FROM users WHERE id = ?', [id]);
+
+  return { deleted: result.changes > 0 };
+};
+
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
   stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
@@ -1069,6 +1082,7 @@ module.exports = {
   updateUserFields,
   softDeleteUser,
   purgeDeletedUserByEmail,
+  permanentlyDeleteUser,
   getUsersFiltered,
   getUserStats,
   createPost,

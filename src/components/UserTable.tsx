@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import {
   ADMIN_ACCESS_TYPE_OPTIONS,
@@ -25,13 +25,15 @@ export interface AdminUser {
   rss_token: string;
 }
 
+export type AdminDeleteMode = 'reuse_email' | 'permanent';
+
 interface UserTableProps {
   users: AdminUser[];
   rssBaseUrl: string;
   onUpdate: (id: number, field: string, value: unknown) => void;
   onSubscriptionChange: (id: number, status: SubscriptionStatus, currentCategory: string) => void;
   onPayingTierChange: (id: number, tier: PayingTier) => void;
-  onDelete: (id: number) => void;
+  onDelete: (id: number, mode: AdminDeleteMode) => void;
 }
 
 const UserTable: React.FC<UserTableProps> = ({
@@ -42,6 +44,8 @@ const UserTable: React.FC<UserTableProps> = ({
   onPayingTierChange,
   onDelete
 }) => {
+  const [deleteModes, setDeleteModes] = useState<Record<number, AdminDeleteMode>>({});
+
   const copyRss = (token: string) => {
     navigator.clipboard.writeText(`${rssBaseUrl}/rss/${token}`).catch(() => {});
   };
@@ -130,7 +134,26 @@ const UserTable: React.FC<UserTableProps> = ({
                 </button>
               </td>
               <td>
-                <button type="button" className="pod-btn pod-btn-danger pod-btn-sm" onClick={() => onDelete(u.id)}>
+                <select
+                  className="pod-select"
+                  value={deleteModes[u.id] || 'reuse_email'}
+                  title="Choose how this account should be deleted"
+                  onChange={(e) =>
+                    setDeleteModes((current) => ({
+                      ...current,
+                      [u.id]: e.target.value as AdminDeleteMode
+                    }))
+                  }
+                >
+                  <option value="reuse_email">Clear email + delete</option>
+                  <option value="permanent">Permanently delete</option>
+                </select>
+                <button
+                  type="button"
+                  className="pod-btn pod-btn-danger pod-btn-sm"
+                  style={{ marginTop: '0.35rem' }}
+                  onClick={() => onDelete(u.id, deleteModes[u.id] || 'reuse_email')}
+                >
                   Delete
                 </button>
               </td>
