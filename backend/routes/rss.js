@@ -4,6 +4,11 @@ const fs = require('fs');
 
 const { BASE_URL, AUDIO_DIR } = require('../config');
 const { getUserByRssToken, getPublishedPostsForUser, getPostByShareToken } = require('../database');
+const {
+  ensurePodcastChannelArt,
+  getPodcastChannelImageUrl,
+  buildEpisodeImageUrl
+} = require('../utils/podcastBranding');
 
 const router = express.Router();
 
@@ -12,6 +17,8 @@ const PODCAST_AUTHOR = process.env.PODCAST_AUTHOR || 'Shyam Akaash';
 const PODCAST_DESCRIPTION =
   process.env.PODCAST_DESCRIPTION || 'Members-only audio from Shyam Akaash.';
 const PODCAST_EMAIL = process.env.PODCAST_EMAIL || 'podcast@4thstate.ca';
+
+ensurePodcastChannelArt();
 
 const escapeXml = (value) => {
   if (value === null || value === undefined) return '';
@@ -42,16 +49,34 @@ const audioByteLength = (filename) => {
   }
 };
 
-const buildItem = (post, token) => {
+const buildChannelImageXml = (channelImageUrl) => {
+  if (!channelImageUrl) return '';
+
+  return `    <image>
+      <url>${escapeXml(channelImageUrl)}</url>
+      <title>${escapeXml(PODCAST_TITLE)}</title>
+      <link>${escapeXml(BASE_URL)}</link>
+    </image>
+    <itunes:image href="${escapeXml(channelImageUrl)}" />`;
+};
+
+const buildItem = (post, token, channelImageUrl) => {
   const streamUrl = `${BASE_URL}/stream/${post.id}?token=${token}`;
   const pubDate = new Date(post.published_at || Date.now()).toUTCString();
   const length = audioByteLength(post.audio_filename);
-  const imageUrl = post.image_filename ? `${BASE_URL}/uploads/images/${post.image_filename}` : null;
+  const imageUrl = buildEpisodeImageUrl(post.image_filename, channelImageUrl);
+  const summary = post.description || '';
+  const encodedDescription = imageUrl
+    ? `<![CDATA[<p><img src="${imageUrl.replace(/]]>/g, ']]]]><![CDATA[>')}" alt="${escapeXml(post.title)}" /></p>${summary.replace(/]]>/g, ']]]]><![CDATA[>')}]]>`
+    : escapeXml(summary);
 
   return `    <item>
       <title>${escapeXml(post.title)}</title>
-      <description>${escapeXml(post.description || '')}</description>
-      <itunes:summary>${escapeXml(post.description || '')}</itunes:summary>
+      <description>${encodedDescription}</description>
+      <content:encoded>${encodedDescription}</content:encoded>
+      <itunes:summary>${escapeXml(summary)}</itunes:summary>
+      <itunes:title>${escapeXml(post.title)}</itunes:title>
+      <itunes:episodeType>full</itunes:episodeType>
       <guid isPermaLink="false">${escapeXml(post.id)}</guid>
       <pubDate>${pubDate}</pubDate>
       <enclosure url="${escapeXml(streamUrl)}" length="${length}" type="audio/mpeg" />
@@ -61,9 +86,13 @@ const buildItem = (post, token) => {
 };
 
 const buildFeed = ({ description, items }) => {
-  const channelImage = `${BASE_URL}/podcast-cover.jpg`;
+  const channelImageUrl = getPodcastChannelImageUrl();
+  const channelImageXml = buildChannelImageXml(channelImageUrl);
+
   return `<?xml version="1.0" encoding="UTF-8"?>
-<rss version="2.0" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+<rss version="2.0"
+  xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+  xmlns:content="http://purl.org/rss/1.0/modules/content/">
   <channel>
     <title>${escapeXml(PODCAST_TITLE)}</title>
     <link>${escapeXml(BASE_URL)}</link>
@@ -71,12 +100,13 @@ const buildFeed = ({ description, items }) => {
     <description>${escapeXml(description)}</description>
     <itunes:author>${escapeXml(PODCAST_AUTHOR)}</itunes:author>
     <itunes:summary>${escapeXml(description)}</itunes:summary>
+    <itunes:type>episodic</itunes:type>
     <itunes:explicit>no</itunes:explicit>
     <itunes:owner>
       <itunes:name>${escapeXml(PODCAST_AUTHOR)}</itunes:name>
       <itunes:email>${escapeXml(PODCAST_EMAIL)}</itunes:email>
     </itunes:owner>
-    <itunes:image href="${escapeXml(channelImage)}" />
+${channelImageXml}
 ${items}
   </channel>
 </rss>`;
@@ -102,6 +132,7 @@ router.get('/:token', async (req, res) => {
     res.set('Content-Type', 'application/rss+xml; charset=utf-8');
     res.set('Cache-Control', 'no-cache');
 
+    const channelImageUrl = getPodcastChannelImageUrl();
     const rssAllowed = user.access_type === 'rss' || user.access_type === 'both';
 
     if (!user.is_paying || !rssAllowed) {
@@ -112,7 +143,9 @@ router.get('/:token', async (req, res) => {
     }
 
     const posts = await getPublishedPostsForUser(user);
-    const items = posts.map((post) => buildItem(post, req.params.token)).join('\n');
+    const items = posts
+      .map((post) => buildItem(post, req.params.token, channelImageUrl))
+      .join('\n');
     res.send(buildFeed({ description: PODCAST_DESCRIPTION, items }));
   } catch (error) {
     console.error('RSS feed error:', error);

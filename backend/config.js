@@ -20,6 +20,13 @@ const ensureDirs = () => {
       fs.mkdirSync(dir, { recursive: true });
     }
   });
+
+  try {
+    const { ensurePodcastChannelArt } = require('./utils/podcastBranding');
+    ensurePodcastChannelArt();
+  } catch (error) {
+    console.warn('Could not install podcast channel art:', error.message);
+  }
 };
 
 module.exports = { UPLOAD_DIR, AUDIO_DIR, IMAGE_DIR, BASE_URL, ensureDirs };

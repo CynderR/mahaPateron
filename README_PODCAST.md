@@ -39,6 +39,8 @@ Set these in `backend/.env` (see `.env.example`):
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (exposed to the browser) |
 | `DEFAULT_SUBSCRIPTION_PRICE` | Default monthly price when a user has no override |
 | `PODCAST_TITLE`, `PODCAST_AUTHOR`, `PODCAST_EMAIL` | Optional RSS channel metadata |
+| `PODCAST_COVER_FILE` | Filename in `public/` used as RSS channel artwork (default: `podcast-cover.jpg`) |
+| `PODCAST_IMAGE_URL` | Override full URL for RSS channel artwork |
 
 ## Build and run
 
