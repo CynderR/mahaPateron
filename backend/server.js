@@ -46,6 +46,7 @@ const generateVerificationCode = () => String(crypto.randomInt(100000, 1000000))
 const rssRouter = require('./routes/rss');
 const streamRouter = require('./routes/stream');
 const shareRouter = require('./routes/share');
+const shareOgRouter = require('./routes/shareOg');
 const { router: paymentsRouter, webhookHandler } = require('./routes/payments');
 
 const app = express();
@@ -388,6 +389,7 @@ API_PREFIXES.forEach((prefix) => {
 ['', '/shyam_akaash'].forEach((prefix) => {
   app.use(`${prefix}/rss`, rssRouter);
   app.use(`${prefix}/stream`, streamRouter);
+  app.use(`${prefix}/og`, shareOgRouter);
 });
 
 // Initialize database and start server

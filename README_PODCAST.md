@@ -123,6 +123,20 @@ It refreshes the `shyam_akaash` → `build` symlink and verifies JS is served as
 `deploy.sh` writes this configuration automatically. Add HTTPS with
 `sudo certbot --nginx -d 4thstate.ca`.
 
+## Share link previews (WhatsApp, iMessage)
+
+Shared episode URLs (`/shyam_akaash/share/...`) include Open Graph tags so messengers
+show the **episode title**, **cover art**, and **Shyam Akaash** as the site name.
+Crawlers are routed to `backend/routes/shareOg.js` via the nginx snippet in
+`config/nginx-shyam-akaash.snippet`. After updating that file on the server:
+
+```bash
+sudo cp config/nginx-shyam-akaash.snippet /etc/nginx/snippets/shyam-akaash.conf
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+WhatsApp caches previews aggressively; a new deploy may take a few minutes to show.
+
 ## Stripe webhook setup
 
 1. In the Stripe Dashboard, create a webhook endpoint pointing at

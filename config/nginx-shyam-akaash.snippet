@@ -15,6 +15,27 @@ location = /shyam_akaash {
     return 301 /shyam_akaash/;
 }
 
+# Rich link previews for shared episodes (WhatsApp, iMessage, etc.).
+# Crawlers receive HTML with Open Graph tags from the Node backend.
+location ~ ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ {
+    error_page 418 = @share_og_preview;
+    if ($http_user_agent ~* "(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Applebot)") {
+        return 418;
+    }
+    root /var/www/user-management-app/build;
+    rewrite ^ /index.html break;
+}
+
+location @share_og_preview {
+    rewrite ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ /shyam_akaash/og/share/$1 break;
+    proxy_pass http://localhost:5000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
 # React SPA — serve directly from build/ (no shyam_akaash symlink required)
 location /shyam_akaash/ {
     alias /var/www/user-management-app/build/;

@@ -65,47 +65,6 @@ function appendWebhookLog(message) {
   }
 }
 
-// #region agent log
-function debugLog(hypothesisId, message, data = {}) {
-  try {
-    const payload = {
-      sessionId: '4aa1ca',
-      hypothesisId,
-      location: 'deploy-webhook/server.js',
-      message,
-      data,
-      timestamp: Date.now(),
-    };
-    const line = `${JSON.stringify(payload)}\n`;
-    try {
-      fs.mkdirSync(LOG_DIR, { recursive: true });
-      fs.appendFileSync(path.join(LOG_DIR, 'debug-4aa1ca.log'), line);
-    } catch {
-      // ignore file write errors on production log dir
-    }
-    if (typeof fetch === 'function') {
-      fetch('http://127.0.0.1:7243/ingest/6e2f4ce6-d23e-49c6-a2a1-a23bf82f5433', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '4aa1ca' },
-        body: JSON.stringify(payload),
-      }).catch(() => {});
-    }
-  } catch (error) {
-    console.error(`debugLog failed: ${error.message}`);
-  }
-}
-
-function logWebhookError(error, context = {}) {
-  const detail = {
-    message: error && error.message ? error.message : String(error),
-    stack: error && error.stack ? error.stack : undefined,
-    ...context,
-  };
-  appendWebhookLog(`Request error: ${detail.message}`);
-  debugLog('H6', 'webhook handler exception', detail);
-}
-// #endregion
-
 function verifyGitHubSignature(rawBody, signatureHeader) {
   if (!SECRET) {
     return false;
@@ -141,14 +100,6 @@ function triggerDeploy(meta) {
       DEPLOY_LOG_DIR: LOG_DIR,
     },
   });
-  // #region agent log
-  child.on('error', (error) => {
-    debugLog('H3', 'trigger spawn error', { error: error.message, script: TRIGGER_SCRIPT });
-  });
-  child.on('spawn', () => {
-    debugLog('H3', 'trigger spawned', { pid: child.pid, script: TRIGGER_SCRIPT, meta });
-  });
-  // #endregion
   child.unref();
 }
 
@@ -172,18 +123,12 @@ function handleWebhook(req, res, rawBody) {
 
   if (event === 'ping') {
     appendWebhookLog('GitHub ping received');
-    // #region agent log
-    debugLog('H1', 'webhook ping — no deploy', { event });
-    // #endregion
     sendJson(res, 200, { ok: true, message: 'pong' });
     return;
   }
 
   if (event !== 'push') {
     appendWebhookLog(`Ignored ${event}`);
-    // #region agent log
-    debugLog('H1', 'webhook ignored — not a push', { event });
-    // #endregion
     sendJson(res, 200, { ok: true, ignored: true, reason: `event ${event}` });
     return;
   }
@@ -192,21 +137,9 @@ function handleWebhook(req, res, rawBody) {
   const expectedRef = `refs/heads/${DEPLOY_BRANCH}`;
   if (ref !== expectedRef) {
     appendWebhookLog(`Ignored push to ${ref}`);
-    // #region agent log
-    debugLog('H1', 'webhook ignored — wrong branch', { ref, expectedRef, deployBranch: DEPLOY_BRANCH });
-    // #endregion
     sendJson(res, 200, { ok: true, ignored: true, reason: `ref ${ref}` });
     return;
   }
-
-  // #region agent log
-  debugLog('H1', 'webhook accepted — starting deploy', {
-    ref,
-    commit: payload.head_commit && payload.head_commit.id
-      ? payload.head_commit.id.slice(0, 7)
-      : null,
-  });
-  // #endregion
 
   triggerDeploy({
     ref,
@@ -516,9 +449,7 @@ const server = http.createServer(async (req, res) => {
       const rawBody = await collectRequestBody(req);
       handleWebhook(req, res, rawBody);
     } catch (error) {
-      // #region agent log
-      logWebhookError(error, { path: url.pathname });
-      // #endregion
+      appendWebhookLog(`Request error: ${error.message}`);
       if (!res.headersSent) {
         sendJson(res, 500, { error: 'Internal server error' });
       }
