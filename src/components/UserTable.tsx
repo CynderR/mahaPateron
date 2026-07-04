@@ -64,7 +64,6 @@ const UserTable: React.FC<UserTableProps> = ({
             <th>Paying</th>
             <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
             <th title="Allow episode downloads for this user">Download</th>
-            <th>Price</th>
             <th>RSS</th>
             <th></th>
           </tr>
@@ -130,19 +129,6 @@ const UserTable: React.FC<UserTableProps> = ({
                   title="Episode download access"
                   disabled={isDeleted}
                   onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
-                />
-              </td>
-              <td>
-                <input
-                  className="pod-input"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  style={{ width: '90px' }}
-                  placeholder="default"
-                  defaultValue={u.subscription_price ?? ''}
-                  disabled={isDeleted}
-                  onBlur={(e) => onUpdate(u.id, 'subscription_price', e.target.value)}
                 />
               </td>
               <td>
