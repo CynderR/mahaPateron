@@ -38,6 +38,7 @@ router.get('/', async (req, res) => {
       subscription_status,
       access_type,
       is_admin,
+      q,
       account_status
     } = req.query;
     const result = await getUsersFiltered({
@@ -48,6 +49,7 @@ router.get('/', async (req, res) => {
       subscription_status,
       access_type,
       is_admin,
+      q,
       account_status
     });
     res.json(result);

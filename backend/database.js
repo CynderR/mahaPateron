@@ -413,6 +413,7 @@ const getUsersFiltered = (filters = {}) => {
       subscription_status,
       access_type,
       is_admin,
+      q,
       account_status = 'active'
     } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
@@ -448,6 +449,11 @@ const getUsersFiltered = (filters = {}) => {
     if (is_admin !== undefined && is_admin !== null && is_admin !== '') {
       where.push('is_admin = ?');
       params.push(is_admin === true || is_admin === 'true' || is_admin === 1 || is_admin === '1' ? 1 : 0);
+    }
+    if (q) {
+      where.push('(LOWER(username) LIKE ? OR LOWER(email) LIKE ?)');
+      const search = `%${String(q).trim().toLowerCase()}%`;
+      params.push(search, search);
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

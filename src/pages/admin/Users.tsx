@@ -61,6 +61,7 @@ const emptyNewUser: NewUserForm = {
 const Users: React.FC = () => {
   const [data, setData] = useState<UsersResponse | null>(null);
   const [filters, setFilters] = useState({
+    q: '',
     payment_category: '',
     subscription_status: '',
     access_type: '',
@@ -80,6 +81,7 @@ const Users: React.FC = () => {
     setError('');
     try {
       const params: Record<string, string | number> = { page, limit };
+      if (filters.q.trim()) params.q = filters.q.trim();
       if (filters.payment_category) params.payment_category = filters.payment_category;
       if (filters.subscription_status) params.subscription_status = filters.subscription_status;
       if (filters.access_type) params.access_type = filters.access_type;
@@ -333,6 +335,19 @@ const Users: React.FC = () => {
 
         <div className="pod-card" style={{ marginBottom: '1.5rem' }}>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label>Search users</label>
+              <input
+                className="pod-input"
+                type="search"
+                value={filters.q}
+                placeholder="Username or email"
+                onChange={(e) => {
+                  setPage(1);
+                  setFilters({ ...filters, q: e.target.value });
+                }}
+              />
+            </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>Paying</label>
               <select
