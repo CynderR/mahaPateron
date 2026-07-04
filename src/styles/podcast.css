@@ -3279,19 +3279,58 @@ body.global-now-playing-active .feed-page {
 
 .playlist-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
 }
 
-.playlist-card-head h3 {
+.playlist-card-toggle {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.playlist-card-title-wrap {
+  min-width: 0;
+}
+
+.playlist-card-title {
+  display: block;
   margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .playlist-card-count {
-  margin: 0.35rem 0 0.75rem;
+  display: block;
+  margin-top: 0.35rem;
   font-size: 0.82rem;
   color: var(--text-tertiary);
+}
+
+.playlist-card-chevron {
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+  transition: transform 0.18s ease;
+}
+
+.playlist-card-chevron-open {
+  transform: rotate(180deg);
+}
+
+.playlist-card-body {
+  margin-top: 0.75rem;
 }
 
 .playlist-track-list {
@@ -3317,6 +3356,14 @@ body.global-now-playing-active .feed-page {
 
 .playlist-track-list a:hover {
   color: var(--accent-primary);
+}
+
+.playlist-empty {
+  margin: 0;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-primary);
+  color: var(--text-tertiary);
+  font-size: 0.88rem;
 }
 
 @media (max-width: 768px) {

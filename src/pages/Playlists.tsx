@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import PodcastNav from '../components/PodcastNav';
 import FavoriteButton from '../components/FavoriteButton';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
-import { usePlayer } from '../contexts/PlayerContext';
+import { PlaylistSummary, usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from '../components/PostCard';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
@@ -15,6 +15,7 @@ const Playlists: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [openPlaylistIds, setOpenPlaylistIds] = useState<Set<string>>(new Set());
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,9 +38,23 @@ const Playlists: React.FC = () => {
     if (!window.confirm(`Delete playlist "${name}"?`)) return;
     try {
       await deletePlaylist(id);
+      setOpenPlaylistIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
     } catch {
       setError('Could not delete playlist.');
     }
+  };
+
+  const togglePlaylist = (id: string) => {
+    setOpenPlaylistIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   const playPlaylist = (items: { post_id: string; title: string; description?: string; duration_secs?: number; published_at?: string; image_filename?: string | null }[]) => {
@@ -54,6 +69,77 @@ const Playlists: React.FC = () => {
     }));
     playQueueFromPlaylist(posts, posts[0].id);
     navigate(`/stream/${posts[0].id}`, { state: buildStreamState(streamReturnFrom, posts[0]) });
+  };
+
+  const renderPlaylistCard = (pl: PlaylistSummary) => {
+    const isOpen = openPlaylistIds.has(pl.id);
+    const trackListId = `playlist-tracks-${pl.id}`;
+
+    return (
+      <section key={pl.id} className="pod-card playlist-card">
+        <div className="playlist-card-head">
+          <button
+            type="button"
+            className="playlist-card-toggle"
+            aria-expanded={isOpen}
+            aria-controls={trackListId}
+            onClick={() => togglePlaylist(pl.id)}
+          >
+            <span className="playlist-card-title-wrap">
+              <span className="playlist-card-title">{pl.name}</span>
+              <span className="playlist-card-count">{pl.item_count} tracks</span>
+            </span>
+            <span className={`playlist-card-chevron${isOpen ? ' playlist-card-chevron-open' : ''}`} aria-hidden>
+              v
+            </span>
+          </button>
+          <div className="pod-inline-actions">
+            <button
+              type="button"
+              className="pod-btn pod-btn-secondary pod-btn-sm"
+              disabled={pl.items.length === 0}
+              onClick={() => playPlaylist(pl.items)}
+            >
+              Play all
+            </button>
+            <button
+              type="button"
+              className="pod-btn pod-btn-danger pod-btn-sm"
+              onClick={() => handleDelete(pl.id, pl.name)}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+        {isOpen && (
+          <div id={trackListId} className="playlist-card-body">
+            {pl.items.length > 0 ? (
+              <ul className="playlist-track-list">
+                {pl.items.map((item) => (
+                  <li key={item.post_id}>
+                    <Link
+                      to={`/stream/${item.post_id}`}
+                      state={buildStreamState(streamReturnFrom, {
+                        id: item.post_id,
+                        title: item.title,
+                        duration_secs: item.duration_secs,
+                        published_at: item.published_at,
+                        image_filename: item.image_filename
+                      })}
+                    >
+                      {item.title}
+                    </Link>
+                    <FavoriteButton postId={item.post_id} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="playlist-empty">No tracks in this playlist yet.</p>
+            )}
+          </div>
+        )}
+      </section>
+    );
   };
 
   return (
@@ -86,52 +172,7 @@ const Playlists: React.FC = () => {
           <div className="pod-empty">No playlists yet.</div>
         ) : (
           <div className="playlists-grid" style={{ padding: '0 1rem' }}>
-            {playlists.map((pl) => (
-              <section key={pl.id} className="pod-card playlist-card">
-                <div className="playlist-card-head">
-                  <h3>{pl.name}</h3>
-                  <div className="pod-inline-actions">
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-secondary pod-btn-sm"
-                      disabled={pl.items.length === 0}
-                      onClick={() => playPlaylist(pl.items)}
-                    >
-                      Play all
-                    </button>
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-danger pod-btn-sm"
-                      onClick={() => handleDelete(pl.id, pl.name)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                <p className="playlist-card-count">{pl.item_count} tracks</p>
-                {pl.items.length > 0 && (
-                  <ul className="playlist-track-list">
-                    {pl.items.map((item) => (
-                      <li key={item.post_id}>
-                        <Link
-                          to={`/stream/${item.post_id}`}
-                          state={buildStreamState(streamReturnFrom, {
-                            id: item.post_id,
-                            title: item.title,
-                            duration_secs: item.duration_secs,
-                            published_at: item.published_at,
-                            image_filename: item.image_filename
-                          })}
-                        >
-                          {item.title}
-                        </Link>
-                        <FavoriteButton postId={item.post_id} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
+            {playlists.map(renderPlaylistCard)}
           </div>
         )}
 
@@ -162,52 +203,7 @@ const Playlists: React.FC = () => {
           <div className="pod-empty">No playlists yet. Create one above or add tracks from the player.</div>
         ) : (
           <div className="playlists-grid">
-            {playlists.map((pl) => (
-              <section key={pl.id} className="pod-card playlist-card">
-                <div className="playlist-card-head">
-                  <h3>{pl.name}</h3>
-                  <div className="pod-inline-actions">
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-secondary pod-btn-sm"
-                      disabled={pl.items.length === 0}
-                      onClick={() => playPlaylist(pl.items)}
-                    >
-                      Play all
-                    </button>
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-danger pod-btn-sm"
-                      onClick={() => handleDelete(pl.id, pl.name)}
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-                <p className="playlist-card-count">{pl.item_count} tracks</p>
-                {pl.items.length > 0 && (
-                  <ul className="playlist-track-list">
-                    {pl.items.map((item) => (
-                      <li key={item.post_id}>
-                        <Link
-                          to={`/stream/${item.post_id}`}
-                          state={buildStreamState(streamReturnFrom, {
-                            id: item.post_id,
-                            title: item.title,
-                            duration_secs: item.duration_secs,
-                            published_at: item.published_at,
-                            image_filename: item.image_filename
-                          })}
-                        >
-                          {item.title}
-                        </Link>
-                        <FavoriteButton postId={item.post_id} />
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            ))}
+            {playlists.map(renderPlaylistCard)}
           </div>
         )}
       </main>
