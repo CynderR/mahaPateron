@@ -10,6 +10,7 @@ const {
   updateUserFields,
   activateUserSubscription,
   softDeleteUser,
+  restoreUser,
   purgeDeletedUserByEmail,
   permanentlyDeleteUser
 } = require('../database');
@@ -29,7 +30,16 @@ const sanitizeUser = (user) => {
 // GET / — paginated list with filters.
 router.get('/', async (req, res) => {
   try {
-    const { page, limit, is_paying, payment_category, subscription_status, access_type, is_admin } = req.query;
+    const {
+      page,
+      limit,
+      is_paying,
+      payment_category,
+      subscription_status,
+      access_type,
+      is_admin,
+      account_status
+    } = req.query;
     const result = await getUsersFiltered({
       page,
       limit,
@@ -37,7 +47,8 @@ router.get('/', async (req, res) => {
       payment_category,
       subscription_status,
       access_type,
-      is_admin
+      is_admin,
+      account_status
     });
     res.json(result);
   } catch (error) {
@@ -179,6 +190,22 @@ router.put('/:id', async (req, res) => {
     res.json({ message: 'User updated', user: sanitizeUser(updated) });
   } catch (error) {
     console.error('Admin update user error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /:id/restore — restore a soft-deleted user record.
+router.post('/:id/restore', async (req, res) => {
+  try {
+    const result = await restoreUser(req.params.id);
+    if (!result.restored) {
+      return res.status(404).json({ error: 'Deleted user not found' });
+    }
+
+    const restored = await getUserById(req.params.id);
+    res.json({ message: 'User restored', user: sanitizeUser(restored) });
+  } catch (error) {
+    console.error('Admin restore user error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

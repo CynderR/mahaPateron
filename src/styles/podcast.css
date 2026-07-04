@@ -358,6 +358,10 @@
   background: var(--bg-hover);
 }
 
+.pod-table-row-muted {
+  opacity: 0.72;
+}
+
 .pod-table .pod-input,
 .pod-table .pod-select {
   padding: 0.35rem 0.5rem;

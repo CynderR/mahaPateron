@@ -284,6 +284,18 @@ const softDeleteUser = (id) => {
   });
 };
 
+const restoreUser = (id) => {
+  return new Promise((resolve, reject) => {
+    const sql = `UPDATE users
+                 SET deleted_at = NULL, rss_token = ?, updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ? AND deleted_at IS NOT NULL`;
+    db.run(sql, [uuidv4(), id], function (err) {
+      if (err) reject(err);
+      else resolve({ restored: this.changes > 0 });
+    });
+  });
+};
+
 const runSql = (sql, params = []) =>
   new Promise((resolve, reject) => {
     db.run(sql, params, function (err) {
@@ -335,17 +347,29 @@ const permanentlyDeleteUser = async (id) => {
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
   stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
-  subscribed_at, back_catalog_access, monthly_payments, download_access, created_at, updated_at`;
+  subscribed_at, back_catalog_access, monthly_payments, download_access,
+  deleted_at, created_at, updated_at`;
 
 const getUsersFiltered = (filters = {}) => {
   return new Promise((resolve, reject) => {
-    const { is_paying, payment_category, subscription_status, access_type, is_admin, includeDeleted = false } = filters;
+    const {
+      is_paying,
+      payment_category,
+      subscription_status,
+      access_type,
+      is_admin,
+      account_status = 'active'
+    } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 20));
     const where = [];
     const params = [];
 
-    if (!includeDeleted) where.push('deleted_at IS NULL');
+    if (account_status === 'deleted') {
+      where.push('deleted_at IS NOT NULL');
+    } else if (account_status !== 'all') {
+      where.push('deleted_at IS NULL');
+    }
     if (is_paying !== undefined && is_paying !== null && is_paying !== '') {
       where.push('is_paying = ?');
       params.push(is_paying === true || is_paying === 'true' || is_paying === 1 || is_paying === '1' ? 1 : 0);
@@ -1081,6 +1105,7 @@ module.exports = {
   getUserByStripeSubId,
   updateUserFields,
   softDeleteUser,
+  restoreUser,
   purgeDeletedUserByEmail,
   permanentlyDeleteUser,
   getUsersFiltered,

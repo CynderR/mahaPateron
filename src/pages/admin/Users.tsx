@@ -64,7 +64,8 @@ const Users: React.FC = () => {
     payment_category: '',
     subscription_status: '',
     access_type: '',
-    is_admin: ''
+    is_admin: '',
+    account_status: 'active'
   });
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
@@ -83,6 +84,7 @@ const Users: React.FC = () => {
       if (filters.subscription_status) params.subscription_status = filters.subscription_status;
       if (filters.access_type) params.access_type = filters.access_type;
       if (filters.is_admin) params.is_admin = filters.is_admin;
+      if (filters.account_status) params.account_status = filters.account_status;
       const res = await axios.get<UsersResponse>('/admin/users', { params });
       setData(res.data);
     } catch (e) {
@@ -139,6 +141,19 @@ const Users: React.FC = () => {
       load();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Delete failed.');
+    }
+  };
+
+  const handleRestore = async (id: number) => {
+    if (!window.confirm('Undelete this account and make it active again?')) return;
+    setError('');
+    setMessage('');
+    try {
+      await axios.post(`/admin/users/${id}/restore`);
+      setMessage('User restored.');
+      load();
+    } catch (e: any) {
+      setError(e.response?.data?.error || 'Restore failed.');
     }
   };
 
@@ -373,6 +388,21 @@ const Users: React.FC = () => {
                 ))}
               </select>
             </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label>Account status</label>
+              <select
+                className="pod-select"
+                value={filters.account_status}
+                onChange={(e) => {
+                  setPage(1);
+                  setFilters({ ...filters, account_status: e.target.value });
+                }}
+              >
+                <option value="active">Active</option>
+                <option value="deleted">Deleted</option>
+                <option value="all">All</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -384,6 +414,7 @@ const Users: React.FC = () => {
             onSubscriptionChange={handleSubscriptionChange}
             onPayingTierChange={handlePayingTierChange}
             onDelete={handleDelete}
+            onRestore={handleRestore}
           />
         )}
 
