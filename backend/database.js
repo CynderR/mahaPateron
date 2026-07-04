@@ -271,13 +271,52 @@ const updateUserFields = (id, data) => {
 
 const softDeleteUser = (id) => {
   return new Promise((resolve, reject) => {
-    // Rotate the RSS token so the personal feed stops resolving.
-    const sql = `UPDATE users SET deleted_at = CURRENT_TIMESTAMP, rss_token = ? WHERE id = ?`;
-    db.run(sql, [uuidv4(), id], function (err) {
+    // Anonymize unique identifiers and rotate the RSS token so deleted
+    // accounts do not block future signups or personal feed access.
+    const anonymized = `deleted_user_${id}`;
+    const sql = `UPDATE users
+                 SET username = ?, email = ?, deleted_at = CURRENT_TIMESTAMP, rss_token = ?
+                 WHERE id = ?`;
+    db.run(sql, [anonymized, `${anonymized}@deleted.invalid`, uuidv4(), id], function (err) {
       if (err) reject(err);
       else resolve({ deleted: this.changes > 0 });
     });
   });
+};
+
+const runSql = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+
+const purgeDeletedUserByEmail = async (email) => {
+  const normalizedEmail = String(email || '').trim();
+  if (!normalizedEmail) return { deleted: false, reason: 'missing_email' };
+
+  const user = await new Promise((resolve, reject) => {
+    db.get(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER(?)',
+      [normalizedEmail],
+      (err, row) => (err ? reject(err) : resolve(row))
+    );
+  });
+
+  if (!user) return { deleted: false, reason: 'not_found' };
+  if (!user.deleted_at) return { deleted: false, reason: 'active_user' };
+
+  await runSql(
+    'DELETE FROM playlist_items WHERE playlist_id IN (SELECT id FROM playlists WHERE user_id = ?)',
+    [user.id]
+  );
+  await runSql('DELETE FROM playlists WHERE user_id = ?', [user.id]);
+  await runSql('DELETE FROM user_favorites WHERE user_id = ?', [user.id]);
+  await runSql('DELETE FROM stream_events WHERE user_id = ?', [user.id]);
+  const result = await runSql('DELETE FROM users WHERE id = ? AND deleted_at IS NOT NULL', [user.id]);
+
+  return { deleted: result.changes > 0, userId: user.id };
 };
 
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
@@ -1029,6 +1068,7 @@ module.exports = {
   getUserByStripeSubId,
   updateUserFields,
   softDeleteUser,
+  purgeDeletedUserByEmail,
   getUsersFiltered,
   getUserStats,
   createPost,

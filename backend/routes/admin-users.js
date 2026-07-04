@@ -9,7 +9,8 @@ const {
   getUsersFiltered,
   updateUserFields,
   activateUserSubscription,
-  softDeleteUser
+  softDeleteUser,
+  purgeDeletedUserByEmail
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
@@ -63,8 +64,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid access_type' });
     }
 
-    if (await getUserByEmail(email)) {
-      return res.status(400).json({ error: 'User with this email already exists' });
+    const existingEmailUser = await getUserByEmail(email);
+    if (existingEmailUser) {
+      if (!existingEmailUser.deleted_at) {
+        return res.status(400).json({ error: 'User with this email already exists' });
+      }
+      await purgeDeletedUserByEmail(email);
     }
     if (await getUserByUsername(username)) {
       return res.status(400).json({ error: 'Username already taken' });
