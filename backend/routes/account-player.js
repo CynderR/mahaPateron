@@ -104,8 +104,24 @@ router.post('/playlists', async (req, res) => {
     const name = String(req.body.name || '').trim();
     if (!name) return res.status(400).json({ error: 'Playlist name is required' });
 
+    const user = await getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
     const playlist = await createPlaylist(req.user.id, name);
-    res.status(201).json({ playlist: { ...playlist, item_count: 0, items: [] } });
+    const postIds = Array.isArray(req.body.post_ids) ? req.body.post_ids : [];
+
+    for (const rawPostId of postIds) {
+      const postId = String(rawPostId || '').trim();
+      if (!postId) continue;
+
+      const post = await getPostById(postId);
+      if (post && post.is_published && userCanAccessPost(user, post)) {
+        await addPlaylistItem(playlist.id, post.id);
+      }
+    }
+
+    const items = await getPlaylistItems(playlist.id);
+    res.status(201).json({ playlist: { ...playlist, item_count: items.length, items } });
   } catch (error) {
     console.error('Playlist create error:', error);
     res.status(500).json({ error: 'Internal server error' });

@@ -76,9 +76,10 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     setBusy(true);
     setMessage('');
     try {
-      const playlist = await createPlaylist(name);
+      const playlist = await createPlaylist(name, postIds);
       if (playlist) {
-        const { added, failed } = await addManyToPlaylist(playlist.id, postIds);
+        const added = playlist.item_count;
+        const failed = postIds.length - added;
         setMessage(formatResult(name, added, failed));
         setNewName('');
         if (added > 0) {

@@ -20,9 +20,8 @@ const PlaylistPicker: React.FC<PlaylistPickerProps> = ({ postId, className = '' 
     setBusy(true);
     setMessage('');
     try {
-      const playlist = await createPlaylist(name);
+      const playlist = await createPlaylist(name, [postId]);
       if (playlist) {
-        await addToPlaylist(playlist.id, postId);
         setMessage(`Added to "${name}"`);
         setNewName('');
       }

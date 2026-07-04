@@ -66,7 +66,7 @@ interface PlayerContextType {
   isFavorite: (postId: string) => boolean;
   toggleFavorite: (postId: string) => Promise<void>;
   refreshPlaylists: () => Promise<void>;
-  createPlaylist: (name: string) => Promise<PlaylistSummary | null>;
+  createPlaylist: (name: string, postIds?: string[]) => Promise<PlaylistSummary | null>;
   addToPlaylist: (playlistId: string, postId: string) => Promise<void>;
   addManyToPlaylist: (playlistId: string, postIds: string[]) => Promise<{ added: number; failed: number }>;
   removeFromPlaylist: (playlistId: string, postId: string) => Promise<void>;
@@ -897,8 +897,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   const createPlaylist = useCallback(
-    async (name: string) => {
-      const res = await axios.post<{ playlist: PlaylistSummary }>('/account/player/playlists', { name });
+    async (name: string, postIds: string[] = []) => {
+      const res = await axios.post<{ playlist: PlaylistSummary }>('/account/player/playlists', {
+        name,
+        post_ids: postIds
+      });
       await refreshPlaylists();
       return res.data.playlist;
     },
@@ -916,12 +919,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const addManyToPlaylist = useCallback(
     async (playlistId: string, postIds: string[]) => {
       if (postIds.length === 0) return { added: 0, failed: 0 };
-      const results = await Promise.allSettled(
-        postIds.map((postId) =>
-          axios.post(`/account/player/playlists/${playlistId}/items`, { post_id: postId })
-        )
-      );
-      const added = results.filter((result) => result.status === 'fulfilled').length;
+      let added = 0;
+      for (const postId of postIds) {
+        try {
+          await axios.post(`/account/player/playlists/${playlistId}/items`, { post_id: postId });
+          added += 1;
+        } catch {
+          // Keep adding the remaining selected tracks even if one is unavailable.
+        }
+      }
       await refreshPlaylists();
       return { added, failed: postIds.length - added };
     },
