@@ -103,8 +103,64 @@ const sendPasswordResetEmail = async (email, resetToken) => {
   }
 };
 
+const sendEmailVerificationCode = async (email, code) => {
+  try {
+    const transporter = createTransporter();
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: email,
+      subject: 'Verify your email address',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+            .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+            .code { font-size: 32px; letter-spacing: 6px; font-weight: bold; margin: 20px 0; }
+            .footer { margin-top: 30px; font-size: 12px; color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Verify your email address</h2>
+            <p>Use this verification code to finish creating your account:</p>
+            <div class="code">${code}</div>
+            <p>This code will expire in 10 minutes.</p>
+            <p>If you did not request this account, please ignore this email.</p>
+            <div class="footer">
+              <p>This is an automated message, please do not reply.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+      text: `
+        Verify your email address
+
+        Use this verification code to finish creating your account:
+
+        ${code}
+
+        This code will expire in 10 minutes.
+
+        If you did not request this account, please ignore this email.
+      `,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+    console.log('Email verification code sent:', info.messageId);
+    return { success: true, messageId: info.messageId };
+  } catch (error) {
+    console.error('Error sending email verification code:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 module.exports = {
   sendPasswordResetEmail,
+  sendEmailVerificationCode,
   createTransporter,
   buildResetPasswordUrl,
 };

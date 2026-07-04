@@ -18,9 +18,11 @@ const {
   getUserByResetToken,
   clearPasswordResetToken,
   updateUserFields,
+  saveEmailVerificationCode,
+  consumeEmailVerificationCode,
   purgeDeletedUserByEmail
 } = require('./database');
-const { sendPasswordResetEmail } = require('./emailService');
+const { sendEmailVerificationCode, sendPasswordResetEmail } = require('./emailService');
 
 const authenticateToken = require('./middleware/authenticateToken');
 const optionalAuthenticateToken = require('./middleware/optionalAuthenticateToken');
@@ -36,6 +38,11 @@ const adminLibraryRouter = require('./routes/admin-library');
 const accountPlayerRouter = require('./routes/account-player');
 const adminRouter = require('./routes/admin');
 const accountRouter = require('./routes/account');
+
+const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
+const hashVerificationCode = (code) =>
+  crypto.createHmac('sha256', JWT_SECRET).update(String(code)).digest('hex');
+const generateVerificationCode = () => String(crypto.randomInt(100000, 1000000));
 const rssRouter = require('./routes/rss');
 const streamRouter = require('./routes/stream');
 const shareRouter = require('./routes/share');
@@ -87,11 +94,12 @@ core.get('/health', (req, res) => {
   res.json({ message: 'Server is running' });
 });
 
-// Register a new self-service account.
-core.post('/register', authRateLimiter, async (req, res) => {
+// Send a short-lived verification code before self-service account creation.
+core.post('/auth/request-email-verification', authRateLimiter, async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    if (!username || !email || !password) {
+    const normalizedEmail = normalizeEmail(email);
+    if (!username || !normalizedEmail || !password) {
       return res.status(400).json({ error: 'Username, email, and password are required' });
     }
 
@@ -100,21 +108,72 @@ core.post('/register', authRateLimiter, async (req, res) => {
       return res.status(400).json({ error: passwordError });
     }
 
-    const existingEmailUser = await getUserByEmail(email);
-    if (existingEmailUser) {
-      if (!existingEmailUser.deleted_at) {
-        return res.status(400).json({ error: 'User with this email already exists' });
-      }
-      await purgeDeletedUserByEmail(email);
+    const existingEmailUser = await getUserByEmail(normalizedEmail);
+    if (existingEmailUser && !existingEmailUser.deleted_at) {
+      return res.status(400).json({ error: 'User with this email already exists' });
     }
     if (await getUserByUsername(username)) {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
+    const code = generateVerificationCode();
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    await saveEmailVerificationCode(normalizedEmail, hashVerificationCode(code), expiresAt);
+
+    const emailResult = await sendEmailVerificationCode(normalizedEmail, code);
+    if (!emailResult.success) {
+      return res.status(500).json({ error: 'Could not send verification email.' });
+    }
+
+    res.json({ message: 'Verification code sent. Check your email to finish creating your account.' });
+  } catch (error) {
+    console.error('Email verification request error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Register a new self-service account.
+core.post('/register', authRateLimiter, async (req, res) => {
+  try {
+    const { username, email, password, verificationCode } = req.body;
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedCode = String(verificationCode || '').trim();
+    if (!username || !normalizedEmail || !password || !normalizedCode) {
+      return res.status(400).json({ error: 'Username, email, password, and verification code are required' });
+    }
+
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
+    }
+
+    const existingEmailUser = await getUserByEmail(normalizedEmail);
+    if (existingEmailUser) {
+      if (!existingEmailUser.deleted_at) {
+        return res.status(400).json({ error: 'User with this email already exists' });
+      }
+      await purgeDeletedUserByEmail(normalizedEmail);
+    }
+    if (await getUserByUsername(username)) {
+      return res.status(400).json({ error: 'Username already taken' });
+    }
+
+    const verification = await consumeEmailVerificationCode(
+      normalizedEmail,
+      hashVerificationCode(normalizedCode)
+    );
+    if (!verification.verified) {
+      const errorMessage =
+        verification.reason === 'expired'
+          ? 'Verification code expired. Please request a new code.'
+          : 'Invalid verification code.';
+      return res.status(400).json({ error: errorMessage });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
     const newUser = await createUser({
       username,
-      email,
+      email: normalizedEmail,
       password: hashedPassword,
       is_free: false,
       is_admin: false

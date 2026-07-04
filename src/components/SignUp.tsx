@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggleFixed } from './ThemeToggle';
@@ -9,9 +10,12 @@ const SignUp: React.FC = () => {
     username: '',
     email: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    verificationCode: ''
   });
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [verificationSent, setVerificationSent] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -22,29 +26,72 @@ const SignUp: React.FC = () => {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+    if (name === 'email') {
+      setVerificationSent(false);
+      setMessage('');
+    }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateAccountFields = () => {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
-      return;
+      return false;
     }
 
     if (formData.password.length < 8) {
       setError('Password must be at least 8 characters long');
+      return false;
+    }
+
+    return true;
+  };
+
+  const requestVerificationCode = async () => {
+    if (!validateAccountFields()) return;
+
+    setLoading(true);
+    setMessage('');
+
+    try {
+      await axios.post('/auth/request-email-verification', {
+        username: formData.username,
+        email: formData.email,
+        password: formData.password
+      });
+      setVerificationSent(true);
+      setMessage('Verification code sent. Check your email, then enter the code below.');
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Could not send verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateAccountFields()) return;
+
+    if (!verificationSent) {
+      await requestVerificationCode();
+      return;
+    }
+
+    if (!formData.verificationCode.trim()) {
+      setError('Enter the verification code sent to your email.');
       return;
     }
 
     setLoading(true);
+    setError('');
 
     try {
       await register({
         username: formData.username,
         email: formData.email,
-        password: formData.password
+        password: formData.password,
+        verificationCode: formData.verificationCode.trim()
       });
       navigate('/dashboard');
     } catch (err: any) {
@@ -63,6 +110,11 @@ const SignUp: React.FC = () => {
         {error && (
           <div className="error-message">
             {error}
+          </div>
+        )}
+        {message && (
+          <div className="success-message">
+            {message}
           </div>
         )}
 
@@ -120,13 +172,46 @@ const SignUp: React.FC = () => {
             />
           </div>
 
+          {verificationSent && (
+            <div className="form-group">
+              <label htmlFor="verificationCode">Verification Code *</label>
+              <input
+                type="text"
+                id="verificationCode"
+                name="verificationCode"
+                value={formData.verificationCode}
+                onChange={handleChange}
+                required
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="Enter the 6-digit code"
+              />
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={loading}
             className="auth-button"
           >
-            {loading ? 'Creating account...' : 'Create Account'}
+            {loading
+              ? verificationSent
+                ? 'Creating account...'
+                : 'Sending code...'
+              : verificationSent
+                ? 'Create Account'
+                : 'Send Verification Code'}
           </button>
+          {verificationSent && (
+            <button
+              type="button"
+              className="auth-button auth-button-secondary"
+              disabled={loading}
+              onClick={requestVerificationCode}
+            >
+              Resend Code
+            </button>
+          )}
         </form>
 
         <div className="auth-footer">

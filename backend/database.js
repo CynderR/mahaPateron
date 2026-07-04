@@ -22,6 +22,20 @@ const ensureLibraryMetadataReady = () => {
     });
 };
 
+const ensureEmailVerificationTable = () =>
+  new Promise((resolve, reject) => {
+    db.run(
+      `CREATE TABLE IF NOT EXISTS email_verifications (
+        email TEXT PRIMARY KEY,
+        code_hash TEXT NOT NULL,
+        expires_at DATETIME NOT NULL,
+        consumed_at DATETIME,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`,
+      (err) => (err ? reject(err) : resolve())
+    );
+  });
+
 // Initialize database with users table
 const initDatabase = () => {
   return new Promise((resolve, reject) => {
@@ -76,6 +90,7 @@ const initDatabase = () => {
     .then(() => runLibraryAudioMetadataMigration(db))
     .then(() => runPostShareTokenMigration(db))
     .then(() => runUserDownloadAccessMigration(db))
+    .then(() => ensureEmailVerificationTable())
     .then(() => {
       libraryMetadataReady = true;
     });
@@ -303,6 +318,46 @@ const runSql = (sql, params = []) =>
       else resolve(this);
     });
   });
+
+const saveEmailVerificationCode = (email, codeHash, expiresAt) =>
+  runSql(
+    `INSERT INTO email_verifications (email, code_hash, expires_at, consumed_at)
+     VALUES (?, ?, ?, NULL)
+     ON CONFLICT(email) DO UPDATE SET
+       code_hash = excluded.code_hash,
+       expires_at = excluded.expires_at,
+       consumed_at = NULL,
+       created_at = CURRENT_TIMESTAMP`,
+    [String(email || '').trim().toLowerCase(), codeHash, expiresAt]
+  );
+
+const consumeEmailVerificationCode = (email, codeHash) => {
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT email, expires_at
+       FROM email_verifications
+       WHERE email = ? AND code_hash = ? AND consumed_at IS NULL`,
+      [normalizedEmail, codeHash],
+      (err, row) => {
+        if (err) return reject(err);
+        if (!row) return resolve({ verified: false, reason: 'invalid' });
+        if (new Date(row.expires_at).getTime() < Date.now()) {
+          return resolve({ verified: false, reason: 'expired' });
+        }
+
+        db.run(
+          'UPDATE email_verifications SET consumed_at = CURRENT_TIMESTAMP WHERE email = ?',
+          [normalizedEmail],
+          function (updateErr) {
+            if (updateErr) return reject(updateErr);
+            resolve({ verified: this.changes > 0 });
+          }
+        );
+      }
+    );
+  });
+};
 
 const purgeDeletedUserByEmail = async (email) => {
   const normalizedEmail = String(email || '').trim();
@@ -1106,6 +1161,8 @@ module.exports = {
   updateUserFields,
   softDeleteUser,
   restoreUser,
+  saveEmailVerificationCode,
+  consumeEmailVerificationCode,
   purgeDeletedUserByEmail,
   permanentlyDeleteUser,
   getUsersFiltered,

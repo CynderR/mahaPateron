@@ -35,6 +35,7 @@ interface RegisterData {
   username: string;
   email: string;
   password: string;
+  verificationCode: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
