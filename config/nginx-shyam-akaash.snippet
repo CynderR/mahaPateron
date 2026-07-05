@@ -15,6 +15,13 @@ location = /shyam_akaash {
     return 301 /shyam_akaash/;
 }
 
+# Podcast channel cover — served from public/ (RSS readers e.g. MediaMonkey).
+location = /shyam_akaash/podcast-cover.jpg {
+    alias /var/www/user-management-app/public/podcast-cover.jpg;
+    expires 7d;
+    add_header Cache-Control "public";
+}
+
 # Rich link previews for shared episodes (WhatsApp, iMessage, etc.).
 # Crawlers receive HTML with Open Graph tags from the Node backend.
 location ~ ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ {

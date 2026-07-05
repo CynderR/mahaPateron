@@ -31,6 +31,7 @@ const authRateLimiter = require('./middleware/authRateLimit');
 const { JWT_SECRET } = authenticateToken;
 const { validatePassword } = require('./utils/passwordPolicy');
 const { ensureDirs, IMAGE_DIR } = require('./config');
+const { getPodcastCoverPath } = require('./utils/podcastBranding');
 
 const adminUsersRouter = require('./routes/admin-users');
 const adminPostsRouter = require('./routes/admin-posts');
@@ -79,6 +80,19 @@ app.use(express.json());
 ['/uploads/images', '/shyam_akaash/uploads/images'].forEach((p) =>
   app.use(p, express.static(IMAGE_DIR))
 );
+
+// Podcast channel cover — plain static URL for RSS readers (e.g. MediaMonkey).
+const sendPodcastCover = (req, res) => {
+  const coverPath = getPodcastCoverPath();
+  if (!coverPath) {
+    return res.status(404).end();
+  }
+  res.set('Cache-Control', 'public, max-age=86400');
+  return res.sendFile(coverPath);
+};
+['/podcast-cover.jpg', '/shyam_akaash/podcast-cover.jpg'].forEach((p) => {
+  app.get(p, sendPodcastCover);
+});
 
 // ---------------------------------------------------------------------------
 // Core auth + profile routes (reused under both the root and subpath prefixes)

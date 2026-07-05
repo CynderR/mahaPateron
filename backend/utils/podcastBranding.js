@@ -1,10 +1,9 @@
 const fs = require('fs');
 const path = require('path');
-const { BASE_URL, IMAGE_DIR } = require('../config');
+const { BASE_URL } = require('../config');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const PODCAST_COVER_FILENAME = 'podcast-cover.jpg';
-const PODCAST_CHANNEL_IMAGE = '_podcast-channel.jpg';
 
 const resolveCoverSource = () => {
   const configured = process.env.PODCAST_COVER_FILE;
@@ -29,7 +28,28 @@ const resolveCoverSource = () => {
   return null;
 };
 
+const getPodcastCoverPath = () => {
+  const configured = process.env.PODCAST_COVER_FILE;
+  if (configured) {
+    const configuredPath = path.isAbsolute(configured)
+      ? configured
+      : path.join(PUBLIC_DIR, configured);
+    if (fs.existsSync(configuredPath)) {
+      return configuredPath;
+    }
+  }
+
+  const defaultCover = path.join(PUBLIC_DIR, PODCAST_COVER_FILENAME);
+  return fs.existsSync(defaultCover) ? defaultCover : null;
+};
+
+// Ensure public/podcast-cover.jpg exists (some RSS readers only fetch simple static URLs).
 const ensurePodcastChannelArt = () => {
+  const dest = path.join(PUBLIC_DIR, PODCAST_COVER_FILENAME);
+  if (fs.existsSync(dest)) {
+    return dest;
+  }
+
   const source = resolveCoverSource();
   if (!source) {
     console.warn(
@@ -38,16 +58,8 @@ const ensurePodcastChannelArt = () => {
     return null;
   }
 
-  const dest = path.join(IMAGE_DIR, PODCAST_CHANNEL_IMAGE);
-  const shouldCopy =
-    !fs.existsSync(dest) ||
-    fs.statSync(source).mtimeMs > fs.statSync(dest).mtimeMs;
-
-  if (shouldCopy) {
-    fs.copyFileSync(source, dest);
-    console.log(`Podcast channel art synced to uploads/images/${PODCAST_CHANNEL_IMAGE}`);
-  }
-
+  fs.copyFileSync(source, dest);
+  console.log(`Podcast channel art installed at public/${PODCAST_COVER_FILENAME}`);
   return dest;
 };
 
@@ -56,9 +68,8 @@ const getPodcastChannelImageUrl = () => {
     return process.env.PODCAST_IMAGE_URL.replace(/\/$/, '');
   }
 
-  const dest = path.join(IMAGE_DIR, PODCAST_CHANNEL_IMAGE);
-  if (fs.existsSync(dest)) {
-    return `${BASE_URL}/uploads/images/${encodeURIComponent(PODCAST_CHANNEL_IMAGE)}`;
+  if (getPodcastCoverPath()) {
+    return `${BASE_URL}/${PODCAST_COVER_FILENAME}`;
   }
 
   return null;
@@ -73,7 +84,7 @@ const buildEpisodeImageUrl = (imageFilename, channelImageUrl) => {
 
 module.exports = {
   PODCAST_COVER_FILENAME,
-  PODCAST_CHANNEL_IMAGE,
+  getPodcastCoverPath,
   ensurePodcastChannelArt,
   getPodcastChannelImageUrl,
   buildEpisodeImageUrl,

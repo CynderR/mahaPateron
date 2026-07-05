@@ -57,7 +57,8 @@ const buildChannelImageXml = (channelImageUrl) => {
       <title>${escapeXml(PODCAST_TITLE)}</title>
       <link>${escapeXml(BASE_URL)}</link>
     </image>
-    <itunes:image href="${escapeXml(channelImageUrl)}" />`;
+    <itunes:image href="${escapeXml(channelImageUrl)}" />
+    <media:thumbnail url="${escapeXml(channelImageUrl)}" />`;
 };
 
 const buildItem = (post, token, channelImageUrl) => {
@@ -85,17 +86,23 @@ const buildItem = (post, token, channelImageUrl) => {
     </item>`;
 };
 
-const buildFeed = ({ description, items }) => {
+const buildFeed = ({ description, items, feedUrl }) => {
   const channelImageUrl = getPodcastChannelImageUrl();
   const channelImageXml = buildChannelImageXml(channelImageUrl);
+  const selfLink = feedUrl
+    ? `    <atom:link href="${escapeXml(feedUrl)}" rel="self" type="application/rss+xml" />\n`
+    : '';
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
   xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
-  xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  xmlns:content="http://purl.org/rss/1.0/modules/content/"
+  xmlns:media="http://search.yahoo.com/mrss/"
+  xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>${escapeXml(PODCAST_TITLE)}</title>
     <link>${escapeXml(BASE_URL)}</link>
+${selfLink}${channelImageXml}
     <language>en-us</language>
     <description>${escapeXml(description)}</description>
     <itunes:author>${escapeXml(PODCAST_AUTHOR)}</itunes:author>
@@ -106,7 +113,6 @@ const buildFeed = ({ description, items }) => {
       <itunes:name>${escapeXml(PODCAST_AUTHOR)}</itunes:name>
       <itunes:email>${escapeXml(PODCAST_EMAIL)}</itunes:email>
     </itunes:owner>
-${channelImageXml}
 ${items}
   </channel>
 </rss>`;
@@ -133,20 +139,25 @@ router.get('/:token', async (req, res) => {
     res.set('Cache-Control', 'no-cache');
 
     const channelImageUrl = getPodcastChannelImageUrl();
+    const feedUrl = `${BASE_URL}/rss/${req.params.token}`;
     const rssAllowed = user.access_type === 'rss' || user.access_type === 'both';
 
     if (!user.is_paying || !rssAllowed) {
       const reason = !user.is_paying
         ? 'Your subscription is inactive. Reactivate it to receive new episodes.'
         : 'Your plan does not include RSS access.';
-      return res.send(buildFeed({ description: `${PODCAST_DESCRIPTION} ${reason}`, items: '' }));
+      return res.send(buildFeed({
+        description: `${PODCAST_DESCRIPTION} ${reason}`,
+        items: '',
+        feedUrl
+      }));
     }
 
     const posts = await getPublishedPostsForUser(user);
     const items = posts
       .map((post) => buildItem(post, req.params.token, channelImageUrl))
       .join('\n');
-    res.send(buildFeed({ description: PODCAST_DESCRIPTION, items }));
+    res.send(buildFeed({ description: PODCAST_DESCRIPTION, items, feedUrl }));
   } catch (error) {
     console.error('RSS feed error:', error);
     res.status(500).json({ error: 'Internal server error' });
