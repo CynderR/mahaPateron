@@ -1,9 +1,12 @@
 const fs = require('fs');
 const path = require('path');
-const { BASE_URL } = require('../config');
+const { BASE_URL, IMAGE_DIR } = require('../config');
 
 const PUBLIC_DIR = path.join(__dirname, '..', '..', 'public');
 const PODCAST_COVER_FILENAME = 'podcast-cover.jpg';
+// Served from uploads/ like episode art — podcast apps cache failures aggressively.
+const PODCAST_ARTWORK_FILENAME = 'podcast-artwork.jpg';
+const PODCAST_ART_MIN_PX = 1400;
 
 const resolveCoverSource = () => {
   const configured = process.env.PODCAST_COVER_FILE;
@@ -43,29 +46,46 @@ const getPodcastCoverPath = () => {
   return fs.existsSync(defaultCover) ? defaultCover : null;
 };
 
-// Ensure public/podcast-cover.jpg exists. Must be ≥1400×1400 px for podcast app channel art.
+// Sync channel artwork to uploads/images/ (same path pattern as episode covers).
 const ensurePodcastChannelArt = () => {
-  const dest = path.join(PUBLIC_DIR, PODCAST_COVER_FILENAME);
-  if (fs.existsSync(dest)) {
-    return dest;
+  const publicDest = path.join(PUBLIC_DIR, PODCAST_COVER_FILENAME);
+  const uploadsDest = path.join(IMAGE_DIR, PODCAST_ARTWORK_FILENAME);
+
+  let source = getPodcastCoverPath();
+  if (!source) {
+    source = resolveCoverSource();
+    if (source && source !== publicDest) {
+      fs.copyFileSync(source, publicDest);
+    }
   }
 
-  const source = resolveCoverSource();
   if (!source) {
     console.warn(
-      'Podcast channel art not found in public/ — RSS feeds will omit artwork until PODCAST_IMAGE_URL is set.'
+      'Podcast channel art not found — RSS feeds will omit artwork until PODCAST_IMAGE_URL is set.'
     );
     return null;
   }
 
-  fs.copyFileSync(source, dest);
-  console.log(`Podcast channel art installed at public/${PODCAST_COVER_FILENAME}`);
-  return dest;
+  const shouldSyncUploads =
+    !fs.existsSync(uploadsDest) ||
+    fs.statSync(source).mtimeMs > fs.statSync(uploadsDest).mtimeMs;
+
+  if (shouldSyncUploads) {
+    fs.copyFileSync(source, uploadsDest);
+    console.log(`Podcast channel art synced to uploads/images/${PODCAST_ARTWORK_FILENAME}`);
+  }
+
+  return uploadsDest;
 };
 
 const getPodcastChannelImageUrl = () => {
   if (process.env.PODCAST_IMAGE_URL) {
     return process.env.PODCAST_IMAGE_URL.replace(/\/$/, '');
+  }
+
+  const uploadsPath = path.join(IMAGE_DIR, PODCAST_ARTWORK_FILENAME);
+  if (fs.existsSync(uploadsPath)) {
+    return `${BASE_URL}/uploads/images/${encodeURIComponent(PODCAST_ARTWORK_FILENAME)}`;
   }
 
   if (getPodcastCoverPath()) {
@@ -84,6 +104,7 @@ const buildEpisodeImageUrl = (imageFilename, channelImageUrl) => {
 
 module.exports = {
   PODCAST_COVER_FILENAME,
+  PODCAST_ARTWORK_FILENAME,
   getPodcastCoverPath,
   ensurePodcastChannelArt,
   getPodcastChannelImageUrl,

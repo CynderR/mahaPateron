@@ -17,6 +17,7 @@ const PODCAST_AUTHOR = process.env.PODCAST_AUTHOR || 'Shyam Akaash';
 const PODCAST_DESCRIPTION =
   process.env.PODCAST_DESCRIPTION || 'Members-only audio from Shyam Akaash.';
 const PODCAST_EMAIL = process.env.PODCAST_EMAIL || 'podcast@4thstate.ca';
+const PODCAST_CATEGORY = process.env.PODCAST_CATEGORY || 'Religion & Spirituality';
 
 ensurePodcastChannelArt();
 
@@ -49,19 +50,12 @@ const audioByteLength = (filename) => {
   }
 };
 
-const PODCAST_ART_MIN_PX = 1400;
-
 const buildChannelImageXml = (channelImageUrl) => {
   if (!channelImageUrl) return '';
 
-  // Podcast apps read itunes:image (Patreon-style). RSS <image> is kept for older readers.
+  // Match Patreon / Apple: itunes:image after owner block (episode art uses uploads/ too).
   return `    <itunes:image href="${escapeXml(channelImageUrl)}" />
     <googleplay:image href="${escapeXml(channelImageUrl)}" />
-    <image>
-      <url>${escapeXml(channelImageUrl)}</url>
-      <title>${escapeXml(PODCAST_TITLE)}</title>
-      <link>${escapeXml(BASE_URL)}</link>
-    </image>
     <media:thumbnail url="${escapeXml(channelImageUrl)}" />`;
 };
 
@@ -107,17 +101,17 @@ const buildFeed = ({ description, items, feedUrl }) => {
   <channel>
     <title>${escapeXml(PODCAST_TITLE)}</title>
     <link>${escapeXml(BASE_URL)}</link>
-${selfLink}${channelImageXml}
-    <language>en-us</language>
     <description>${escapeXml(description)}</description>
-    <itunes:author>${escapeXml(PODCAST_AUTHOR)}</itunes:author>
-    <itunes:summary>${escapeXml(description)}</itunes:summary>
-    <itunes:type>episodic</itunes:type>
-    <itunes:explicit>false</itunes:explicit>
-    <itunes:owner>
+${selfLink}    <itunes:owner>
       <itunes:name>${escapeXml(PODCAST_AUTHOR)}</itunes:name>
       <itunes:email>${escapeXml(PODCAST_EMAIL)}</itunes:email>
     </itunes:owner>
+    <itunes:type>episodic</itunes:type>
+    <itunes:author>${escapeXml(PODCAST_AUTHOR)}</itunes:author>
+    <itunes:explicit>false</itunes:explicit>
+    <itunes:category text="${escapeXml(PODCAST_CATEGORY)}" />
+${channelImageXml}    <language>en-us</language>
+    <itunes:summary>${escapeXml(description)}</itunes:summary>
 ${items}
   </channel>
 </rss>`;
