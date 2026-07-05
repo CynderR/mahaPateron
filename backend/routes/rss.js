@@ -49,15 +49,19 @@ const audioByteLength = (filename) => {
   }
 };
 
+const PODCAST_ART_MIN_PX = 1400;
+
 const buildChannelImageXml = (channelImageUrl) => {
   if (!channelImageUrl) return '';
 
-  return `    <image>
+  // Podcast apps read itunes:image (Patreon-style). RSS <image> is kept for older readers.
+  return `    <itunes:image href="${escapeXml(channelImageUrl)}" />
+    <googleplay:image href="${escapeXml(channelImageUrl)}" />
+    <image>
       <url>${escapeXml(channelImageUrl)}</url>
       <title>${escapeXml(PODCAST_TITLE)}</title>
       <link>${escapeXml(BASE_URL)}</link>
     </image>
-    <itunes:image href="${escapeXml(channelImageUrl)}" />
     <media:thumbnail url="${escapeXml(channelImageUrl)}" />`;
 };
 
@@ -98,7 +102,8 @@ const buildFeed = ({ description, items, feedUrl }) => {
   xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
   xmlns:content="http://purl.org/rss/1.0/modules/content/"
   xmlns:media="http://search.yahoo.com/mrss/"
-  xmlns:atom="http://www.w3.org/2005/Atom">
+  xmlns:atom="http://www.w3.org/2005/Atom"
+  xmlns:googleplay="http://www.google.com/schemas/play-podcasts/1.0">
   <channel>
     <title>${escapeXml(PODCAST_TITLE)}</title>
     <link>${escapeXml(BASE_URL)}</link>
@@ -108,7 +113,7 @@ ${selfLink}${channelImageXml}
     <itunes:author>${escapeXml(PODCAST_AUTHOR)}</itunes:author>
     <itunes:summary>${escapeXml(description)}</itunes:summary>
     <itunes:type>episodic</itunes:type>
-    <itunes:explicit>no</itunes:explicit>
+    <itunes:explicit>false</itunes:explicit>
     <itunes:owner>
       <itunes:name>${escapeXml(PODCAST_AUTHOR)}</itunes:name>
       <itunes:email>${escapeXml(PODCAST_EMAIL)}</itunes:email>

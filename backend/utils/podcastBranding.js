@@ -43,7 +43,7 @@ const getPodcastCoverPath = () => {
   return fs.existsSync(defaultCover) ? defaultCover : null;
 };
 
-// Ensure public/podcast-cover.jpg exists (some RSS readers only fetch simple static URLs).
+// Ensure public/podcast-cover.jpg exists. Must be ≥1400×1400 px for podcast app channel art.
 const ensurePodcastChannelArt = () => {
   const dest = path.join(PUBLIC_DIR, PODCAST_COVER_FILENAME);
   if (fs.existsSync(dest)) {
