@@ -3300,30 +3300,46 @@ body.global-now-playing-active .feed-page {
   gap: 1rem;
 }
 
-.playlist-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+.playlist-card-details {
+  display: block;
 }
 
-.playlist-card-toggle {
-  flex: 1;
-  min-width: 0;
+.playlist-card-summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  text-align: left;
+  list-style: none;
   cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Let taps on title/chevron hit <summary> so open/close works on mobile Firefox. */
+.playlist-card-summary > :not(.playlist-card-actions) {
+  pointer-events: none;
+}
+
+.playlist-card-actions,
+.playlist-card-actions * {
+  pointer-events: auto;
+}
+
+.playlist-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.playlist-card-summary::marker {
+  content: '';
 }
 
 .playlist-card-title-wrap {
+  flex: 1;
   min-width: 0;
+}
+
+.playlist-card-actions {
+  flex-shrink: 0;
 }
 
 .playlist-card-title {
@@ -3348,7 +3364,7 @@ body.global-now-playing-active .feed-page {
   transition: transform 0.18s ease;
 }
 
-.playlist-card-chevron-open {
+.playlist-card-details[open] .playlist-card-chevron {
   transform: rotate(180deg);
 }
 

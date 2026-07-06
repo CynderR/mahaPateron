@@ -674,8 +674,17 @@
     padding: 0 1rem 1rem;
   }
 
-  .playlists-page .podcast-section-title {
+  .playlists-page .podcast-section-title,
+  .playlists-page-shell .podcast-section-title {
     padding-top: 0.5rem;
+  }
+
+  .playlists-page-shell .playlist-card-summary {
+    flex-wrap: wrap;
+  }
+
+  .playlists-page-shell .playlist-card-actions {
+    margin-left: auto;
   }
 
   .pod-feed-mobile-only .member-episode-toolbar {

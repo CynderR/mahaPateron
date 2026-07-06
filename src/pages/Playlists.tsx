@@ -15,7 +15,6 @@ const Playlists: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-  const [openPlaylistIds, setOpenPlaylistIds] = useState<Set<string>>(new Set());
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,23 +37,9 @@ const Playlists: React.FC = () => {
     if (!window.confirm(`Delete playlist "${name}"?`)) return;
     try {
       await deletePlaylist(id);
-      setOpenPlaylistIds((current) => {
-        const next = new Set(current);
-        next.delete(id);
-        return next;
-      });
     } catch {
       setError('Could not delete playlist.');
     }
-  };
-
-  const togglePlaylist = (id: string) => {
-    setOpenPlaylistIds((current) => {
-      const next = new Set(current);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
   };
 
   const playPlaylist = (items: { post_id: string; title: string; description?: string; duration_secs?: number; published_at?: string; image_filename?: string | null }[]) => {
@@ -72,46 +57,37 @@ const Playlists: React.FC = () => {
   };
 
   const renderPlaylistCard = (pl: PlaylistSummary) => {
-    const isOpen = openPlaylistIds.has(pl.id);
     const trackListId = `playlist-tracks-${pl.id}`;
 
     return (
       <section key={pl.id} className="pod-card playlist-card">
-        <div className="playlist-card-head">
-          <button
-            type="button"
-            className="playlist-card-toggle"
-            aria-expanded={isOpen}
-            aria-controls={trackListId}
-            onClick={() => togglePlaylist(pl.id)}
-          >
+        <details className="playlist-card-details">
+          <summary className="playlist-card-summary" aria-controls={trackListId}>
             <span className="playlist-card-title-wrap">
               <span className="playlist-card-title">{pl.name}</span>
               <span className="playlist-card-count">{pl.item_count} tracks</span>
             </span>
-            <span className={`playlist-card-chevron${isOpen ? ' playlist-card-chevron-open' : ''}`} aria-hidden>
+            <span className="playlist-card-chevron" aria-hidden>
               v
             </span>
-          </button>
-          <div className="pod-inline-actions">
-            <button
-              type="button"
-              className="pod-btn pod-btn-secondary pod-btn-sm"
-              disabled={pl.items.length === 0}
-              onClick={() => playPlaylist(pl.items)}
-            >
-              Play all
-            </button>
-            <button
-              type="button"
-              className="pod-btn pod-btn-danger pod-btn-sm"
-              onClick={() => handleDelete(pl.id, pl.name)}
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-        {isOpen && (
+            <div className="pod-inline-actions playlist-card-actions">
+              <button
+                type="button"
+                className="pod-btn pod-btn-secondary pod-btn-sm"
+                disabled={pl.items.length === 0}
+                onClick={() => playPlaylist(pl.items)}
+              >
+                Play all
+              </button>
+              <button
+                type="button"
+                className="pod-btn pod-btn-danger pod-btn-sm"
+                onClick={() => handleDelete(pl.id, pl.name)}
+              >
+                Delete
+              </button>
+            </div>
+          </summary>
           <div id={trackListId} className="playlist-card-body">
             {pl.items.length > 0 ? (
               <ul className="playlist-track-list">
@@ -137,7 +113,7 @@ const Playlists: React.FC = () => {
               <p className="playlist-empty">No tracks in this playlist yet.</p>
             )}
           </div>
-        )}
+        </details>
       </section>
     );
   };
