@@ -293,29 +293,21 @@ const Feed: React.FC = () => {
 
 
 
-  const toolbar = !loading && (catalogTotal || total) > 0 && (
-
-    <MemberEpisodeToolbar
-
-      onSearch={setSearchQuery}
-
-      resultCount={total}
-
-      totalCount={catalogTotal || total}
-
-      selectedCount={selectedIds.size}
-
-      selectableCount={total}
-
-      selectAllBusy={selectingAll}
-
-      onSelectAll={handleSelectAll}
-
-      selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
-
-    />
-
-  );
+  const renderToolbar = (showMobileSelectionBar = false) =>
+    !loading &&
+    (catalogTotal || total) > 0 && (
+      <MemberEpisodeToolbar
+        onSearch={setSearchQuery}
+        resultCount={total}
+        totalCount={catalogTotal || total}
+        selectedCount={selectedIds.size}
+        selectableCount={total}
+        selectAllBusy={selectingAll}
+        onSelectAll={handleSelectAll}
+        selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
+        showMobileSelectionBar={showMobileSelectionBar}
+      />
+    );
 
 
 
@@ -435,7 +427,7 @@ const Feed: React.FC = () => {
 
           />
 
-          {toolbar}
+          {renderToolbar(true)}
 
         </div>
 
@@ -575,7 +567,7 @@ const Feed: React.FC = () => {
 
             </div>
 
-            {toolbar}
+            {renderToolbar()}
 
           </div>
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AdminSortDir, AdminSortField } from '../utils/adminTableHelpers';
 
 interface MemberEpisodeToolbarProps {
@@ -15,8 +16,8 @@ interface MemberEpisodeToolbarProps {
   selectAllBusy?: boolean;
   onSelectAll?: (selected: boolean) => void;
   selectionActions?: React.ReactNode;
+  showMobileSelectionBar?: boolean;
 }
-
 const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   onSearch,
   placeholder = 'Search by title or description…',
@@ -30,7 +31,8 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   selectableCount = 0,
   selectAllBusy = false,
   onSelectAll,
-  selectionActions
+  selectionActions,
+  showMobileSelectionBar = false
 }) => {
   const [query, setQuery] = useState('');
   const selectAllRef = useRef<HTMLInputElement>(null);
@@ -56,6 +58,23 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
 
   const sortIndicator = (field: AdminSortField) =>
     sortField === field ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '';
+
+  useEffect(() => {
+    if (!showMobileSelectionBar) return;
+    document.body.classList.toggle('member-episode-selection-active', selectedCount > 0);
+    return () => document.body.classList.remove('member-episode-selection-active');
+  }, [selectedCount, showMobileSelectionBar]);
+
+  const mobileSelectionBar =
+    showMobileSelectionBar && selectedCount > 0 && selectionActions
+      ? createPortal(
+          <div className="member-episode-mobile-selection-bar" role="toolbar" aria-label="Selection actions">
+            <span className="member-episode-mobile-selection-count">{selectedCount} selected</span>
+            <div className="member-episode-mobile-selection-actions">{selectionActions}</div>
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
     <div className="member-episode-toolbar">
@@ -96,7 +115,9 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
           </label>
         )}
 
-        {selectedCount > 0 && selectionActions}
+        {selectedCount > 0 && selectionActions && (
+          <div className="member-episode-toolbar-actions-inline feed-ht-desktop-only">{selectionActions}</div>
+        )}
 
         {showSort && onSort && (
           <div className="member-sort-group" role="group" aria-label="Sort episodes">
@@ -124,6 +145,8 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
           </span>
         )}
       </div>
+
+      {mobileSelectionBar}
     </div>
   );
 };

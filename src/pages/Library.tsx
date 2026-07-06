@@ -162,23 +162,26 @@ const Library: React.FC = () => {
     onSelectChange: toggleSelect
   };
 
-  const toolbar = !loading && (meta?.catalogTotal ?? 0) > 0 && (
-    <MemberEpisodeToolbar
-      onSearch={handleSearch}
-      placeholder="Search by title, description, artist, album, year, or genre…"
-      resultCount={total}
-      totalCount={meta?.catalogTotal ?? 0}
-      showSort
-      sortField={sortField}
-      sortDir={sortDir}
-      onSort={handleSort}
-      selectedCount={selectedIds.size}
-      selectableCount={total}
-      selectAllBusy={selectingAll}
-      onSelectAll={handleSelectAll}
-      selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
-    />
-  );
+  const renderToolbar = (showMobileSelectionBar = false) =>
+    !loading &&
+    (meta?.catalogTotal ?? 0) > 0 && (
+      <MemberEpisodeToolbar
+        onSearch={handleSearch}
+        placeholder="Search by title, description, artist, album, year, or genre…"
+        resultCount={total}
+        totalCount={meta?.catalogTotal ?? 0}
+        showSort
+        sortField={sortField}
+        sortDir={sortDir}
+        onSort={handleSort}
+        selectedCount={selectedIds.size}
+        selectableCount={total}
+        selectAllBusy={selectingAll}
+        onSelectAll={handleSelectAll}
+        selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
+        showMobileSelectionBar={showMobileSelectionBar}
+      />
+    );
 
   const emptyMessage =
     (meta?.catalogTotal ?? 0) > 0 && entries.length === 0 && !loading
@@ -199,7 +202,7 @@ const Library: React.FC = () => {
         <PodcastNav />
         <div className="library-sticky-head-inner">
           <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
-          {toolbar}
+          {renderToolbar()}
         </div>
       </div>
 
@@ -209,7 +212,7 @@ const Library: React.FC = () => {
             title="Library"
             subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
           />
-          {toolbar}
+          {renderToolbar(true)}
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
