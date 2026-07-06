@@ -8,6 +8,7 @@ import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/Podc
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
+import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
@@ -37,7 +38,7 @@ interface LibraryResponse {
 }
 
 const Library: React.FC = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [meta, setMeta] = useState<Omit<LibraryResponse, 'entries' | 'page' | 'limit'> | null>(null);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -48,6 +49,7 @@ const Library: React.FC = () => {
   const [sortField, setSortField] = useState<AdminSortField>('date');
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
   const [page, setPage] = useState(1);
+  const [listEpoch, setListEpoch] = useState(0);
   const [selectingAll, setSelectingAll] = useState(false);
   const { selectedIds, toggleSelect, selectAll, clearSelection } = useEpisodeSelection();
   const pageLimit = searchQuery ? EPISODE_PAGE_MAX : 20;
@@ -100,7 +102,7 @@ const Library: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, sortField, sortDir, pageLimit]);
+  }, [page, searchQuery, sortField, sortDir, pageLimit, listEpoch]);
 
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = { sort: sortField, dir: sortDir };
@@ -162,6 +164,22 @@ const Library: React.FC = () => {
     onSelectChange: toggleSelect
   };
 
+  const handleEpisodesDeleted = useCallback(() => {
+    clearSelection();
+    setPage(1);
+    setEntries([]);
+    setListEpoch((epoch) => epoch + 1);
+  }, [clearSelection]);
+
+  const selectionActions = (
+    <div className="member-episode-selection-actions">
+      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} />
+      {isAdmin && (
+        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+      )}
+    </div>
+  );
+
   const renderToolbar = (showMobileSelectionBar = false) =>
     !loading &&
     (meta?.catalogTotal ?? 0) > 0 && (
@@ -178,7 +196,7 @@ const Library: React.FC = () => {
         selectableCount={total}
         selectAllBusy={selectingAll}
         onSelectAll={handleSelectAll}
-        selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
+        selectionActions={selectionActions}
         showMobileSelectionBar={showMobileSelectionBar}
       />
     );

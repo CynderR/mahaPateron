@@ -508,6 +508,20 @@
   gap: 0.75rem;
 }
 
+.member-episode-selection-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.member-episode-toolbar-actions-inline {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .member-select-all {
   display: inline-flex;
   align-items: center;

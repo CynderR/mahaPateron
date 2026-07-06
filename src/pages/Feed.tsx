@@ -22,6 +22,8 @@ import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 
+import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
+
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 
 import { FeedPost } from '../components/PostCard';
@@ -73,7 +75,7 @@ const Feed: React.FC = () => {
 
   const streamReturnFrom = currentPathWithSearch(location.pathname, location.search);
 
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
 
   const [meta, setMeta] = useState<FeedAccessMeta | null>(null);
 
@@ -91,6 +93,7 @@ const Feed: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [page, setPage] = useState(1);
+  const [listEpoch, setListEpoch] = useState(0);
   const [selectingAll, setSelectingAll] = useState(false);
 
   const { selectedIds, toggleSelect, selectAll, clearSelection } = useEpisodeSelection();
@@ -195,7 +198,7 @@ const Feed: React.FC = () => {
 
     };
 
-  }, [page, searchQuery, pageLimit]);
+  }, [page, searchQuery, pageLimit, listEpoch]);
 
 
 
@@ -293,6 +296,22 @@ const Feed: React.FC = () => {
 
 
 
+  const handleEpisodesDeleted = useCallback(() => {
+    clearSelection();
+    setPage(1);
+    setPosts([]);
+    setListEpoch((epoch) => epoch + 1);
+  }, [clearSelection]);
+
+  const selectionActions = (
+    <div className="member-episode-selection-actions">
+      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} />
+      {isAdmin && (
+        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+      )}
+    </div>
+  );
+
   const renderToolbar = (showMobileSelectionBar = false) =>
     !loading &&
     (catalogTotal || total) > 0 && (
@@ -304,7 +323,7 @@ const Feed: React.FC = () => {
         selectableCount={total}
         selectAllBusy={selectingAll}
         onSelectAll={handleSelectAll}
-        selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
+        selectionActions={selectionActions}
         showMobileSelectionBar={showMobileSelectionBar}
       />
     );

@@ -809,10 +809,13 @@
     min-width: 0;
     display: flex;
     justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
   }
 
-  .member-episode-mobile-selection-bar .playlist-picker-toolbar {
-    width: 100%;
+  .member-episode-mobile-selection-actions .playlist-picker-toolbar {
+    width: auto;
     justify-content: flex-end;
   }
 
