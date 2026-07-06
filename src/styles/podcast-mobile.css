@@ -26,7 +26,19 @@
   .feed-page,
   .podcast-page,
   .stream-page {
-    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--pod-mobile-nav-height, 4.75rem) + env(safe-area-inset-bottom, 0px));
+  }
+
+  body.global-now-playing-active .ht-page,
+  body.global-now-playing-active .feed-page,
+  body.global-now-playing-active .library-page,
+  body.global-now-playing-active .podcast-page,
+  body.global-now-playing-active .playlists-page-shell,
+  body.global-now-playing-active .stream-page {
+    padding-bottom: calc(
+      var(--pod-mobile-nav-height, 4.75rem) + var(--pod-mobile-now-playing-height, 3.9rem) +
+        env(safe-area-inset-bottom, 0px)
+    );
   }
 
   .podcast-page .podcast-nav,
@@ -36,37 +48,62 @@
 
   /* ----- Bottom tab bar ----- */
 
+  :root {
+    --pod-mobile-nav-height: 4.75rem;
+    --pod-mobile-now-playing-height: 3.9rem;
+  }
+
   .pod-mobile-nav {
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 20;
-    display: flex;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     align-items: stretch;
-    justify-content: space-around;
-    gap: 0.25rem;
-    padding: 0.35rem 0.5rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
+    gap: 0.15rem;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0.35rem 0.35rem calc(0.45rem + env(safe-area-inset-bottom, 0px));
     background: var(--bg-card);
     border-top: 1px solid var(--border-primary);
     backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  body.global-now-playing-active .pod-mobile-nav {
+    bottom: calc(var(--pod-mobile-now-playing-height) + env(safe-area-inset-bottom, 0px));
   }
 
   .pod-mobile-nav-link {
-    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 0.2rem;
-    padding: 0.35rem 0.25rem;
+    min-width: 0;
+    width: 100%;
+    padding: 0.35rem 0.15rem;
     border-radius: 0.5rem;
     color: var(--text-tertiary);
     text-decoration: none;
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 600;
-    letter-spacing: 0.02em;
+    letter-spacing: 0.01em;
     text-transform: uppercase;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .pod-mobile-nav-link span {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
   }
 
   .pod-mobile-nav-link svg {
@@ -78,6 +115,10 @@
   .pod-mobile-nav-link:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
+  }
+
+  .pod-mobile-nav:has(> .pod-mobile-nav-link:nth-child(3):last-child) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   /* ----- Feed / library header ----- */

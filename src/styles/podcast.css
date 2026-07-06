@@ -1475,9 +1475,11 @@
   height: 1.1rem;
 }
 
-body.global-now-playing-active .podcast-main,
-body.global-now-playing-active .feed-page {
-  padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px));
+body.global-now-playing-active .podcast-main {
+  padding-bottom: calc(
+    var(--pod-mobile-nav-height, 4.75rem) + var(--pod-mobile-now-playing-height, 3.9rem) +
+      env(safe-area-inset-bottom, 0px)
+  );
 }
 
 [data-theme="dark"] .ht-waveform-progress {
