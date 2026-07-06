@@ -51,10 +51,14 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
     </div>
   );
 
-  return (
-    <article className="pod-episode-card">
+  const coverWithSelect = (
+    <div className="pod-episode-cover-stack">
       {onSelectChange && (
-        <label className="member-episode-checkbox-wrap pod-episode-select">
+        <label
+          className="member-episode-checkbox-wrap pod-episode-select"
+          onClick={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <input
             type="checkbox"
             className="member-episode-checkbox"
@@ -68,9 +72,15 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
           />
         </label>
       )}
+      {cover}
+    </div>
+  );
+
+  return (
+    <article className="pod-episode-card">
       {canStream ? (
         <Link to={streamPath} state={streamState} className="pod-episode-card-main">
-          {cover}
+          {coverWithSelect}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>
             <h3 className="pod-episode-title">{post.title}</h3>
@@ -83,7 +93,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </Link>
       ) : (
         <>
-          {cover}
+          {coverWithSelect}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>
             <h3 className="pod-episode-title">{post.title}</h3>

@@ -34,12 +34,17 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
         <div className="pod-featured-latest-head">
           <p className="pod-featured-label">Latest episode</p>
           {onSelectChange && (
-            <label className="member-episode-checkbox-wrap">
+            <label
+              className="member-episode-checkbox-wrap pod-featured-select"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
               <input
                 type="checkbox"
                 className="member-episode-checkbox"
                 checked={selected}
                 onChange={(e) => onSelectChange(post.id, e.target.checked)}
+                onClick={(e) => e.stopPropagation()}
                 aria-label={`Select ${post.title}`}
               />
             </label>

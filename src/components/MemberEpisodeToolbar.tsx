@@ -84,6 +84,7 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
             <input
               ref={selectAllRef}
               type="checkbox"
+              className="member-episode-checkbox"
               checked={allSelected}
               disabled={selectAllBusy}
               onChange={(e) => onSelectAll(e.target.checked)}

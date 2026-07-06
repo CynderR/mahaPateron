@@ -712,8 +712,44 @@
     background: rgba(229, 62, 62, 0.12);
   }
 
+  .pod-episode-cover-stack {
+    position: relative;
+    flex-shrink: 0;
+  }
+
   .pod-episode-select {
-    align-self: center;
+    position: absolute;
+    top: 0.3rem;
+    left: 0.3rem;
+    z-index: 2;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0.15rem;
+    border-radius: 0.35rem;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
+  }
+
+  [data-theme='dark'] .pod-episode-select {
+    background: rgba(26, 32, 44, 0.94);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+  }
+
+  .pod-featured-latest-head .member-episode-checkbox-wrap {
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+    padding: 0.15rem;
+    border-radius: 0.35rem;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-primary);
+  }
+
+  .pod-featured-latest-head .pod-featured-select {
+    background: var(--bg-secondary);
+  }
+
+  .member-select-all {
+    min-height: 2.25rem;
   }
 
   .pod-feed-grid {
