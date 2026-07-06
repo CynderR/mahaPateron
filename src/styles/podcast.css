@@ -2942,8 +2942,9 @@ body.global-now-playing-active .feed-page {
 }
 
 .pod-infinite-sentinel {
-  height: 1px;
+  height: 48px;
   width: 100%;
+  pointer-events: none;
 }
 
 .pod-infinite-loading {

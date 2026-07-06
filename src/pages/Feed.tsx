@@ -32,7 +32,7 @@ import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE
 
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
-import { useEpisodeSelection } from '../utils/episodeListHelpers';
+import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds } from '../utils/episodeListHelpers';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -91,12 +91,13 @@ const Feed: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [page, setPage] = useState(1);
+  const [selectingAll, setSelectingAll] = useState(false);
 
-  const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
+  const { selectedIds, toggleSelect, selectAll, clearSelection } = useEpisodeSelection();
 
   const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
 
-  const limit = 20;
+  const pageLimit = searchQuery ? EPISODE_PAGE_MAX : 20;
 
   const hasMore = posts.length < total;
 
@@ -110,7 +111,9 @@ const Feed: React.FC = () => {
 
     setLoading(true);
 
-  }, [searchQuery]);
+    clearSelection();
+
+  }, [searchQuery, clearSelection]);
 
 
 
@@ -132,7 +135,7 @@ const Feed: React.FC = () => {
 
       try {
 
-        const params: Record<string, string | number> = { page, limit };
+        const params: Record<string, string | number> = { page, limit: pageLimit };
 
         if (searchQuery) params.q = searchQuery;
 
@@ -192,7 +195,73 @@ const Feed: React.FC = () => {
 
     };
 
-  }, [page, searchQuery]);
+  }, [page, searchQuery, pageLimit]);
+
+
+
+  const listParams = useMemo(() => {
+    const params: Record<string, string | number> = {};
+    if (searchQuery) params.q = searchQuery;
+    return params;
+  }, [searchQuery]);
+
+
+
+  const handleSelectAll = useCallback(
+
+    async (checked: boolean) => {
+
+      if (!checked) {
+
+        selectAll([], false);
+
+        return;
+
+      }
+
+      if (posts.length >= total) {
+
+        selectAll(
+
+          posts.map((p) => p.id),
+
+          true
+
+        );
+
+        return;
+
+      }
+
+      setSelectingAll(true);
+
+      try {
+
+        const allIds = await fetchAllEpisodeIds('/account/feed', listParams, total);
+
+        selectAll(allIds, true);
+
+      } catch {
+
+        selectAll(
+
+          posts.map((p) => p.id),
+
+          true
+
+        );
+
+      } finally {
+
+        setSelectingAll(false);
+
+      }
+
+    },
+
+    [posts, total, listParams, selectAll]
+
+  );
 
 
 
@@ -236,9 +305,11 @@ const Feed: React.FC = () => {
 
       selectedCount={selectedIds.size}
 
-      selectableCount={posts.length}
+      selectableCount={total}
 
-      onSelectAll={(checked) => selectAll(posts.map((p) => p.id), checked)}
+      selectAllBusy={selectingAll}
+
+      onSelectAll={handleSelectAll}
 
       selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
 

@@ -16,7 +16,7 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
           onLoadMoreRef.current();
         }
       },
-      { rootMargin: '240px' }
+      { root: null, rootMargin: '600px 0px', threshold: 0 }
     );
 
     observer.observe(el);

@@ -16,7 +16,7 @@ import {
   AdminSortField,
   nextSortState
 } from '../utils/adminTableHelpers';
-import { useEpisodeSelection } from '../utils/episodeListHelpers';
+import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds } from '../utils/episodeListHelpers';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -48,8 +48,9 @@ const Library: React.FC = () => {
   const [sortField, setSortField] = useState<AdminSortField>('date');
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
   const [page, setPage] = useState(1);
-  const { selectedIds, toggleSelect, selectAll } = useEpisodeSelection();
-  const limit = 20;
+  const [selectingAll, setSelectingAll] = useState(false);
+  const { selectedIds, toggleSelect, selectAll, clearSelection } = useEpisodeSelection();
+  const pageLimit = searchQuery ? EPISODE_PAGE_MAX : 20;
   const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
   const hasMore = entries.length < total;
 
@@ -57,7 +58,8 @@ const Library: React.FC = () => {
     setPage(1);
     setEntries([]);
     setLoading(true);
-  }, [searchQuery, sortField, sortDir]);
+    clearSelection();
+  }, [searchQuery, sortField, sortDir, clearSelection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,7 +70,7 @@ const Library: React.FC = () => {
       else setLoadingMore(true);
 
       try {
-        const params: Record<string, string | number> = { page, limit };
+        const params: Record<string, string | number> = { page, limit: pageLimit };
         if (searchQuery) params.q = searchQuery;
         params.sort = sortField;
         params.dir = sortDir;
@@ -98,7 +100,42 @@ const Library: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, sortField, sortDir]);
+  }, [page, searchQuery, sortField, sortDir, pageLimit]);
+
+  const listParams = useMemo(() => {
+    const params: Record<string, string | number> = { sort: sortField, dir: sortDir };
+    if (searchQuery) params.q = searchQuery;
+    return params;
+  }, [searchQuery, sortField, sortDir]);
+
+  const handleSelectAll = useCallback(
+    async (checked: boolean) => {
+      if (!checked) {
+        selectAll([], false);
+        return;
+      }
+      if (entries.length >= total) {
+        selectAll(
+          entries.map((e) => e.id),
+          true
+        );
+        return;
+      }
+      setSelectingAll(true);
+      try {
+        const allIds = await fetchAllEpisodeIds('/account/library', listParams, total);
+        selectAll(allIds, true);
+      } catch {
+        selectAll(
+          entries.map((e) => e.id),
+          true
+        );
+      } finally {
+        setSelectingAll(false);
+      }
+    },
+    [entries, total, listParams, selectAll]
+  );
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
@@ -136,8 +173,9 @@ const Library: React.FC = () => {
       sortDir={sortDir}
       onSort={handleSort}
       selectedCount={selectedIds.size}
-      selectableCount={entries.length}
-      onSelectAll={(checked) => selectAll(entries.map((e) => e.id), checked)}
+      selectableCount={total}
+      selectAllBusy={selectingAll}
+      onSelectAll={handleSelectAll}
       selectionActions={<BulkPlaylistPicker postIds={selectedPostIds} />}
     />
   );

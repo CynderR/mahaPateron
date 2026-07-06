@@ -12,6 +12,7 @@ interface MemberEpisodeToolbarProps {
   onSort?: (field: AdminSortField) => void;
   selectedCount?: number;
   selectableCount?: number;
+  selectAllBusy?: boolean;
   onSelectAll?: (selected: boolean) => void;
   selectionActions?: React.ReactNode;
 }
@@ -27,6 +28,7 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   onSort,
   selectedCount = 0,
   selectableCount = 0,
+  selectAllBusy = false,
   onSelectAll,
   selectionActions
 }) => {
@@ -83,9 +85,10 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
               ref={selectAllRef}
               type="checkbox"
               checked={allSelected}
+              disabled={selectAllBusy}
               onChange={(e) => onSelectAll(e.target.checked)}
             />
-            <span>Select all</span>
+            <span>{selectAllBusy ? 'Selecting all…' : 'Select all'}</span>
             {selectedCount > 0 && (
               <span className="member-selected-count">({selectedCount} selected)</span>
             )}
