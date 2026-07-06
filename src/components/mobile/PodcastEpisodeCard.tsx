@@ -41,6 +41,13 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
     startPlayback();
   };
 
+  const handleCardActivate = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.member-episode-checkbox-wrap')) return;
+    e.preventDefault();
+    startPlayback();
+  };
+
   const displayDescription = feedDescriptionPreview(post.description);
 
   const cover = coverUrl ? (
@@ -79,7 +86,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   return (
     <article className="pod-episode-card">
       {canStream ? (
-        <Link to={streamPath} state={streamState} className="pod-episode-card-main">
+        <Link to={streamPath} state={streamState} className="pod-episode-card-main" onClick={handleCardActivate}>
           {coverWithSelect}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>

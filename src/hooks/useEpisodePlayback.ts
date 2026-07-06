@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOptionalShare } from '../contexts/ShareContext';
 import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from '../components/PostCard';
+import { isIOSDevice } from '../utils/streamLoader';
 import { useEpisodeStreamLink } from './useEpisodeStreamLink';
 import { useStreamLinkState } from './useStreamLinkState';
 
@@ -12,9 +13,23 @@ export const useEpisodePlayback = (post: FeedPost, canStream: boolean) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const share = useOptionalShare();
-  const { prepareEpisode } = usePlayer();
+  const { prepareEpisode, playEpisode, advanceToPost } = usePlayer();
   const memberStreamState = useStreamLinkState(post);
   const { streamPath, streamState } = useEpisodeStreamLink(post);
+
+  const primePlayback = useCallback(
+    (streamUrl: string) => {
+      advanceToPost(post.id);
+      // iOS WebKit requires audio.play() inside the tap handler. Android loads via blob
+      // and starts playback once the stream page has finished preparing the file.
+      if (isIOSDevice()) {
+        playEpisode(post.id, streamUrl, post.duration_secs);
+      } else {
+        prepareEpisode(post.id, streamUrl, post.duration_secs);
+      }
+    },
+    [advanceToPost, playEpisode, post, prepareEpisode]
+  );
 
   const startPlayback = useCallback(() => {
     if (!canStream) return;
@@ -24,20 +39,20 @@ export const useEpisodePlayback = (post: FeedPost, canStream: boolean) => {
         share.memberAccess && user?.rss_token
           ? buildStreamUrl(post.id, user.rss_token)
           : buildPublicShareStreamUrl(post.id, share.shareToken);
-      prepareEpisode(post.id, streamUrl, post.duration_secs);
+      primePlayback(streamUrl);
       navigate(streamPath, { state: share.streamState(post) });
       return;
     }
 
     if (!user?.rss_token) return;
-    prepareEpisode(post.id, buildStreamUrl(post.id, user.rss_token), post.duration_secs);
+    primePlayback(buildStreamUrl(post.id, user.rss_token));
     navigate(streamPath, { state: memberStreamState });
   }, [
     canStream,
     memberStreamState,
     navigate,
     post,
-    prepareEpisode,
+    primePlayback,
     share,
     streamPath,
     user?.rss_token
