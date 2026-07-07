@@ -90,7 +90,7 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
   } = usePlayer();
 
   const streamUrl =
-    memberAccess && user?.rss_token
+    user?.rss_token
       ? buildStreamUrl(post.id, user.rss_token)
       : buildPublicShareStreamUrl(post.id, shareToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);

@@ -9,6 +9,7 @@ import MemberEpisodeToolbar from '../../components/MemberEpisodeToolbar';
 import ShareAccessNotice from '../../components/share/ShareAccessNotice';
 import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import { useShare } from '../../contexts/ShareContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
   AdminSortDir,
@@ -32,6 +33,7 @@ interface ShareLibraryResponse {
 
 const ShareLibrary: React.FC = () => {
   const { shareToken, basePath, memberAccess } = useShare();
+  const { user } = useAuth();
   const [meta, setMeta] = useState<Omit<ShareLibraryResponse, 'entries' | 'page' | 'limit'> | null>(null);
   const [entries, setEntries] = useState<LibraryEntry[]>([]);
   const [total, setTotal] = useState(0);
@@ -93,7 +95,7 @@ const ShareLibrary: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, sortField, sortDir, shareToken]);
+  }, [page, searchQuery, sortField, sortDir, shareToken, memberAccess, user?.id]);
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;

@@ -34,7 +34,7 @@ import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE
 
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
-import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds } from '../utils/episodeListHelpers';
+import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -376,7 +376,7 @@ const Feed: React.FC = () => {
 
             canDownload={canDownload}
 
-            selected={selectedIds.has(post.id)}
+            selected={selectedIds.has(normalizePostId(post.id))}
 
             onSelectChange={selectionProps.onSelectChange}
 
@@ -402,7 +402,7 @@ const Feed: React.FC = () => {
 
             canDownload={canDownload}
 
-            selected={selectedIds.has(post.id)}
+            selected={selectedIds.has(normalizePostId(post.id))}
 
             onSelectChange={selectionProps.onSelectChange}
 
@@ -500,7 +500,7 @@ const Feed: React.FC = () => {
 
                 canDownload={canDownload}
 
-                selected={selectedIds.has(featured.id)}
+                selected={selectedIds.has(normalizePostId(featured.id))}
 
                 onSelectChange={selectionProps.onSelectChange}
 
@@ -640,7 +640,7 @@ const Feed: React.FC = () => {
 
                   canDownload={canDownload}
 
-                  selected={selectedIds.has(featured.id)}
+                  selected={selectedIds.has(normalizePostId(featured.id))}
 
                   onSelectChange={selectionProps.onSelectChange}
 

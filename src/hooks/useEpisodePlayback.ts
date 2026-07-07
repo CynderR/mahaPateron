@@ -35,10 +35,9 @@ export const useEpisodePlayback = (post: FeedPost, canStream: boolean) => {
     if (!canStream) return;
 
     if (share) {
-      const streamUrl =
-        share.memberAccess && user?.rss_token
-          ? buildStreamUrl(post.id, user.rss_token)
-          : buildPublicShareStreamUrl(post.id, share.shareToken);
+      const streamUrl = user?.rss_token
+        ? buildStreamUrl(post.id, user.rss_token)
+        : buildPublicShareStreamUrl(post.id, share.shareToken);
       primePlayback(streamUrl);
       navigate(streamPath, { state: share.streamState(post) });
       return;

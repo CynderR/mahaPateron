@@ -3,14 +3,19 @@ const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 const FREE_PAYMENT_CATEGORY = 'free';
 const PREVIEW_STREAM_SECONDS = 60;
 
+const memberIsPaying = (user) => {
+  const value = user?.is_paying;
+  return value === 1 || value === true || value === '1';
+};
+
 const userIsNotSubscribed = (user) =>
   (user?.payment_category || NOT_SUBSCRIBED_PAYMENT_CATEGORY) === NOT_SUBSCRIBED_PAYMENT_CATEGORY &&
-  !user?.is_paying;
+  !memberIsPaying(user);
 
 const userHasFullStreamAccess = (user) => {
   if (!user) return false;
   if (user.payment_category === FREE_PAYMENT_CATEGORY) return true;
-  return !!user.is_paying && !userIsNotSubscribed(user);
+  return memberIsPaying(user) && !userIsNotSubscribed(user);
 };
 
 const userHasShareMemberFullAccess = (user) => {
@@ -30,8 +35,16 @@ const streamPreviewSeconds = (user) => (userIsNotSubscribed(user) ? PREVIEW_STRE
 
 const userHasDownloadAccess = (user) =>
   !!user?.download_access &&
-  !!user?.is_paying &&
+  memberIsPaying(user) &&
   !userIsNotSubscribed(user);
+
+const userHasFullCatalogAccess = (user) => {
+  if (!user) return false;
+  if (user.payment_category === FREE_PAYMENT_CATEGORY) return true;
+  if (user.back_catalog_access) return true;
+  if (memberIsPaying(user)) return true;
+  return userHasFullStreamAccess(user);
+};
 
 const accessFlags = (user) => {
   const type = user?.access_type || 'streaming';
@@ -61,9 +74,11 @@ module.exports = {
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   FREE_PAYMENT_CATEGORY,
   PREVIEW_STREAM_SECONDS,
+  memberIsPaying,
   accessFlags,
   userIsNotSubscribed,
   userHasFullStreamAccess,
+  userHasFullCatalogAccess,
   userHasShareMemberFullAccess,
   userSubscriptionInactive,
   streamPreviewSeconds,

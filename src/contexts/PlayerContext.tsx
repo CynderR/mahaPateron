@@ -19,6 +19,7 @@ import {
   prefetchStreamMedia,
   prefersBlobPlayback
 } from '../utils/streamLoader';
+import { normalizePostId, postIdsMatch } from '../utils/episodeListHelpers';
 import {
   AutoplayTimeoutHours,
   autoplayTimeoutMs,
@@ -549,7 +550,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   const advanceToPost = useCallback((postId: string) => {
-    const index = queue.findIndex((p) => p.id === postId);
+    const index = queue.findIndex((p) => postIdsMatch(p.id, postId));
     if (index >= 0) {
       setCurrentIndex(index);
     }
@@ -809,7 +810,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         prefetchedNextPostIdRef.current = null;
       }
 
-      const index = posts.findIndex((p) => p.id === currentPostId);
+      const index = posts.findIndex((p) => postIdsMatch(p.id, currentPostId));
       const safeIndex = index >= 0 ? index : 0;
       setQueueState(posts);
       setCurrentIndex(safeIndex);
@@ -866,7 +867,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (nextIndex == null) return;
 
     const nextPost = queue[nextIndex];
-    if (!nextPost || nextPost.id === activePostId) return;
+    if (!nextPost || postIdsMatch(nextPost.id, activePostId)) return;
     if (prefetchedNextPostIdRef.current === nextPost.id) return;
 
     prefetchedNextPostIdRef.current = nextPost.id;
@@ -915,9 +916,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const createPlaylist = useCallback(
     async (name: string, postIds: string[] = []) => {
+      const normalizedPostIds = Array.from(
+        new Set(postIds.map((id) => String(id || '').trim()).filter(Boolean))
+      );
       const res = await axios.post<{ playlist: PlaylistSummary }>('/account/player/playlists', {
         name,
-        post_ids: postIds
+        post_ids: normalizedPostIds
       });
       await refreshPlaylists();
       return res.data.playlist;
@@ -935,7 +939,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addManyToPlaylist = useCallback(
     async (playlistId: string, postIds: string[]) => {
-      const uniquePostIds = Array.from(new Set(postIds.filter(Boolean)));
+      const uniquePostIds = Array.from(
+        new Set(postIds.map((id) => String(id || '').trim()).filter(Boolean))
+      );
       if (uniquePostIds.length === 0) return { added: 0, failed: 0 };
       let added = 0;
       for (const postId of uniquePostIds) {

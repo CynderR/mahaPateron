@@ -86,11 +86,13 @@ router.get('/:shareToken/feed', async (req, res) => {
     const user = shareViewer(req);
     if (memberFullAccess(user)) {
       const posts = await getPublishedPostsForUser(user);
+      const mapped = posts.map(mapPublicPost);
+      const featured = mapped[0] || mapPublicPost(anchor);
       return res.json({
         share_token: anchor.share_token,
         ...memberShareMeta(user),
-        post: mapPublicPost(anchor),
-        posts: posts.map(mapPublicPost)
+        post: featured,
+        posts: mapped
       });
     }
 
@@ -205,11 +207,13 @@ router.get('/:shareToken', async (req, res) => {
     const user = shareViewer(req);
     if (memberFullAccess(user)) {
       const posts = await getPublishedPostsForUser(user);
+      const mapped = posts.map(mapPublicPost);
+      const featured = mapped[0] || mapPublicPost(anchor);
       return res.json({
         share_token: anchor.share_token,
         ...memberShareMeta(user),
-        post: mapPublicPost(anchor),
-        posts: posts.map(mapPublicPost)
+        post: featured,
+        posts: mapped
       });
     }
 

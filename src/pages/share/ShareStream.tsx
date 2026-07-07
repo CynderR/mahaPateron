@@ -9,6 +9,7 @@ import ThemeToggle from '../../components/ThemeToggle';
 import { FeedPost } from '../../components/PostCard';
 import { useShare } from '../../contexts/ShareContext';
 import { resolveStreamBackTarget, StreamLocationState } from '../../utils/streamNavigation';
+import { postIdsMatch } from '../../utils/episodeListHelpers';
 import { PODCAST_AUTHOR } from '../../podcastMeta';
 
 interface ShareEpisodeResponse {
@@ -36,7 +37,8 @@ const ShareStream: React.FC = () => {
   const goBack = () => navigate(returnPath);
 
   const playerPost =
-    (data?.post?.id === postId ? data.post : null) ?? (navPost?.id === postId ? navPost : null);
+    (data?.post && postIdsMatch(data.post.id, postId) ? data.post : null) ??
+    (navPost && postIdsMatch(navPost.id, postId) ? navPost : null);
 
   useEffect(() => {
     if (!postId) return;
@@ -47,9 +49,10 @@ const ShareStream: React.FC = () => {
 
     const load = async () => {
       try {
-        const res = await axios.get<ShareEpisodeResponse>(
-          `/share/${encodeURIComponent(shareToken)}/episodes/${encodeURIComponent(postId)}`
-        );
+        const episodeUrl = user?.rss_token
+          ? `/account/episodes/${encodeURIComponent(postId)}`
+          : `/share/${encodeURIComponent(shareToken)}/episodes/${encodeURIComponent(postId)}`;
+        const res = await axios.get<ShareEpisodeResponse>(episodeUrl);
         if (!cancelled) {
           setData(res.data);
         }
@@ -69,19 +72,18 @@ const ShareStream: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [postId, shareToken]);
+  }, [postId, shareToken, user?.id, user?.rss_token]);
 
   useEffect(() => {
     if (!postId || !access.canStream) return;
     const activeQueue = queueRef.current;
-    if (activeQueue.some((p) => p.id === postId)) {
+    if (activeQueue.some((p) => postIdsMatch(p.id, postId))) {
       setQueue(activeQueue, postId, { preserveShuffleOrder: true });
       return;
     }
-    const feedUrl =
-      memberAccess && user
-        ? '/account/feed'
-        : `/share/${encodeURIComponent(shareToken)}/feed`;
+    const feedUrl = user?.rss_token
+      ? '/account/feed'
+      : `/share/${encodeURIComponent(shareToken)}/feed`;
     axios
       .get<{ posts: FeedPost[] }>(feedUrl)
       .then((res) => setQueue(res.data.posts, postId))

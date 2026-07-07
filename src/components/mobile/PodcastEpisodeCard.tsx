@@ -43,7 +43,11 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
 
   const handleCardActivate = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    if (target.closest('.member-episode-checkbox-wrap')) return;
+    if (target.closest('.member-episode-checkbox-wrap')) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.preventDefault();
     startPlayback();
   };

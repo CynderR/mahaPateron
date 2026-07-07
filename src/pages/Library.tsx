@@ -17,7 +17,7 @@ import {
   AdminSortField,
   nextSortState
 } from '../utils/adminTableHelpers';
-import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds } from '../utils/episodeListHelpers';
+import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -264,7 +264,7 @@ const Library: React.FC = () => {
                   post={entry}
                   canStream={canStream && (entry.accessible || isNotSubscribed)}
                   canDownload={canDownload && entry.accessible}
-                  selected={selectedIds.has(entry.id)}
+                  selected={selectedIds.has(normalizePostId(entry.id))}
                   onSelectChange={selectionProps.onSelectChange}
                 />
               ))}
@@ -313,7 +313,7 @@ const Library: React.FC = () => {
                   canStream={canStream && (entry.accessible || isNotSubscribed)}
                   canDownload={canDownload && entry.accessible}
                   locked={!entry.accessible && !isNotSubscribed}
-                  selected={selectedIds.has(entry.id)}
+                  selected={selectedIds.has(normalizePostId(entry.id))}
                   onSelectChange={selectionProps.onSelectChange}
                 />
               ))}

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
+import { memberIsNotSubscribed } from '../../utils/accessPermissions';
 import { ShareAccess, ShareProvider } from '../../contexts/ShareContext';
 import ShareFeed from './ShareFeed';
 import ShareLibrary from './ShareLibrary';
@@ -18,7 +19,8 @@ interface ShareBootstrap {
 
 const ShareLayout: React.FC = () => {
   const { shareToken, titleSlug } = useParams<{ shareToken?: string; titleSlug?: string }>();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user, loading: authLoading } = useAuth();
   const token = shareToken || '';
   const basePath = titleSlug ? `/share/${titleSlug}/${token}` : `/share/${token}`;
   const [bootstrap, setBootstrap] = useState<ShareBootstrap | null>(null);
@@ -26,10 +28,11 @@ const ShareLayout: React.FC = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!token) return;
+    if (!token || authLoading) return;
     let cancelled = false;
 
     const load = async () => {
+      setLoading(true);
       setError('');
       try {
         const res = await axios.get<ShareBootstrap>(`/share/${encodeURIComponent(token)}/feed`);
@@ -45,13 +48,13 @@ const ShareLayout: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [token, user?.id, user?.payment_category, user?.is_paying]);
+  }, [token, authLoading, user?.id, user?.payment_category, user?.is_paying]);
 
   if (!token) {
     return <Navigate to="/" replace />;
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <div className="ht-page">
         <div className="pod-empty">Loading shared episodes…</div>
@@ -69,6 +72,21 @@ const ShareLayout: React.FC = () => {
         </main>
       </div>
     );
+  }
+
+  const isSignedInMember =
+    !!user && !memberIsNotSubscribed(user.payment_category, user.is_paying);
+
+  if (isSignedInMember) {
+    const remainder = location.pathname.replace(basePath, '').replace(/^\//, '');
+    if (remainder.startsWith('stream/')) {
+      const postId = decodeURIComponent(remainder.replace(/^stream\//, '').split('/')[0]);
+      return <Navigate to={`/stream/${postId}`} replace />;
+    }
+    if (remainder.startsWith('library')) {
+      return <Navigate to="/library" replace />;
+    }
+    return <Navigate to="/feed" replace />;
   }
 
   const access: ShareAccess = {

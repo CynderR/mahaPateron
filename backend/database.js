@@ -6,7 +6,7 @@ const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_play
 const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
 const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
 const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
-const { userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
+const { userHasFullCatalogAccess, userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -581,9 +581,6 @@ const getPublishedPosts = () => {
 
 const DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY = 'discounted';
 
-const userHasFullCatalogAccess = (user) =>
-  !!user?.back_catalog_access || !!user?.is_paying || userHasFullStreamAccess(user);
-
 const userCanAccessPost = (user, post) => {
   if (!user || !post || !post.is_published || post.deleted_at) return false;
   if (userHasFullCatalogAccess(user)) return true;
@@ -670,6 +667,7 @@ const activateUserSubscription = (id) => {
     const updates = { is_paying: 1 };
     if (!user.subscribed_at) {
       updates.subscribed_at = new Date().toISOString();
+      updates.back_catalog_access = 1;
     }
     if (userIsNotSubscribed(user)) {
       updates.payment_category = DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY;
@@ -1123,10 +1121,11 @@ const getPlaylistItems = (playlistId) => {
 };
 
 const addPlaylistItem = (playlistId, postId) => {
+  const normalizedPostId = String(postId);
   return new Promise((resolve, reject) => {
     db.get(
       'SELECT id FROM playlist_items WHERE playlist_id = ? AND post_id = ? LIMIT 1',
-      [playlistId, postId],
+      [playlistId, normalizedPostId],
       (existingErr, existingRow) => {
         if (existingErr) return reject(existingErr);
         if (existingRow) {
@@ -1147,7 +1146,7 @@ const addPlaylistItem = (playlistId, postId) => {
         const position = row?.next_pos ?? 0;
         db.run(
           'INSERT OR IGNORE INTO playlist_items (id, playlist_id, post_id, position) VALUES (?, ?, ?, ?)',
-          [id, playlistId, postId, position],
+          [id, playlistId, normalizedPostId, position],
           function (insertErr) {
             if (insertErr) return reject(insertErr);
             db.run(

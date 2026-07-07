@@ -19,6 +19,7 @@ import ThemeToggle from '../components/ThemeToggle';
 import { FeedPost } from '../components/PostCard';
 
 import { resolveStreamBackTarget, StreamLocationState } from '../utils/streamNavigation';
+import { postIdsMatch } from '../utils/episodeListHelpers';
 
 import { memberCanPlayEpisode } from '../utils/accessPermissions';
 
@@ -82,10 +83,10 @@ const Stream: React.FC = () => {
 
 
 
-  const episodeData = data?.post?.id === postId ? data : null;
+  const episodeData = data?.post && postIdsMatch(data.post.id, postId) ? data : null;
 
   const playerPost =
-    episodeData?.post ?? (navPost?.id === postId ? navPost : null);
+    episodeData?.post ?? (navPost && postIdsMatch(navPost.id, postId) ? navPost : null);
 
   const { isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(episodeData);
 
@@ -137,7 +138,7 @@ const Stream: React.FC = () => {
 
     const activeQueue = queueRef.current;
 
-    if (activeQueue.some((p) => p.id === postId)) {
+    if (activeQueue.some((p) => postIdsMatch(p.id, postId))) {
       setQueue(activeQueue, postId, { preserveShuffleOrder: true });
       return;
     }

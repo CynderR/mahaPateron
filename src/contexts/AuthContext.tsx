@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
+import { isIOSDevice } from '../utils/streamLoader';
 
 interface User {
   id: number;
@@ -68,13 +69,41 @@ axios.defaults.baseURL = API_BASE_URL;
 axios.defaults.headers.common['Cache-Control'] = 'no-cache';
 axios.defaults.headers.common['Pragma'] = 'no-cache';
 
+const bootstrapAuthToken = (): string | null => {
+  const storedToken = getStoredToken();
+  if (storedToken) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+  }
+  return storedToken;
+};
+
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => bootstrapAuthToken());
   const [loading, setLoading] = useState(true);
 
   // Check if user is admin based on is_admin field
   const isAdmin = user?.is_admin || false;
+
+  useEffect(() => {
+    const requestInterceptor = axios.interceptors.request.use((config) => {
+      const storedToken = getStoredToken();
+      if (storedToken) {
+        config.headers.Authorization = `Bearer ${storedToken}`;
+      }
+      // iOS Safari can serve stale JSON for catalog endpoints without a cache buster.
+      if (isIOSDevice() && (config.method ?? 'get').toLowerCase() === 'get') {
+        const params = { ...(config.params as Record<string, unknown> | undefined) };
+        params._ = Date.now();
+        config.params = params;
+      }
+      return config;
+    });
+
+    return () => {
+      axios.interceptors.request.eject(requestInterceptor);
+    };
+  }, []);
 
   useEffect(() => {
     const storedToken = getStoredToken();
