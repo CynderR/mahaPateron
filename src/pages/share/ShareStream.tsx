@@ -36,31 +36,46 @@ const ShareStream: React.FC = () => {
   const goBack = () => navigate(returnPath);
 
   const playerPost =
-    data?.post ?? (navPost && navPost.id === postId ? navPost : null);
+    (data?.post?.id === postId ? data.post : null) ?? (navPost?.id === postId ? navPost : null);
 
   useEffect(() => {
     if (!postId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+
     const load = async () => {
-      setError('');
       try {
         const res = await axios.get<ShareEpisodeResponse>(
           `/share/${encodeURIComponent(shareToken)}/episodes/${encodeURIComponent(postId)}`
         );
-        setData(res.data);
+        if (!cancelled) {
+          setData(res.data);
+        }
       } catch {
-        setError('Could not load this episode.');
+        if (!cancelled) {
+          setError('Could not load this episode.');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
+
     load();
+
+    return () => {
+      cancelled = true;
+    };
   }, [postId, shareToken]);
 
   useEffect(() => {
     if (!postId || !access.canStream) return;
     const activeQueue = queueRef.current;
     if (activeQueue.some((p) => p.id === postId)) {
-      setQueue(activeQueue, postId);
+      setQueue(activeQueue, postId, { preserveShuffleOrder: true });
       return;
     }
     const feedUrl =

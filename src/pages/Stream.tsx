@@ -82,62 +82,51 @@ const Stream: React.FC = () => {
 
 
 
+  const episodeData = data?.post?.id === postId ? data : null;
+
   const playerPost =
+    episodeData?.post ?? (navPost?.id === postId ? navPost : null);
 
-    data?.post ?? (navPost && navPost.id === postId ? navPost : null);
+  const { isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(episodeData);
 
-
-
-  const { isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(data);
-
-
-
-  const episodePlayable = data
-
+  const episodePlayable = episodeData
     ? memberCanPlayEpisode(
-
-        user?.is_paying ?? data.is_paying,
-
+        user?.is_paying ?? episodeData.is_paying,
         user?.access_type,
-
         user?.payment_category,
-
-        data.accessible
-
+        episodeData.accessible
       )
-
     : true;
 
-
-
   useEffect(() => {
-
     if (!postId) return;
 
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+
     const load = async () => {
-
-      setError('');
-
       try {
-
         const res = await axios.get<EpisodeResponse>(`/account/episodes/${postId}`);
-
-        setData(res.data);
-
+        if (!cancelled) {
+          setData(res.data);
+        }
       } catch (e) {
-
-        setError('Could not load this episode.');
-
+        if (!cancelled) {
+          setError('Could not load this episode.');
+        }
       } finally {
-
-        setLoading(false);
-
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
-
     };
 
     load();
 
+    return () => {
+      cancelled = true;
+    };
   }, [postId]);
 
 
@@ -149,11 +138,8 @@ const Stream: React.FC = () => {
     const activeQueue = queueRef.current;
 
     if (activeQueue.some((p) => p.id === postId)) {
-
-      setQueue(activeQueue, postId);
-
+      setQueue(activeQueue, postId, { preserveShuffleOrder: true });
       return;
-
     }
 
     axios

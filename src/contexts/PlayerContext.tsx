@@ -566,8 +566,21 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!nextPost) return null;
 
     advanceToPost(nextPost.id);
+    const streamUrl = buildStreamUrl(nextPost.id, user.rss_token);
+    playEpisode(nextPost.id, streamUrl, nextPost.duration_secs ?? null);
     return nextPost;
-  }, [queue, currentIndex, replayMode, shuffle, shuffleOrder, user, advanceToPost, isAutoplayTimeoutExpired, stopForAutoplayTimeout]);
+  }, [
+    queue,
+    currentIndex,
+    replayMode,
+    shuffle,
+    shuffleOrder,
+    user,
+    advanceToPost,
+    playEpisode,
+    isAutoplayTimeoutExpired,
+    stopForAutoplayTimeout
+  ]);
 
   useEffect(() => {
     const postId = autoplayAdvancePostIdRef.current;
@@ -780,7 +793,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [loadFavorites, refreshPlaylists]);
 
   const setQueue = useCallback(
-    (posts: QueuePost[], currentPostId: string, options?: { fromPlaylist?: boolean }) => {
+    (
+      posts: QueuePost[],
+      currentPostId: string,
+      options?: { fromPlaylist?: boolean; preserveShuffleOrder?: boolean }
+    ) => {
       if (options?.fromPlaylist === true) {
         queueFromPlaylistRef.current = true;
       } else if (options?.fromPlaylist === false) {
@@ -792,7 +809,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const safeIndex = index >= 0 ? index : 0;
       setQueueState(posts);
       setCurrentIndex(safeIndex);
-      setShuffleOrder(shuffle ? buildShuffleOrder(posts.length, safeIndex) : []);
+      if (!options?.preserveShuffleOrder) {
+        setShuffleOrder(shuffle ? buildShuffleOrder(posts.length, safeIndex) : []);
+      }
     },
     [shuffle]
   );
@@ -823,12 +842,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return next;
     });
   }, [queue.length, currentIndex]);
-
-  useEffect(() => {
-    if (shuffle && queue.length > 0) {
-      setShuffleOrder(buildShuffleOrder(queue.length, currentIndex));
-    }
-  }, [queue.length, currentIndex, shuffle]);
 
   const getNextPostId = useCallback(() => {
     const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
