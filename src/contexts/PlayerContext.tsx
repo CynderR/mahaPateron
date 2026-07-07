@@ -59,7 +59,11 @@ interface PlayerContextType {
   setAutoplayTimeoutHours: (hours: AutoplayTimeoutHours) => void;
   cycleReplay: () => void;
   toggleShuffle: () => void;
-  setQueue: (posts: QueuePost[], currentPostId: string, options?: { fromPlaylist?: boolean }) => void;
+  setQueue: (
+    posts: QueuePost[],
+    currentPostId: string,
+    options?: { fromPlaylist?: boolean; preserveShuffleOrder?: boolean }
+  ) => void;
   playQueueFromPlaylist: (posts: QueuePost[], startPostId: string) => void;
   getNextPostId: () => string | null;
   getPrevPostId: () => string | null;
@@ -156,7 +160,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
 
   const streamPreviewSeconds = useMemo(
-    () => (user ? memberStreamPreviewSeconds(user.payment_category) : null),
+    () => (user ? memberStreamPreviewSeconds(user.payment_category, user.is_paying) : null),
     [user]
   );
 
@@ -931,9 +935,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addManyToPlaylist = useCallback(
     async (playlistId: string, postIds: string[]) => {
-      if (postIds.length === 0) return { added: 0, failed: 0 };
+      const uniquePostIds = Array.from(new Set(postIds.filter(Boolean)));
+      if (uniquePostIds.length === 0) return { added: 0, failed: 0 };
       let added = 0;
-      for (const postId of postIds) {
+      for (const postId of uniquePostIds) {
         try {
           await axios.post(`/account/player/playlists/${playlistId}/items`, { post_id: postId });
           added += 1;
@@ -942,7 +947,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         }
       }
       await refreshPlaylists();
-      return { added, failed: postIds.length - added };
+      return { added, failed: uniquePostIds.length - added };
     },
     [refreshPlaylists]
   );

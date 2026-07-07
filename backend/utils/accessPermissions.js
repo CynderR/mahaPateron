@@ -4,7 +4,8 @@ const FREE_PAYMENT_CATEGORY = 'free';
 const PREVIEW_STREAM_SECONDS = 60;
 
 const userIsNotSubscribed = (user) =>
-  (user?.payment_category || NOT_SUBSCRIBED_PAYMENT_CATEGORY) === NOT_SUBSCRIBED_PAYMENT_CATEGORY;
+  (user?.payment_category || NOT_SUBSCRIBED_PAYMENT_CATEGORY) === NOT_SUBSCRIBED_PAYMENT_CATEGORY &&
+  !user?.is_paying;
 
 const userHasFullStreamAccess = (user) => {
   if (!user) return false;

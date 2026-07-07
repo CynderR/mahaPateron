@@ -20,7 +20,7 @@ export const useMemberAccess = (meta?: AccessMeta | null) => {
 
   return useMemo(() => {
     const isNotSubscribed = user
-      ? memberIsNotSubscribed(user.payment_category)
+      ? memberIsNotSubscribed(user.payment_category, user.is_paying)
       : meta?.streamPreviewSeconds != null;
 
     const isPayingMember = user
@@ -38,7 +38,7 @@ export const useMemberAccess = (meta?: AccessMeta | null) => {
       : !!(meta?.canDownload);
 
     const streamPreviewSeconds = user
-      ? memberStreamPreviewSeconds(user.payment_category)
+      ? memberStreamPreviewSeconds(user.payment_category, user.is_paying)
       : meta?.streamPreviewSeconds ?? null;
 
     return {

@@ -6,7 +6,7 @@ const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_play
 const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
 const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
 const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
-const { userHasFullStreamAccess } = require('./utils/accessPermissions');
+const { userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -579,8 +579,10 @@ const getPublishedPosts = () => {
   });
 };
 
+const DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY = 'discounted';
+
 const userHasFullCatalogAccess = (user) =>
-  !!user?.back_catalog_access || userHasFullStreamAccess(user);
+  !!user?.back_catalog_access || !!user?.is_paying || userHasFullStreamAccess(user);
 
 const userCanAccessPost = (user, post) => {
   if (!user || !post || !post.is_published || post.deleted_at) return false;
@@ -668,6 +670,9 @@ const activateUserSubscription = (id) => {
     const updates = { is_paying: 1 };
     if (!user.subscribed_at) {
       updates.subscribed_at = new Date().toISOString();
+    }
+    if (userIsNotSubscribed(user)) {
+      updates.payment_category = DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY;
     }
     return updateUserFields(id, updates);
   });
@@ -1098,11 +1103,19 @@ const deletePlaylist = (playlistId, userId) => {
 const getPlaylistItems = (playlistId) => {
   return new Promise((resolve, reject) => {
     db.all(
-      `SELECT pi.id, pi.post_id, pi.position, p.title, p.duration_secs, p.published_at, p.image_filename
+      `SELECT
+         MIN(pi.id) AS id,
+         pi.post_id,
+         MIN(pi.position) AS position,
+         p.title,
+         p.duration_secs,
+         p.published_at,
+         p.image_filename
        FROM playlist_items pi
        JOIN posts p ON p.id = pi.post_id
        WHERE pi.playlist_id = ? AND p.deleted_at IS NULL
-       ORDER BY pi.position ASC, pi.created_at ASC`,
+       GROUP BY pi.post_id, p.title, p.duration_secs, p.published_at, p.image_filename
+       ORDER BY position ASC`,
       [playlistId],
       (err, rows) => (err ? reject(err) : resolve(rows))
     );
@@ -1111,6 +1124,20 @@ const getPlaylistItems = (playlistId) => {
 
 const addPlaylistItem = (playlistId, postId) => {
   return new Promise((resolve, reject) => {
+    db.get(
+      'SELECT id FROM playlist_items WHERE playlist_id = ? AND post_id = ? LIMIT 1',
+      [playlistId, postId],
+      (existingErr, existingRow) => {
+        if (existingErr) return reject(existingErr);
+        if (existingRow) {
+          db.run(
+            'UPDATE playlists SET updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+            [playlistId],
+            () => resolve({ added: false, id: existingRow.id })
+          );
+          return;
+        }
+
     db.get(
       'SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM playlist_items WHERE playlist_id = ?',
       [playlistId],
@@ -1130,6 +1157,8 @@ const addPlaylistItem = (playlistId, postId) => {
             );
           }
         );
+      }
+    );
       }
     );
   });

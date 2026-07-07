@@ -109,11 +109,9 @@ router.post('/playlists', async (req, res) => {
 
     const playlist = await createPlaylist(req.user.id, name);
     const postIds = Array.isArray(req.body.post_ids) ? req.body.post_ids : [];
+    const uniquePostIds = Array.from(new Set(postIds.map((id) => String(id || '').trim()).filter(Boolean)));
 
-    for (const rawPostId of postIds) {
-      const postId = String(rawPostId || '').trim();
-      if (!postId) continue;
-
+    for (const postId of uniquePostIds) {
       const post = await getPostById(postId);
       if (post && post.is_published && userCanAccessPost(user, post)) {
         await addPlaylistItem(playlist.id, post.id);
