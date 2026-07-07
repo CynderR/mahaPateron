@@ -6,6 +6,7 @@ const { runPlayerFeaturesMigration } = require('./migrations/20260621120000_play
 const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMetadataFromPosts } = require('./migrations/20260617120000_library_audio_metadata');
 const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
 const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
+const { userHasFullStreamAccess } = require('./utils/accessPermissions');
 
 // Create database connection
 // Use environment variable for database path, fallback to default
@@ -578,9 +579,12 @@ const getPublishedPosts = () => {
   });
 };
 
+const userHasFullCatalogAccess = (user) =>
+  !!user?.back_catalog_access || userHasFullStreamAccess(user);
+
 const userCanAccessPost = (user, post) => {
   if (!user || !post || !post.is_published || post.deleted_at) return false;
-  if (user.back_catalog_access) return true;
+  if (userHasFullCatalogAccess(user)) return true;
   const cutoff = user.subscribed_at || user.created_at;
   if (!cutoff) return true;
   return new Date(post.published_at) >= new Date(cutoff);
@@ -588,7 +592,7 @@ const userCanAccessPost = (user, post) => {
 
 const getPublishedPostsForUser = (user) => {
   return new Promise((resolve, reject) => {
-    if (user.back_catalog_access) {
+    if (userHasFullCatalogAccess(user)) {
       return getPublishedPosts().then(resolve).catch(reject);
     }
     const cutoff = user.subscribed_at || user.created_at;
@@ -647,7 +651,7 @@ const getPostsPaginated = (options = {}) => {
 
 const getPublishedPostsForUserPaginated = (user, options = {}) => {
   const base = { publishedOnly: true, ...options };
-  if (user.back_catalog_access) {
+  if (userHasFullCatalogAccess(user)) {
     return getPostsPaginated(base);
   }
   const cutoff = user.subscribed_at || user.created_at;
@@ -657,11 +661,15 @@ const getPublishedPostsForUserPaginated = (user, options = {}) => {
   return getPostsPaginated({ ...base, publishedAfter: cutoff });
 };
 
-// Set is_paying and stamp subscribed_at when a user (re)activates.
+// Set is_paying and stamp subscribed_at on first activation only (not on renewals).
 const activateUserSubscription = (id) => {
-  return updateUserFields(id, {
-    is_paying: 1,
-    subscribed_at: new Date().toISOString()
+  return getUserById(id).then((user) => {
+    if (!user) return { id, updated: false };
+    const updates = { is_paying: 1 };
+    if (!user.subscribed_at) {
+      updates.subscribed_at = new Date().toISOString();
+    }
+    return updateUserFields(id, updates);
   });
 };
 
@@ -875,7 +883,7 @@ const countPublishedInLibrary = () => {
 
 const countAccessibleLibraryEntriesForUser = (user) => {
   if (!user) return Promise.resolve(0);
-  if (user.back_catalog_access) return countPublishedInLibrary();
+  if (userHasFullCatalogAccess(user)) return countPublishedInLibrary();
   const cutoff = user.subscribed_at || user.created_at;
   if (!cutoff) return countPublishedInLibrary();
   return new Promise((resolve, reject) => {
