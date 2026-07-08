@@ -59,23 +59,25 @@ const applyNonCardSubscriberRules = (data) => {
 };
 
 // Paying subscribers are eligible for Stripe monthly billing.
-const applyPayingSubscriberRules = (data) => {
+// pendingCheckout: keep Payment Not-active until Stripe checkout succeeds
+// (used for admin non-card → paying subscriber = Option B).
+const applyPayingSubscriberRules = (data, { pendingCheckout = false } = {}) => {
   if (data.payment_category !== PAYING_SUBSCRIBER_CATEGORY) return data;
   return {
     ...data,
-    is_paying: 1,
+    is_paying: pendingCheckout ? 0 : 1,
     monthly_payments: data.monthly_payments !== undefined ? data.monthly_payments : 1
   };
 };
 
-const applySubscribedCategoryRules = (data) => {
+const applySubscribedCategoryRules = (data, options = {}) => {
   const category = normalizePaymentCategory(data.payment_category);
   if (category === FREE_CATEGORY) return applyFreeSubscriberRules({ ...data, payment_category: FREE_CATEGORY });
   if (category === NON_CARD_CATEGORY) {
     return applyNonCardSubscriberRules({ ...data, payment_category: NON_CARD_CATEGORY });
   }
   if (category === PAYING_SUBSCRIBER_CATEGORY) {
-    return applyPayingSubscriberRules({ ...data, payment_category: PAYING_SUBSCRIBER_CATEGORY });
+    return applyPayingSubscriberRules({ ...data, payment_category: PAYING_SUBSCRIBER_CATEGORY }, options);
   }
   return data;
 };
@@ -248,23 +250,33 @@ router.put('/:id', async (req, res) => {
       data.payment_category = nextCategory;
     }
 
-    if (
-      data.payment_category !== undefined &&
-      nextCategory !== normalizePaymentCategory(existing.payment_category)
-    ) {
+    const previousCategory = normalizePaymentCategory(existing.payment_category);
+    const categoryChanged =
+      data.payment_category !== undefined && nextCategory !== previousCategory;
+    // Admin non-card → paying subscriber: Stripe-eligible only; access after checkout.
+    const pendingCheckoutFromNonCard =
+      categoryChanged &&
+      previousCategory === NON_CARD_CATEGORY &&
+      nextCategory === PAYING_SUBSCRIBER_CATEGORY;
+
+    if (categoryChanged) {
       const stripeUpdates = await applyStripeForPayingCategoryChange(existing, nextCategory);
       data = { ...data, ...stripeUpdates };
     }
 
     if (isSubscribedCategory(nextCategory)) {
-      data = applySubscribedCategoryRules({ ...data, payment_category: nextCategory });
+      data = applySubscribedCategoryRules(
+        { ...data, payment_category: nextCategory },
+        { pendingCheckout: pendingCheckoutFromNonCard }
+      );
     }
 
     const activating =
       data.is_paying === 1 && !existing.is_paying;
 
     await updateUserFields(id, data);
-    if (activating && nextCategory === PAYING_SUBSCRIBER_CATEGORY) {
+    // Do not activate on non-card → paying_subscriber; webhook activates after payment.
+    if (activating && nextCategory === PAYING_SUBSCRIBER_CATEGORY && !pendingCheckoutFromNonCard) {
       await activateUserSubscription(id);
     } else if (activating && nextCategory === FREE_CATEGORY) {
       await updateUserFields(id, { subscribed_at: new Date().toISOString() });

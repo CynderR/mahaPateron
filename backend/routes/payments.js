@@ -23,15 +23,28 @@ const requireStripe = (req, res, next) => {
   next();
 };
 
-// Resolve the monthly amount (in cents) for a user: their override price, else
-// the platform default.
-const resolveAmountCents = async (user) => {
-  let price = user.subscription_price;
-  if (price === null || price === undefined) {
-    const settings = await getPlatformSettings();
-    price = (settings && settings.default_price) || parseFloat(process.env.DEFAULT_SUBSCRIPTION_PRICE) || 9.99;
+// Official Stripe Catalog Price for all paying subscribers.
+// Prefer platform_settings.stripe_price_id; fall back to STRIPE_PRICE_ID env.
+const resolveStripePriceId = async () => {
+  const settings = await getPlatformSettings().catch(() => null);
+  const fromSettings = settings && settings.stripe_price_id ? String(settings.stripe_price_id).trim() : '';
+  const fromEnv = process.env.STRIPE_PRICE_ID ? String(process.env.STRIPE_PRICE_ID).trim() : '';
+  return fromSettings || fromEnv || null;
+};
+
+const resolveDisplayPriceDollars = async (priceId) => {
+  if (stripe && priceId) {
+    try {
+      const price = await stripe.prices.retrieve(priceId);
+      if (price && price.unit_amount != null) {
+        return price.unit_amount / 100;
+      }
+    } catch (error) {
+      console.warn('Could not load Stripe Price for display:', error.message);
+    }
   }
-  return Math.round(parseFloat(price) * 100);
+  const settings = await getPlatformSettings().catch(() => null);
+  return (settings && settings.default_price) || parseFloat(process.env.DEFAULT_SUBSCRIPTION_PRICE) || 9.99;
 };
 
 const ACTIVE_SUB_STATUSES = new Set(['active', 'trialing']);
@@ -106,13 +119,15 @@ const resolveExistingSubscription = async (user) => {
   }
 };
 
-// GET /config — publishable key + default price for the frontend.
+// GET /config — publishable key + catalog Price amount for the frontend.
 router.get('/config', async (req, res) => {
-  const settings = await getPlatformSettings().catch(() => null);
+  const priceId = await resolveStripePriceId();
+  const defaultPrice = await resolveDisplayPriceDollars(priceId);
   res.json({
     publishableKey: process.env.STRIPE_PUBLISHABLE_KEY || null,
     configured: !!stripe,
-    defaultPrice: (settings && settings.default_price) || parseFloat(process.env.DEFAULT_SUBSCRIPTION_PRICE) || 9.99
+    defaultPrice,
+    stripePriceConfigured: !!priceId
   });
 });
 
@@ -192,20 +207,17 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
       await updateUserFields(freshUser.id, { stripe_customer_id: customerId });
     }
 
-    const amount = await resolveAmountCents(freshUser);
+    const priceId = await resolveStripePriceId();
+    if (!priceId) {
+      return res.status(503).json({
+        error:
+          'Stripe Price is not configured. Set platform_settings.stripe_price_id or STRIPE_PRICE_ID to your Dashboard Price ID.'
+      });
+    }
 
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
-      items: [
-        {
-          price_data: {
-            currency: 'usd',
-            product_data: { name: 'Shyam Akaash Membership' },
-            recurring: { interval: 'month' },
-            unit_amount: amount
-          }
-        }
-      ],
+      items: [{ price: priceId }],
       payment_behavior: 'default_incomplete',
       payment_settings: { save_default_payment_method: 'on_subscription' },
       expand: ['latest_invoice.payment_intent']

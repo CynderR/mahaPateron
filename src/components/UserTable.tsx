@@ -9,7 +9,7 @@ import SubscriptionToggle from './admin/SubscriptionToggle';
 import {
   PayingTier,
   SubscriptionStatus,
-  subscriptionStatusFromCategory
+  subscriptionStatusFromUser
 } from '../utils/paymentCategories';
 
 export interface AdminUser {
@@ -96,7 +96,7 @@ const UserTable: React.FC<UserTableProps> = ({
               </td>
               <td>
                 <SubscriptionToggle
-                  value={subscriptionStatusFromCategory(u.payment_category)}
+                  value={subscriptionStatusFromUser(u.payment_category, u.is_paying)}
                   disabled={isDeleted}
                   onChange={(status) => onSubscriptionChange(u.id, status, u.payment_category)}
                 />
@@ -104,6 +104,7 @@ const UserTable: React.FC<UserTableProps> = ({
               <td>
                 <PayingTierSelect
                   paymentCategory={u.payment_category}
+                  isPaying={u.is_paying}
                   disabled={isDeleted}
                   onChange={(tier) => onPayingTierChange(u.id, tier)}
                 />

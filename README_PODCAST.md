@@ -37,7 +37,8 @@ Set these in `backend/.env` (see `.env.example`):
 | `STRIPE_SECRET_KEY` | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
 | `STRIPE_PUBLISHABLE_KEY` | Stripe publishable key (exposed to the browser) |
-| `DEFAULT_SUBSCRIPTION_PRICE` | Default monthly price when a user has no override |
+| `STRIPE_PRICE_ID` | Official Dashboard Price ID used for all checkouts (or set `platform_settings.stripe_price_id`) |
+| `DEFAULT_SUBSCRIPTION_PRICE` | Fallback display/MRR amount if the Stripe Price cannot be loaded |
 | `PODCAST_TITLE`, `PODCAST_AUTHOR`, `PODCAST_EMAIL` | Optional RSS channel metadata |
 | `PODCAST_COVER_FILE` | Filename in `public/` used as RSS channel artwork (default: `podcast-cover.jpg`, **min 1400×1400 px**) |
 | `PODCAST_IMAGE_URL` | Override full URL for RSS channel artwork |
@@ -138,6 +139,20 @@ sudo nginx -t && sudo systemctl reload nginx
 ```
 
 WhatsApp caches previews aggressively; a new deploy may take a few minutes to show.
+
+## Stripe Price setup
+
+Checkout uses one official recurring Price from the Stripe Product catalog for
+every paying subscriber (no per-user Stripe amounts).
+
+1. In Stripe Dashboard → Product catalog, create a Product (e.g. Shyam Akaash
+   Membership) with a recurring monthly Price.
+2. Copy the Price ID (`price_…`).
+3. Set `STRIPE_PRICE_ID=price_…` in `.env`, **or** store it as
+   `platform_settings.stripe_price_id` via `PUT /api/admin/settings`.
+
+Until a Price ID is configured, Subscribe returns 503 and Billing shows that
+billing is not ready.
 
 ## Stripe webhook setup
 

@@ -62,11 +62,23 @@ export const fieldsFromPayingTier = (
 export const subscriptionStatusFromCategory = (paymentCategory: string): SubscriptionStatus =>
   paymentCategory === NOT_SUBSCRIBED_PAYMENT_CATEGORY ? 'not_subscribed' : 'subscribed';
 
-export const paymentCategoryHasShareFullAccess = (paymentCategory: string): boolean =>
-  paymentCategory !== NOT_SUBSCRIBED_PAYMENT_CATEGORY;
-
 const normalizePaymentCategory = (category: string): PaymentCategory | string =>
   category === 'discounted' ? PAYING_SUBSCRIBER_PAYMENT_CATEGORY : category;
+
+/** Payment tab status including pending Stripe checkout (paying_subscriber, not yet paid). */
+export const subscriptionStatusFromUser = (
+  paymentCategory: string,
+  isPaying?: boolean | number | null
+): SubscriptionStatus => {
+  const paying = isPaying === true || isPaying === 1;
+  if (normalizePaymentCategory(paymentCategory) === PAYING_SUBSCRIBER_PAYMENT_CATEGORY && !paying) {
+    return 'not_subscribed';
+  }
+  return subscriptionStatusFromCategory(paymentCategory);
+};
+
+export const paymentCategoryHasShareFullAccess = (paymentCategory: string): boolean =>
+  paymentCategory !== NOT_SUBSCRIBED_PAYMENT_CATEGORY;
 
 export const subscriptionFieldsFromStatus = (
   status: SubscriptionStatus,

@@ -9,6 +9,7 @@ interface BillingConfig {
   publishableKey: string | null;
   configured: boolean;
   defaultPrice: number;
+  stripePriceConfigured?: boolean;
 }
 
 interface Subscription {
@@ -171,6 +172,13 @@ const Billing: React.FC = () => {
         ) : !config?.configured ? (
           <div className="pod-card">
             <p style={{ margin: 0 }}>Billing is not configured yet. Please check back soon.</p>
+          </div>
+        ) : config.stripePriceConfigured === false ? (
+          <div className="pod-card">
+            <p style={{ margin: 0 }}>
+              Billing is not ready: the official Stripe Price ID has not been set. An administrator
+              must set <code>STRIPE_PRICE_ID</code> or platform <code>stripe_price_id</code>.
+            </p>
           </div>
         ) : clientSecret && stripePromise ? (
           <div className="pod-card">
