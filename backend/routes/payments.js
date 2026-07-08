@@ -34,6 +34,78 @@ const resolveAmountCents = async (user) => {
   return Math.round(parseFloat(price) * 100);
 };
 
+const ACTIVE_SUB_STATUSES = new Set(['active', 'trialing']);
+const AWAITING_PAYMENT_STATUSES = new Set(['incomplete', 'unpaid']);
+const TERMINAL_SUB_STATUSES = new Set(['canceled', 'incomplete_expired']);
+
+const getPaymentIntentClientSecret = (subscription) => {
+  const invoice = subscription && subscription.latest_invoice;
+  if (!invoice || typeof invoice === 'string') return null;
+  const paymentIntent = invoice.payment_intent;
+  if (!paymentIntent || typeof paymentIntent === 'string') return null;
+  return paymentIntent.client_secret || null;
+};
+
+// If the user already has a usable Stripe subscription, reuse it instead of
+// creating a second one. Returns a response payload, or null to create new.
+const resolveExistingSubscription = async (user) => {
+  if (!user.stripe_sub_id) return null;
+
+  try {
+    const existing = await stripe.subscriptions.retrieve(user.stripe_sub_id, {
+      expand: ['latest_invoice.payment_intent']
+    });
+
+    if (ACTIVE_SUB_STATUSES.has(existing.status)) {
+      return {
+        alreadyActive: true,
+        subscriptionId: existing.id,
+        status: existing.status,
+        clientSecret: null
+      };
+    }
+
+    if (AWAITING_PAYMENT_STATUSES.has(existing.status)) {
+      const clientSecret = getPaymentIntentClientSecret(existing);
+      if (clientSecret) {
+        return {
+          reused: true,
+          subscriptionId: existing.id,
+          status: existing.status,
+          clientSecret
+        };
+      }
+      // Incomplete/unpaid but no PaymentIntent to confirm — cancel and recreate.
+      try {
+        await stripe.subscriptions.cancel(existing.id);
+      } catch (cancelError) {
+        console.warn('Could not cancel unusable incomplete subscription:', cancelError.message);
+      }
+      await updateUserFields(user.id, { stripe_sub_id: null });
+      return null;
+    }
+
+    if (TERMINAL_SUB_STATUSES.has(existing.status)) {
+      await updateUserFields(user.id, { stripe_sub_id: null });
+      return null;
+    }
+
+    // past_due / paused / other non-terminal: do not create a duplicate.
+    return {
+      alreadyActive: true,
+      subscriptionId: existing.id,
+      status: existing.status,
+      clientSecret: null
+    };
+  } catch (error) {
+    if (error && error.code === 'resource_missing') {
+      await updateUserFields(user.id, { stripe_sub_id: null });
+      return null;
+    }
+    throw error;
+  }
+};
+
 // GET /config — publishable key + default price for the frontend.
 router.get('/config', async (req, res) => {
   const settings = await getPlatformSettings().catch(() => null);
@@ -90,6 +162,8 @@ router.get('/subscription', async (req, res) => {
 });
 
 // POST /create-subscription — create customer + subscription for the user.
+// Reuses an existing active/incomplete Stripe subscription instead of creating
+// a duplicate (guards double-clicks and abandoned checkouts).
 router.post('/create-subscription', requireStripe, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
@@ -100,18 +174,25 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
       return res.status(403).json({ error: 'Monthly billing is not enabled for this account' });
     }
 
-    let customerId = user.stripe_customer_id;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.username,
-        metadata: { app_user_id: String(user.id) }
-      });
-      customerId = customer.id;
-      await updateUserFields(user.id, { stripe_customer_id: customerId });
+    const existingPayload = await resolveExistingSubscription(user);
+    if (existingPayload) {
+      return res.json(existingPayload);
     }
 
-    const amount = await resolveAmountCents(user);
+    // Re-read after possible stripe_sub_id clear above.
+    const freshUser = await getUserById(user.id);
+    let customerId = freshUser.stripe_customer_id;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: freshUser.email,
+        name: freshUser.username,
+        metadata: { app_user_id: String(freshUser.id) }
+      });
+      customerId = customer.id;
+      await updateUserFields(freshUser.id, { stripe_customer_id: customerId });
+    }
+
+    const amount = await resolveAmountCents(freshUser);
 
     const subscription = await stripe.subscriptions.create({
       customer: customerId,
@@ -130,7 +211,7 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
       expand: ['latest_invoice.payment_intent']
     });
 
-    await updateUserFields(user.id, { stripe_sub_id: subscription.id });
+    await updateUserFields(freshUser.id, { stripe_sub_id: subscription.id });
 
     const paymentIntent = subscription.latest_invoice && subscription.latest_invoice.payment_intent;
     res.json({
@@ -170,6 +251,9 @@ router.post('/cancel', requireStripe, async (req, res) => {
     }
     await stripe.subscriptions.cancel(user.stripe_sub_id);
     await deactivateUserSubscription(user.id);
+    // Clear sub id so a later Subscribe creates exactly one new subscription
+    // (keep stripe_customer_id so the Customer Portal still works).
+    await updateUserFields(user.id, { stripe_sub_id: null });
     res.json({ message: 'Subscription cancelled' });
   } catch (error) {
     console.error('Cancel subscription error:', error);

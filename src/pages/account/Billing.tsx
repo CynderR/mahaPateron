@@ -96,11 +96,20 @@ const Billing: React.FC = () => {
   }, []);
 
   const startSubscription = async () => {
+    if (busy) return;
     setBusy(true);
     setError('');
     try {
-      const res = await axios.post<{ clientSecret: string }>('/payments/create-subscription');
-      if (res.data.clientSecret) {
+      const res = await axios.post<{
+        clientSecret: string | null;
+        alreadyActive?: boolean;
+        reused?: boolean;
+        status?: string;
+      }>('/payments/create-subscription');
+      if (res.data.alreadyActive) {
+        setMessage('You already have a subscription on this account.');
+        await loadAll();
+      } else if (res.data.clientSecret) {
         setClientSecret(res.data.clientSecret);
       } else {
         setMessage('Subscription created.');
