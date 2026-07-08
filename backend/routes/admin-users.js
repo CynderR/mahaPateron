@@ -16,12 +16,21 @@ const {
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
-const { cancelStripeSubscriptionForUser } = require('../utils/stripeBilling');
+const {
+  cancelStripeSubscriptionForUser,
+  applyStripeForPayingCategoryChange
+} = require('../utils/stripeBilling');
+const {
+  FREE_CATEGORY,
+  NON_CARD_CATEGORY,
+  PAYING_SUBSCRIBER_CATEGORY,
+  normalizePaymentCategory,
+  isSubscribedCategory
+} = require('../utils/paymentCategories');
 
 const router = express.Router();
 
 const PAYMENT_CATEGORIES = ['full', 'free', 'paying_subscriber', 'non_card'];
-const FREE_CATEGORY = 'free';
 
 const sanitizeUser = (user) => {
   if (!user) return user;
@@ -37,6 +46,38 @@ const applyFreeSubscriberRules = (data) => {
     is_paying: 1,
     monthly_payments: 0
   };
+};
+
+// Non-card subscribers are subscribed but never billed through Stripe.
+const applyNonCardSubscriberRules = (data) => {
+  if (data.payment_category !== NON_CARD_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: 1,
+    monthly_payments: 0
+  };
+};
+
+// Paying subscribers are eligible for Stripe monthly billing.
+const applyPayingSubscriberRules = (data) => {
+  if (data.payment_category !== PAYING_SUBSCRIBER_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: 1,
+    monthly_payments: data.monthly_payments !== undefined ? data.monthly_payments : 1
+  };
+};
+
+const applySubscribedCategoryRules = (data) => {
+  const category = normalizePaymentCategory(data.payment_category);
+  if (category === FREE_CATEGORY) return applyFreeSubscriberRules({ ...data, payment_category: FREE_CATEGORY });
+  if (category === NON_CARD_CATEGORY) {
+    return applyNonCardSubscriberRules({ ...data, payment_category: NON_CARD_CATEGORY });
+  }
+  if (category === PAYING_SUBSCRIBER_CATEGORY) {
+    return applyPayingSubscriberRules({ ...data, payment_category: PAYING_SUBSCRIBER_CATEGORY });
+  }
+  return data;
 };
 
 // GET / — paginated list with filters.
@@ -113,7 +154,7 @@ router.post('/', async (req, res) => {
     const rawPassword = password || require('crypto').randomBytes(16).toString('hex');
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
-    const freeFields = applyFreeSubscriberRules({
+    const freeFields = applySubscribedCategoryRules({
       payment_category: payment_category || 'full',
       is_paying: !!is_paying,
       monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false'
@@ -200,19 +241,34 @@ router.put('/:id', async (req, res) => {
     }
 
     const nextCategory = data.payment_category !== undefined
-      ? data.payment_category
-      : existing.payment_category;
-    if (nextCategory === FREE_CATEGORY) {
-      data = applyFreeSubscriberRules({ ...data, payment_category: FREE_CATEGORY });
+      ? normalizePaymentCategory(data.payment_category)
+      : normalizePaymentCategory(existing.payment_category);
+
+    if (data.payment_category !== undefined) {
+      data.payment_category = nextCategory;
+    }
+
+    if (
+      data.payment_category !== undefined &&
+      nextCategory !== normalizePaymentCategory(existing.payment_category)
+    ) {
+      const stripeUpdates = await applyStripeForPayingCategoryChange(existing, nextCategory);
+      data = { ...data, ...stripeUpdates };
+    }
+
+    if (isSubscribedCategory(nextCategory)) {
+      data = applySubscribedCategoryRules({ ...data, payment_category: nextCategory });
     }
 
     const activating =
       data.is_paying === 1 && !existing.is_paying;
 
     await updateUserFields(id, data);
-    if (activating && nextCategory !== FREE_CATEGORY) {
+    if (activating && nextCategory === PAYING_SUBSCRIBER_CATEGORY) {
       await activateUserSubscription(id);
     } else if (activating && nextCategory === FREE_CATEGORY) {
+      await updateUserFields(id, { subscribed_at: new Date().toISOString() });
+    } else if (activating && nextCategory === NON_CARD_CATEGORY) {
       await updateUserFields(id, { subscribed_at: new Date().toISOString() });
     }
     const updated = await getUserById(id);

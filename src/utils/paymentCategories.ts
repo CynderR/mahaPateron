@@ -43,12 +43,20 @@ export const payingTierLabel = (tier: PayingTier): string =>
 
 export const fieldsFromPayingTier = (
   tier: PayingTier
-): { payment_category: PaymentCategory; is_paying: boolean } => {
+): { payment_category: PaymentCategory; is_paying: boolean; monthly_payments: boolean } => {
   const option = PAYING_TIER_OPTIONS.find((o) => o.value === tier);
   if (!option) {
-    return { payment_category: DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY, is_paying: true };
+    return {
+      payment_category: DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY,
+      is_paying: true,
+      monthly_payments: true
+    };
   }
-  return { payment_category: option.payment_category, is_paying: true };
+  return {
+    payment_category: option.payment_category,
+    is_paying: true,
+    monthly_payments: tier === 'paying_subscriber'
+  };
 };
 
 export const subscriptionStatusFromCategory = (paymentCategory: string): SubscriptionStatus =>
@@ -76,6 +84,22 @@ export const subscriptionFieldsFromStatus = (
       payment_category: 'free',
       is_paying: true,
       monthly_payments: false
+    };
+  }
+
+  if (normalizedCategory === 'non_card') {
+    return {
+      payment_category: 'non_card',
+      is_paying: true,
+      monthly_payments: false
+    };
+  }
+
+  if (normalizedCategory === 'paying_subscriber') {
+    return {
+      payment_category: 'paying_subscriber',
+      is_paying: true,
+      monthly_payments: true
     };
   }
 
