@@ -15,11 +15,9 @@ const {
   updateUserFields,
   softDeleteUser
 } = require('../database');
+const { cancelStripeSubscriptionForUser } = require('../utils/stripeBilling');
 
 const router = express.Router();
-
-const STRIPE_SECRET_KEY = process.env.STRIPE_SECRET_KEY;
-const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
 
 // GET /feed — published episodes plus the viewer's access flags.
 router.get('/feed', async (req, res) => {
@@ -219,13 +217,7 @@ router.delete('/', async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    if (stripe && user.stripe_sub_id) {
-      try {
-        await stripe.subscriptions.cancel(user.stripe_sub_id);
-      } catch (e) {
-        console.warn('Stripe cancel during account deletion failed:', e.message);
-      }
-    }
+    await cancelStripeSubscriptionForUser(user);
 
     const anonymized = `deleted_user_${user.id}`;
     await updateUserFields(user.id, {

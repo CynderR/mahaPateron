@@ -16,15 +16,27 @@ const {
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
+const { cancelStripeSubscriptionForUser } = require('../utils/stripeBilling');
 
 const router = express.Router();
 
-const PAYMENT_CATEGORIES = ['full', 'free', 'discounted', 'non_card'];
+const PAYMENT_CATEGORIES = ['full', 'free', 'paying_subscriber', 'non_card'];
+const FREE_CATEGORY = 'free';
 
 const sanitizeUser = (user) => {
   if (!user) return user;
   const { password, password_reset_token, password_reset_expires, ...rest } = user;
   return rest;
+};
+
+// Free subscribers always show Payment → Subscribed and skip Stripe billing.
+const applyFreeSubscriberRules = (data) => {
+  if (data.payment_category !== FREE_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: 1,
+    monthly_payments: 0
+  };
 };
 
 // GET / — paginated list with filters.
@@ -101,19 +113,25 @@ router.post('/', async (req, res) => {
     const rawPassword = password || require('crypto').randomBytes(16).toString('hex');
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
+    const freeFields = applyFreeSubscriberRules({
+      payment_category: payment_category || 'full',
+      is_paying: !!is_paying,
+      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false'
+    });
+
     const newUser = await createUser({
       username,
       email,
       password: hashedPassword,
       whatsapp_id: whatsapp_id || null,
       signal_id: signal_id || null,
-      payment_category: payment_category || 'full',
+      payment_category: freeFields.payment_category,
       access_type: access_type || 'streaming',
       subscription_price: subscription_price !== undefined && subscription_price !== '' ? parseFloat(subscription_price) : null,
       is_admin: !!is_admin,
-      is_paying: !!is_paying,
+      is_paying: !!freeFields.is_paying,
       back_catalog_access: !!back_catalog_access,
-      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false',
+      monthly_payments: freeFields.monthly_payments,
       download_access: !!download_access
     });
 
@@ -129,7 +147,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = { ...req.body };
+    let data = { ...req.body };
 
     if (data.payment_category && !PAYMENT_CATEGORIES.includes(data.payment_category)) {
       return res.status(400).json({ error: 'Invalid payment_category' });
@@ -181,12 +199,21 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const nextCategory = data.payment_category !== undefined
+      ? data.payment_category
+      : existing.payment_category;
+    if (nextCategory === FREE_CATEGORY) {
+      data = applyFreeSubscriberRules({ ...data, payment_category: FREE_CATEGORY });
+    }
+
     const activating =
       data.is_paying === 1 && !existing.is_paying;
 
     await updateUserFields(id, data);
-    if (activating) {
+    if (activating && nextCategory !== FREE_CATEGORY) {
       await activateUserSubscription(id);
+    } else if (activating && nextCategory === FREE_CATEGORY) {
+      await updateUserFields(id, { subscribed_at: new Date().toISOString() });
     }
     const updated = await getUserById(id);
     res.json({ message: 'User updated', user: sanitizeUser(updated) });
@@ -212,9 +239,22 @@ router.post('/:id/restore', async (req, res) => {
   }
 });
 
-// DELETE /:id — admin can either permanently delete or anonymize identifiers.
+// DELETE /:id — cancel Stripe billing (if any), then soft or permanent delete.
 router.delete('/:id', async (req, res) => {
   try {
+    const user = await getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await cancelStripeSubscriptionForUser(user);
+    if (user.stripe_sub_id) {
+      await updateUserFields(user.id, {
+        is_paying: 0,
+        stripe_sub_id: null
+      });
+    }
+
     const mode = req.body?.mode === 'permanent' ? 'permanent' : 'reuse_email';
     const result =
       mode === 'permanent'

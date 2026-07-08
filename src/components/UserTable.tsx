@@ -18,7 +18,7 @@ export interface AdminUser {
   email: string;
   is_admin: boolean | number;
   is_paying: boolean | number;
-  payment_category: 'full' | 'free' | 'discounted' | 'non_card';
+  payment_category: 'full' | 'free' | 'paying_subscriber' | 'non_card';
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
   subscription_price: number | null;

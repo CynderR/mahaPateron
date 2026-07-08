@@ -20,7 +20,7 @@ const userHasFullStreamAccess = (user) => {
 
 const userHasShareMemberFullAccess = (user) => {
   if (!user) return false;
-  // Share links: only non–not-subscribed members (free, discounted, non_card) get full catalog.
+  // Share links: only non–not-subscribed members (free, paying_subscriber, non_card) get full catalog.
   return !userIsNotSubscribed(user);
 };
 

@@ -11,7 +11,7 @@ interface User {
   is_admin: boolean;
   whatsapp_id?: string;
   signal_id?: string;
-  payment_category?: 'full' | 'free' | 'discounted' | 'non_card';
+  payment_category?: 'full' | 'free' | 'paying_subscriber' | 'non_card';
   is_paying?: boolean | number;
   access_type?: 'rss' | 'streaming' | 'both';
   download_access?: boolean | number;

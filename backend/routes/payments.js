@@ -7,6 +7,7 @@ const {
   getUserByStripeSubId,
   updateUserFields,
   activateUserSubscription,
+  deactivateUserSubscription,
   getPlatformSettings
 } = require('../database');
 
@@ -160,7 +161,7 @@ router.post('/create-portal-session', requireStripe, async (req, res) => {
   }
 });
 
-// POST /cancel — cancel the subscription and mark the user non-paying.
+// POST /cancel — cancel the subscription and mark Payment → Not subscribed.
 router.post('/cancel', requireStripe, async (req, res) => {
   try {
     const user = await getUserById(req.user.id);
@@ -168,7 +169,7 @@ router.post('/cancel', requireStripe, async (req, res) => {
       return res.status(400).json({ error: 'No active subscription' });
     }
     await stripe.subscriptions.cancel(user.stripe_sub_id);
-    await updateUserFields(user.id, { is_paying: 0 });
+    await deactivateUserSubscription(user.id);
     res.json({ message: 'Subscription cancelled' });
   } catch (error) {
     console.error('Cancel subscription error:', error);
@@ -203,7 +204,8 @@ const webhookHandler = async (req, res) => {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object;
         const user = await getUserByStripeCustomerId(invoice.customer);
-        if (user) {
+        // Stripe only drives Payment for paying subscribers (not free / non-card).
+        if (user && user.monthly_payments) {
           await activateUserSubscription(user.id);
           if (invoice.subscription) {
             await updateUserFields(user.id, { stripe_sub_id: invoice.subscription });
@@ -214,7 +216,9 @@ const webhookHandler = async (req, res) => {
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         const user = await getUserByStripeCustomerId(invoice.customer);
-        if (user) await updateUserFields(user.id, { is_paying: 0 });
+        if (user && user.monthly_payments) {
+          await deactivateUserSubscription(user.id);
+        }
         break;
       }
       case 'customer.subscription.deleted': {
@@ -222,7 +226,9 @@ const webhookHandler = async (req, res) => {
         const user =
           (await getUserByStripeSubId(subscription.id)) ||
           (await getUserByStripeCustomerId(subscription.customer));
-        if (user) await updateUserFields(user.id, { is_paying: 0 });
+        if (user && user.monthly_payments) {
+          await deactivateUserSubscription(user.id);
+        }
         break;
       }
       default:
