@@ -174,7 +174,7 @@ const runPodcastMigration = async (db) => {
   }
 
   // Comped / manual-payment users are not on Stripe monthly billing.
-  // Free subscribers always show Payment → Subscribed (is_paying on).
+  // Free and non-card subscribers always show Payment → Subscribed (is_paying on).
   await run(
     db,
     `UPDATE users SET monthly_payments = 0
@@ -183,7 +183,7 @@ const runPodcastMigration = async (db) => {
   await run(
     db,
     `UPDATE users SET is_paying = 1
-     WHERE payment_category = 'free'`
+     WHERE payment_category IN ('free', 'non_card')`
   );
 
   console.log(`Podcast platform migration applied (${rows.length} RSS tokens backfilled)`);

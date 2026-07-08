@@ -7,6 +7,7 @@ const { runLibraryAudioMetadataMigration, ensureMetadataColumns, syncLibraryMeta
 const { runPostShareTokenMigration } = require('./migrations/20260622120000_post_share_token');
 const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
 const { runPayingSubscriberCategoryMigration } = require('./migrations/20260708120000_rename_paying_subscriber_category');
+const { runNonCardSubscribedMigration } = require('./migrations/20260708140000_non_card_subscribed');
 const { userHasFullCatalogAccess, userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
@@ -93,6 +94,7 @@ const initDatabase = () => {
     .then(() => runPostShareTokenMigration(db))
     .then(() => runUserDownloadAccessMigration(db))
     .then(() => runPayingSubscriberCategoryMigration(db))
+    .then(() => runNonCardSubscribedMigration(db))
     .then(() => ensureEmailVerificationTable())
     .then(() => {
       libraryMetadataReady = true;
