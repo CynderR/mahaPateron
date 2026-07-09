@@ -24,6 +24,7 @@ const {
   FREE_CATEGORY,
   NON_CARD_CATEGORY,
   PAYING_SUBSCRIBER_CATEGORY,
+  NOT_SUBSCRIBED_CATEGORY,
   normalizePaymentCategory,
   isSubscribedCategory
 } = require('../utils/paymentCategories');
@@ -273,6 +274,15 @@ router.put('/:id', async (req, res) => {
 
     const activating =
       data.is_paying === 1 && !existing.is_paying;
+    const deactivating =
+      (data.is_paying === 0 && !!existing.is_paying) ||
+      (nextCategory === NOT_SUBSCRIBED_CATEGORY && previousCategory !== NOT_SUBSCRIBED_CATEGORY);
+
+    if (deactivating) {
+      data.unsubscribed_at = new Date().toISOString();
+    } else if (activating) {
+      data.unsubscribed_at = null;
+    }
 
     await updateUserFields(id, data);
     // Do not activate on non-card → paying_subscriber; webhook activates after payment.

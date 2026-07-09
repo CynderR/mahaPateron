@@ -3,12 +3,13 @@ const path = require('path');
 const fs = require('fs');
 
 const { BASE_URL, AUDIO_DIR } = require('../config');
-const { getUserByRssToken, getPublishedPostsForUser, getPostByShareToken } = require('../database');
+const { getUserByRssToken, getPublishedPostsForUser, getFrozenRssPostsForUser, getPostByShareToken } = require('../database');
 const {
   ensurePodcastChannelArt,
   getPodcastChannelImageUrl,
   buildEpisodeImageUrl
 } = require('../utils/podcastBranding');
+const { userHasRssFeedAccess, accessFlags, memberIsPaying, userIsNotSubscribed } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -139,15 +140,22 @@ router.get('/:token', async (req, res) => {
 
     const channelImageUrl = getPodcastChannelImageUrl();
     const feedUrl = `${BASE_URL}/rss/${req.params.token}`;
-    const rssAllowed = user.access_type === 'rss' || user.access_type === 'both';
 
-    if (!user.is_paying || !rssAllowed) {
-      const reason = !user.is_paying
+    if (!userHasRssFeedAccess(user)) {
+      const { canRss } = accessFlags(user);
+      const inactive = !memberIsPaying(user) || userIsNotSubscribed(user);
+      const reason = inactive
         ? 'Your subscription is inactive. Reactivate it to receive new episodes.'
-        : 'Your plan does not include RSS access.';
+        : !canRss
+          ? 'Your plan does not include RSS access.'
+          : 'Your subscription is inactive. Reactivate it to receive new episodes.';
+      const posts = inactive ? await getFrozenRssPostsForUser(user) : [];
+      const items = posts
+        .map((post) => buildItem(post, req.params.token, channelImageUrl))
+        .join('\n');
       return res.send(buildFeed({
         description: `${PODCAST_DESCRIPTION} ${reason}`,
-        items: '',
+        items,
         feedUrl
       }));
     }

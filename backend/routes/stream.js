@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
-const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive } = require('../utils/accessPermissions');
+const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive, userHasRssFeedAccess } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -104,6 +104,7 @@ router.get('/:postId', async (req, res) => {
       user = null;
       post = null;
       streamUserId = null;
+      let frozenRssEpisode = false;
 
       if (shareToken) {
         if (req.query.download === '1') {
@@ -142,30 +143,48 @@ router.get('/:postId', async (req, res) => {
         if (!user) {
           return res.status(401).json({ error: 'Authentication required' });
         }
-        if (userSubscriptionInactive(user)) {
-          return res.status(403).json({ error: 'Subscription inactive' });
-        }
 
-        const flags = accessFlags(user);
-        const wantsDownload = req.query.download === '1';
-        const previewUser = userIsNotSubscribed(user);
+        const rssTokenAuth = Boolean(req.query.token);
 
-        if (wantsDownload) {
-          if (!flags.canDownload || previewUser) {
-            return res.status(403).json({ error: 'Your plan does not include download access' });
+        if (rssTokenAuth && !userHasRssFeedAccess(user)) {
+          post = await getPostById(req.params.postId);
+          if (!post || !post.is_published) {
+            return res.status(404).json({ error: 'Episode not found' });
           }
-        } else if (!flags.canStream) {
-          return res.status(403).json({ error: 'Your plan does not include streaming access' });
-        }
+          if (!user.unsubscribed_at || new Date(post.published_at) > new Date(user.unsubscribed_at)) {
+            return res.status(403).json({ error: 'Subscription inactive' });
+          }
+          if (!userCanAccessPost({ ...user, is_paying: 1 }, post)) {
+            return res.status(403).json({ error: 'This episode is not included in your subscription' });
+          }
+          streamUserId = user.id;
+          frozenRssEpisode = true;
+        } else {
+          if (userSubscriptionInactive(user)) {
+            return res.status(403).json({ error: 'Subscription inactive' });
+          }
 
-        post = await getPostById(req.params.postId);
-        if (!post || !post.is_published) {
-          return res.status(404).json({ error: 'Episode not found' });
+          const flags = accessFlags(user);
+          const wantsDownload = req.query.download === '1';
+          const previewUser = userIsNotSubscribed(user);
+
+          if (wantsDownload) {
+            if (!flags.canDownload || previewUser) {
+              return res.status(403).json({ error: 'Your plan does not include download access' });
+            }
+          } else if (!flags.canStream) {
+            return res.status(403).json({ error: 'Your plan does not include streaming access' });
+          }
+
+          post = await getPostById(req.params.postId);
+          if (!post || !post.is_published) {
+            return res.status(404).json({ error: 'Episode not found' });
+          }
+          if (!previewUser && !userCanAccessPost(user, post)) {
+            return res.status(403).json({ error: 'This episode is not included in your subscription' });
+          }
+          streamUserId = user.id;
         }
-        if (!previewUser && !userCanAccessPost(user, post)) {
-          return res.status(403).json({ error: 'This episode is not included in your subscription' });
-        }
-        streamUserId = user.id;
       }
 
       const safeFilename = path.basename(String(post.audio_filename || ''));
@@ -182,7 +201,9 @@ router.get('/:postId', async (req, res) => {
       }
 
       fileSize = stat.size;
-      previewOnly = user && userIsNotSubscribed(user) && !req.query.share;
+      previewOnly = frozenRssEpisode
+        ? false
+        : user && userIsNotSubscribed(user) && !req.query.share;
 
       writeStreamAccessCache(cacheKey, {
         post,

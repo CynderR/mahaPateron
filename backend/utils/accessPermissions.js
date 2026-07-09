@@ -42,6 +42,14 @@ const userHasDownloadAccess = (user) =>
   memberIsPaying(user) &&
   !userIsNotSubscribed(user);
 
+const userHasRssFeedAccess = (user) => {
+  if (!user) return false;
+  if (!memberIsPaying(user) || userIsNotSubscribed(user)) return false;
+  const type = user.access_type || 'streaming';
+  const streamType = type === 'download' ? 'streaming' : type;
+  return streamType === 'rss' || streamType === 'both';
+};
+
 const userHasFullCatalogAccess = (user) => {
   if (!user) return false;
   if (user.payment_category === FREE_PAYMENT_CATEGORY) return true;
@@ -87,5 +95,6 @@ module.exports = {
   userSubscriptionInactive,
   streamPreviewSeconds,
   previewMaxByte,
-  userHasDownloadAccess
+  userHasDownloadAccess,
+  userHasRssFeedAccess
 };

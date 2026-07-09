@@ -8,6 +8,7 @@ const { runPostShareTokenMigration } = require('./migrations/20260622120000_post
 const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_user_download_access');
 const { runPayingSubscriberCategoryMigration } = require('./migrations/20260708120000_rename_paying_subscriber_category');
 const { runNonCardSubscribedMigration } = require('./migrations/20260708140000_non_card_subscribed');
+const { runUserUnsubscribedAtMigration } = require('./migrations/20260709100000_user_unsubscribed_at');
 const { userHasFullCatalogAccess, userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
@@ -95,6 +96,7 @@ const initDatabase = () => {
     .then(() => runUserDownloadAccessMigration(db))
     .then(() => runPayingSubscriberCategoryMigration(db))
     .then(() => runNonCardSubscribedMigration(db))
+    .then(() => runUserUnsubscribedAtMigration(db))
     .then(() => ensureEmailVerificationTable())
     .then(() => {
       libraryMetadataReady = true;
@@ -268,7 +270,7 @@ const USER_UPDATABLE_FIELDS = [
   'username', 'email', 'is_free', 'is_admin',
   'whatsapp_id', 'signal_id', 'payment_category', 'is_paying', 'access_type',
   'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at',
-  'subscribed_at', 'back_catalog_access', 'monthly_payments', 'download_access'
+  'subscribed_at', 'unsubscribed_at', 'back_catalog_access', 'monthly_payments', 'download_access'
 ];
 
 // Dynamic update used by the admin and account routes; only whitelisted
@@ -598,7 +600,7 @@ const activateUserSubscription = async (id) => {
   const user = await getUserById(id);
   if (!user) return { id, updated: false };
 
-  const fields = { is_paying: 1 };
+  const fields = { is_paying: 1, unsubscribed_at: null };
   if (!user.subscribed_at) {
     fields.subscribed_at = new Date().toISOString();
     fields.back_catalog_access = 1;
@@ -618,7 +620,8 @@ const deactivateUserSubscription = async (id) => {
   }
   return updateUserFields(id, {
     is_paying: 0,
-    payment_category: NOT_SUBSCRIBED_CATEGORY
+    payment_category: NOT_SUBSCRIBED_CATEGORY,
+    unsubscribed_at: user.unsubscribed_at || new Date().toISOString()
   });
 };
 const DEFAULT_SUBSCRIBED_PAYMENT_CATEGORY = PAYING_SUBSCRIBER_CATEGORY;
@@ -645,6 +648,14 @@ const getPublishedPostsForUser = (user) => {
                    ORDER BY published_at DESC`;
     db.all(sql, [cutoff], (err, rows) => (err ? reject(err) : resolve(rows)));
   });
+};
+
+const getFrozenRssPostsForUser = async (user) => {
+  const cutoff = user?.unsubscribed_at;
+  if (!cutoff) return [];
+  const posts = await getPublishedPostsForUser({ ...user, is_paying: 1 });
+  const cutoffDate = new Date(cutoff);
+  return posts.filter((post) => new Date(post.published_at) <= cutoffDate);
 };
 
 const getPostsPaginated = (options = {}) => {
@@ -1243,6 +1254,7 @@ module.exports = {
   getAllPosts,
   getPublishedPosts,
   getPublishedPostsForUser,
+  getFrozenRssPostsForUser,
   getPublishedPostsForUserPaginated,
   getPostsPaginated,
   userCanAccessPost,
