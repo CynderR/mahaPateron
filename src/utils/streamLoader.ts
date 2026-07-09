@@ -9,7 +9,7 @@ const blobCache = new Map<string, string>();
 const inflight = new Map<string, Promise<string>>();
 const prefetchInflight = new Map<string, Promise<void>>();
 
-const PREFETCH_RANGE_BYTES = 512 * 1024;
+const PREFETCH_RANGE_BYTES = 2 * 1024 * 1024;
 
 export const isIOSDevice = (): boolean => {
   if (typeof navigator === 'undefined') return false;
@@ -24,11 +24,10 @@ export const isAndroidDevice = (): boolean => {
   return /Android/i.test(navigator.userAgent);
 };
 
-export const prefersBlobPlayback = (): boolean => {
-  if (typeof window === 'undefined') return false;
-  if (isIOSDevice()) return false;
-  return isAndroidDevice();
-};
+export const prefersBlobPlayback = (): boolean => false;
+
+/** Android may reject tokenized <audio src>; try direct URL first, blob only as fallback. */
+export const shouldTryBlobFallback = (): boolean => isAndroidDevice();
 
 export const getStoredAuthToken = (): string | null => {
   if (typeof window === 'undefined') return null;
@@ -67,7 +66,7 @@ export async function loadStreamBlob(postId: string, streamUrl: string): Promise
       method: 'GET',
       headers,
       credentials: 'same-origin',
-      cache: 'no-store'
+      cache: 'default'
     });
 
     if (!res.ok) {
@@ -142,6 +141,11 @@ export async function playStreamInAudioElement(
   await waitForAudioReady(audio);
   await audio.play();
 }
+
+/** Warm the HTTP cache with the first ~2 MB of an episode. */
+export const prefetchEpisodeStream = (postId: string, streamUrl: string): void => {
+  prefetchStreamMedia(postId, streamUrl).catch(() => {});
+};
 
 export async function prefetchStreamMedia(postId: string, streamUrl: string): Promise<void> {
   if (blobCache.has(postId)) return;

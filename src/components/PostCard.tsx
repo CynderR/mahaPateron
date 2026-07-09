@@ -1,8 +1,10 @@
 import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { buildImageUrl, buildStreamUrl } from '../config';
+import { useAuth } from '../contexts/AuthContext';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
+import { prefetchEpisodeStream } from '../utils/streamLoader';
 
 export interface FeedPost {
   id: string;
@@ -34,17 +36,24 @@ const formatDuration = (secs?: number | null): string => {
 
 const PostCard: React.FC<PostCardProps> = ({
   post,
-  rssToken,
+  rssToken: rssTokenProp,
   canStream,
   canDownload = false,
   locked = false,
   selected = false,
   onSelectChange
 }) => {
+  const { user } = useAuth();
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const displayDescription = stripFeedMetadataFromDescription(post.description);
   const streamState = useStreamLinkState(post);
+  const rssToken = rssTokenProp ?? user?.rss_token;
+  const warmStream = () => {
+    if (canStream && !locked && rssToken) {
+      prefetchEpisodeStream(post.id, buildStreamUrl(post.id, rssToken));
+    }
+  };
 
   return (
     <article className="pod-post-card">
@@ -60,7 +69,14 @@ const PostCard: React.FC<PostCardProps> = ({
         </label>
       )}
       {canStream && !locked ? (
-        <Link to={`/stream/${post.id}`} state={streamState} className="pod-post-cover-link">
+        <Link
+          to={`/stream/${post.id}`}
+          state={streamState}
+          className="pod-post-cover-link"
+          onMouseEnter={warmStream}
+          onFocus={warmStream}
+          onTouchStart={warmStream}
+        >
           {coverUrl ? (
             <img className="pod-post-cover" src={coverUrl} alt={post.title} />
           ) : (
@@ -78,7 +94,14 @@ const PostCard: React.FC<PostCardProps> = ({
       )}
       <div className="pod-post-body">
         {canStream && !locked ? (
-          <Link to={`/stream/${post.id}`} state={streamState} className="pod-post-title-link">
+          <Link
+            to={`/stream/${post.id}`}
+            state={streamState}
+            className="pod-post-title-link"
+            onMouseEnter={warmStream}
+            onFocus={warmStream}
+            onTouchStart={warmStream}
+          >
             <h3 className="pod-post-title">{post.title}</h3>
           </Link>
         ) : (
@@ -93,7 +116,14 @@ const PostCard: React.FC<PostCardProps> = ({
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (
           <div className="pod-inline-actions">
-            <Link to={`/stream/${post.id}`} state={streamState} className="pod-btn pod-stream-listen-btn">
+            <Link
+              to={`/stream/${post.id}`}
+              state={streamState}
+              className="pod-btn pod-stream-listen-btn"
+              onMouseEnter={warmStream}
+              onFocus={warmStream}
+              onTouchStart={warmStream}
+            >
               Listen
             </Link>
             {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />}

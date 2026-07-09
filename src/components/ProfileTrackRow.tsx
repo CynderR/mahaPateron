@@ -30,7 +30,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   const { user } = useAuth();
   const showPlayControls =
     canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
-  const { streamPath, streamState, startPlayback } = useEpisodePlayback(post, showPlayControls);
+  const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, showPlayControls);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -69,7 +69,15 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
       <div className="ht-track-rank">#{rank}</div>
       <div className="ht-track-cover-wrap">
         {showPlayControls ? (
-          <Link to={streamPath} state={streamState} className="ht-track-cover-link" onClick={primePlay}>
+          <Link
+            to={streamPath}
+            state={streamState}
+            className="ht-track-cover-link"
+            onClick={primePlay}
+            onMouseEnter={prefetchStream}
+            onFocus={prefetchStream}
+            onTouchStart={prefetchStream}
+          >
             {cover}
           </Link>
         ) : (

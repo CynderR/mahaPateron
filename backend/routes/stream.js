@@ -10,6 +10,47 @@ const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFull
 
 const router = express.Router();
 
+const STREAM_ACCESS_TTL_MS = 5 * 60 * 1000;
+const streamAccessCache = new Map();
+
+const streamAccessCacheKey = (req) => {
+  const auth =
+    req.headers.authorization ||
+    (req.query.jwt ? `jwt:${req.query.jwt}` : '') ||
+    (req.query.token ? `rss:${req.query.token}` : '');
+  return [
+    req.params.postId,
+    req.query.share || '',
+    req.query.download || '',
+    auth
+  ].join('|');
+};
+
+const readStreamAccessCache = (key) => {
+  const row = streamAccessCache.get(key);
+  if (!row || row.expiresAt < Date.now()) {
+    streamAccessCache.delete(key);
+    return null;
+  }
+  return row.value;
+};
+
+const writeStreamAccessCache = (key, value) => {
+  streamAccessCache.set(key, { value, expiresAt: Date.now() + STREAM_ACCESS_TTL_MS });
+  if (streamAccessCache.size > 1000) {
+    const oldest = streamAccessCache.keys().next().value;
+    streamAccessCache.delete(oldest);
+  }
+};
+
+const setStreamResponseHeaders = (res, { fileSize, previewOnly }) => {
+  res.set('Accept-Ranges', 'bytes');
+  res.set('Content-Type', 'audio/mpeg');
+  if (!previewOnly) {
+    res.set('Cache-Control', 'private, max-age=300');
+  }
+};
+
 // Resolve the requesting user from either the RSS token query param (podcast
 // apps) or the JWT Bearer token / token query param (browser player).
 const resolveUser = async (req) => {
@@ -40,26 +81,80 @@ const resolveUser = async (req) => {
 // GET /:postId — stream audio with HTTP range support.
 router.get('/:postId', async (req, res) => {
   try {
-    const shareToken = req.query.share;
-    let user = null;
-    let post = null;
-    let streamUserId = null;
+    const cacheKey = streamAccessCacheKey(req);
+    const cached = readStreamAccessCache(cacheKey);
 
-    if (shareToken) {
-      if (req.query.download === '1') {
-        return res.status(403).json({ error: 'Downloads are not available through share links' });
+    let post;
+    let user;
+    let streamUserId;
+    let previewOnly;
+    let filePath;
+    let fileSize;
+
+    if (cached) {
+      ({ post, user, streamUserId, previewOnly, filePath, fileSize } = cached);
+      try {
+        const stat = fs.statSync(filePath);
+        fileSize = stat.size;
+      } catch (e) {
+        return res.status(404).json({ error: 'Audio file missing' });
       }
+    } else {
+      const shareToken = req.query.share;
+      user = null;
+      post = null;
+      streamUserId = null;
 
-      const anchor = await getPostByShareToken(String(shareToken));
-      if (!anchor || !anchor.is_published) {
-        return res.status(404).json({ error: 'Episode not found' });
-      }
+      if (shareToken) {
+        if (req.query.download === '1') {
+          return res.status(403).json({ error: 'Downloads are not available through share links' });
+        }
 
-      user = await resolveUser(req);
+        const anchor = await getPostByShareToken(String(shareToken));
+        if (!anchor || !anchor.is_published) {
+          return res.status(404).json({ error: 'Episode not found' });
+        }
 
-      if (user && userHasShareMemberFullAccess(user)) {
+        user = await resolveUser(req);
+
+        if (user && userHasShareMemberFullAccess(user)) {
+          const flags = accessFlags(user);
+          if (!flags.canStream) {
+            return res.status(403).json({ error: 'Your plan does not include streaming access' });
+          }
+
+          post = await getPostById(req.params.postId);
+          if (!post || !post.is_published) {
+            return res.status(404).json({ error: 'Episode not found' });
+          }
+          if (!userIsNotSubscribed(user) && !userCanAccessPost(user, post)) {
+            return res.status(403).json({ error: 'This episode is not included in your subscription' });
+          }
+          streamUserId = user.id;
+        } else {
+          if (req.params.postId !== anchor.id) {
+            return res.status(403).json({ error: 'This share link only includes the shared episode' });
+          }
+          post = anchor;
+        }
+      } else {
+        user = await resolveUser(req);
+        if (!user) {
+          return res.status(401).json({ error: 'Authentication required' });
+        }
+        if (userSubscriptionInactive(user)) {
+          return res.status(403).json({ error: 'Subscription inactive' });
+        }
+
         const flags = accessFlags(user);
-        if (!flags.canStream) {
+        const wantsDownload = req.query.download === '1';
+        const previewUser = userIsNotSubscribed(user);
+
+        if (wantsDownload) {
+          if (!flags.canDownload || previewUser) {
+            return res.status(403).json({ error: 'Your plan does not include download access' });
+          }
+        } else if (!flags.canStream) {
           return res.status(403).json({ error: 'Your plan does not include streaming access' });
         }
 
@@ -67,67 +162,42 @@ router.get('/:postId', async (req, res) => {
         if (!post || !post.is_published) {
           return res.status(404).json({ error: 'Episode not found' });
         }
-        if (!userIsNotSubscribed(user) && !userCanAccessPost(user, post)) {
+        if (!previewUser && !userCanAccessPost(user, post)) {
           return res.status(403).json({ error: 'This episode is not included in your subscription' });
         }
         streamUserId = user.id;
-      } else {
-        if (req.params.postId !== anchor.id) {
-          return res.status(403).json({ error: 'This share link only includes the shared episode' });
-        }
-        post = anchor;
-      }
-    } else {
-      user = await resolveUser(req);
-      if (!user) {
-        return res.status(401).json({ error: 'Authentication required' });
-      }
-      if (userSubscriptionInactive(user)) {
-        return res.status(403).json({ error: 'Subscription inactive' });
       }
 
-      const flags = accessFlags(user);
-      const wantsDownload = req.query.download === '1';
-      const previewOnly = userIsNotSubscribed(user);
-
-      if (wantsDownload) {
-        if (!flags.canDownload || previewOnly) {
-          return res.status(403).json({ error: 'Your plan does not include download access' });
-        }
-      } else if (!flags.canStream) {
-        return res.status(403).json({ error: 'Your plan does not include streaming access' });
+      const safeFilename = path.basename(String(post.audio_filename || ''));
+      if (!safeFilename || safeFilename !== post.audio_filename) {
+        return res.status(404).json({ error: 'Audio file missing' });
       }
 
-      post = await getPostById(req.params.postId);
-      if (!post || !post.is_published) {
-        return res.status(404).json({ error: 'Episode not found' });
+      filePath = path.join(AUDIO_DIR, safeFilename);
+      let stat;
+      try {
+        stat = fs.statSync(filePath);
+      } catch (e) {
+        return res.status(404).json({ error: 'Audio file missing' });
       }
-      if (!previewOnly && !userCanAccessPost(user, post)) {
-        return res.status(403).json({ error: 'This episode is not included in your subscription' });
-      }
-      streamUserId = user.id;
+
+      fileSize = stat.size;
+      previewOnly = user && userIsNotSubscribed(user) && !req.query.share;
+
+      writeStreamAccessCache(cacheKey, {
+        post,
+        user,
+        streamUserId,
+        previewOnly,
+        filePath,
+        fileSize
+      });
     }
 
-    const safeFilename = path.basename(String(post.audio_filename || ''));
-    if (!safeFilename || safeFilename !== post.audio_filename) {
-      return res.status(404).json({ error: 'Audio file missing' });
-    }
-
-    const filePath = path.join(AUDIO_DIR, safeFilename);
-    let stat;
-    try {
-      stat = fs.statSync(filePath);
-    } catch (e) {
-      return res.status(404).json({ error: 'Audio file missing' });
-    }
-
-    const fileSize = stat.size;
     const range = req.headers.range;
-    const previewOnly = user && userIsNotSubscribed(user) && !shareToken;
     const previewMax = previewOnly ? previewMaxByte(fileSize, post.duration_secs) : fileSize - 1;
 
-    res.set('Accept-Ranges', 'bytes');
-    res.set('Content-Type', 'audio/mpeg');
+    setStreamResponseHeaders(res, { fileSize, previewOnly });
 
     if (req.query.download === '1') {
       const safeTitle = String(post.title || 'episode')

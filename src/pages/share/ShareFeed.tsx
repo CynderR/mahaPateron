@@ -1,229 +1,458 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
-import ShareNav from '../../components/ShareNav';
-import ProfileFeaturedTrack from '../../components/ProfileFeaturedTrack';
-import ProfileTrackRow from '../../components/ProfileTrackRow';
-import ShareMobileNav, { ShareMobileHeader } from '../../components/mobile/ShareMobileNav';
-import PodcastFeaturedEpisode from '../../components/mobile/PodcastFeaturedEpisode';
-import PodcastEpisodeCard from '../../components/mobile/PodcastEpisodeCard';
-import MemberEpisodeToolbar from '../../components/MemberEpisodeToolbar';
-import ShareAccessNotice from '../../components/share/ShareAccessNotice';
-import { FeedPost } from '../../components/PostCard';
-import { buildImageUrl } from '../../config';
-import { useAuth } from '../../contexts/AuthContext';
-import { useShare } from '../../contexts/ShareContext';
-import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../../podcastMeta';
-import { filterAdminItems } from '../../utils/adminTableHelpers';
-import { dedupePostsById, normalizePostId } from '../../utils/episodeListHelpers';
-
-interface ShareFeedResponse {
-  canStream: boolean;
-  member_access: boolean;
-  post: FeedPost;
-  posts: FeedPost[];
-}
-
-const ShareFeed: React.FC = () => {
-  const { shareToken, basePath, streamPath, streamState, memberAccess } = useShare();
-  const { user } = useAuth();
-  const [data, setData] = useState<ShareFeedResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const load = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await axios.get<ShareFeedResponse>(`/share/${encodeURIComponent(shareToken)}/feed`);
-        if (!cancelled) setData(res.data);
-      } catch {
-        if (!cancelled) setError('Could not load the feed.');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-
-    load();
-    return () => {
-      cancelled = true;
-    };
-  }, [shareToken, user?.id, memberAccess]);
-
-  const posts = useMemo(() => dedupePostsById(data?.posts ?? []), [data?.posts]);
-  const canStream = !!data?.canStream;
-
-  const featured = useMemo(() => {
-    if (searchQuery) return null;
-    if (memberAccess) return posts[0] ?? null;
-    return data?.post ?? posts[0] ?? null;
-  }, [searchQuery, memberAccess, posts, data?.post]);
-
-  const visiblePosts = useMemo(() => filterAdminItems(posts, searchQuery), [posts, searchQuery]);
-
-  const listPosts = useMemo(() => {
-    if (searchQuery) return visiblePosts;
-    if (memberAccess) return visiblePosts.slice(1);
-    const featuredId = normalizePostId(featured?.id);
-    return visiblePosts.filter((post) => normalizePostId(post.id) !== featuredId);
-  }, [visiblePosts, featured, searchQuery, memberAccess]);
-
-  const soundCount = posts.length;
-
-  const toolbar = !loading && posts.length > 0 && (
-    <MemberEpisodeToolbar
-      onSearch={setSearchQuery}
-      resultCount={visiblePosts.length}
-      totalCount={posts.length}
-    />
-  );
-
-  const emptyMessage =
-    posts.length > 0 && visiblePosts.length === 0
-      ? 'No episodes match your search.'
-      : 'No episodes have been published yet.';
-
-  return (
-    <div className="ht-page feed-page">
-      <div className="library-sticky-stack feed-ht-desktop-only">
-        <ShareNav />
-      </div>
-
-      <div className="pod-feed-mobile-only">
-        <div className="library-sticky-head">
-          <ShareMobileHeader
-            title={PODCAST_AUTHOR}
-            subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
-          />
-          {toolbar}
-        </div>
-
-        {error && <div className="pod-banner pod-banner-error">{error}</div>}
-
-        <ShareAccessNotice
-          memberAccess={memberAccess}
-          memberMessage="Signed in with member access — browse and stream your full catalog."
-          style={{ margin: '0.75rem 1rem 0' }}
-        />
-
-        {loading ? (
-          <div className="pod-empty">Loading episodes…</div>
-        ) : visiblePosts.length > 0 || featured ? (
-          <>
-            {featured && <PodcastFeaturedEpisode post={featured} canStream={canStream} />}
-            {listPosts.length > 0 && (
-              <>
-                <p className="pod-feed-section-label">All episodes</p>
-                <div className="pod-feed-list">
-                  {listPosts.map((post) => (
-                    <PodcastEpisodeCard key={normalizePostId(post.id)} post={post} canStream={canStream} />
-                  ))}
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <div className="pod-empty">{emptyMessage}</div>
-        )}
-
-        <ShareMobileNav />
-      </div>
-
-      <section
-        className="ht-profile-banner feed-ht-desktop-only"
-        style={{ backgroundImage: `url("${PODCAST_BANNER_URL}")` }}
-      >
-        <div className="ht-profile-banner-overlay" />
-        <div className="ht-profile-banner-inner">
-          <img className="ht-profile-avatar" src={PODCAST_AVATAR_URL} alt="" />
-          <div className="ht-profile-copy">
-            <h1 className="ht-profile-heading">{PODCAST_AUTHOR}</h1>
-            <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="ht-layout feed-ht-desktop-only">
-        <main className="ht-main">
-          <div className="feed-sticky-subhead">
-            <div className="ht-tabs-bar library-sticky-tabs">
-              <div className="ht-tabs">
-                <span className="ht-tab ht-tab-active">
-                  {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
-                </span>
-                <Link to={`${basePath}/library`} className="ht-tab">
-                  Library
-                </Link>
-              </div>
-            </div>
-            {toolbar}
-          </div>
-
-          <ShareAccessNotice
-            memberAccess={memberAccess}
-            memberMessage="Signed in with member access — browse and stream your full catalog."
-          />
-
-          {error && <div className="ht-banner ht-banner-error">{error}</div>}
-
-          {loading ? (
-            <div className="ht-empty">Loading sounds…</div>
-          ) : visiblePosts.length > 0 || featured ? (
-            <>
-              {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
-              <div className="ht-track-list">
-                {listPosts.map((post, index) => (
-                  <ProfileTrackRow
-                    key={normalizePostId(post.id)}
-                    post={post}
-                    rank={index + (featured ? 2 : 1)}
-                    canStream={canStream}
-                  />
-                ))}
-              </div>
-            </>
-          ) : (
-            <div className="ht-empty">{emptyMessage}</div>
-          )}
-        </main>
-
-        <aside className="ht-sidebar">
-          <h4 className="ht-sidebar-title">
-            {soundCount} {soundCount === 1 ? 'Sound' : 'Sounds'}
-          </h4>
-          {posts.length > 0 && (
-            <div className="ht-sidebar-covers">
-              {posts.slice(0, 8).map((post) => {
-                const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
-                const thumb = coverUrl ? (
-                  <img src={coverUrl} alt="" />
-                ) : (
-                  <span aria-hidden>♪</span>
-                );
-                const postKey = normalizePostId(post.id);
-                return canStream ? (
-                  <Link key={postKey} to={streamPath(post.id)} state={streamState(post)} className="ht-sidebar-thumb">
-                    {thumb}
-                  </Link>
-                ) : (
-                  <span key={postKey} className="ht-sidebar-thumb">
-                    {thumb}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-          <p className="ht-sidebar-note">
-            <Link to="/signin">Sign in</Link> for RSS feeds and downloads.
-          </p>
-        </aside>
-      </div>
-    </div>
-  );
-};
-
-export default ShareFeed;
+import React, { useEffect, useMemo, useState } from 'react';
+
+import { Link } from 'react-router-dom';
+
+import axios from 'axios';
+
+import ShareNav from '../../components/ShareNav';
+
+import ProfileFeaturedTrack from '../../components/ProfileFeaturedTrack';
+
+import ProfileTrackRow from '../../components/ProfileTrackRow';
+
+import ShareMobileNav, { ShareMobileHeader } from '../../components/mobile/ShareMobileNav';
+
+import PodcastFeaturedEpisode from '../../components/mobile/PodcastFeaturedEpisode';
+
+import PodcastEpisodeCard from '../../components/mobile/PodcastEpisodeCard';
+
+import MemberEpisodeToolbar from '../../components/MemberEpisodeToolbar';
+
+import ShareAccessNotice from '../../components/share/ShareAccessNotice';
+
+import { FeedPost } from '../../components/PostCard';
+
+import { buildImageUrl } from '../../config';
+
+import { useAuth } from '../../contexts/AuthContext';
+
+import { useShare } from '../../contexts/ShareContext';
+
+import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE_BIO } from '../../podcastMeta';
+
+import { filterAdminItems } from '../../utils/adminTableHelpers';
+
+import { dedupePostsById, normalizePostId } from '../../utils/episodeListHelpers';
+
+
+
+interface ShareFeedResponse {
+
+  canStream: boolean;
+
+  member_access: boolean;
+
+  post: FeedPost;
+
+  posts: FeedPost[];
+
+}
+
+
+
+const ShareFeed: React.FC = () => {
+
+  const { shareToken, basePath, streamPath, streamState, memberAccess } = useShare();
+
+  const { user } = useAuth();
+
+  const [data, setData] = useState<ShareFeedResponse | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [error, setError] = useState('');
+
+  const [searchQuery, setSearchQuery] = useState('');
+
+
+
+  useEffect(() => {
+
+    let cancelled = false;
+
+
+
+    const load = async () => {
+
+      setLoading(true);
+
+      setError('');
+
+      try {
+
+        const res = await axios.get<ShareFeedResponse>(`/share/${encodeURIComponent(shareToken)}/feed`);
+
+        if (!cancelled) setData(res.data);
+
+      } catch {
+
+        if (!cancelled) setError('Could not load the feed.');
+
+      } finally {
+
+        if (!cancelled) setLoading(false);
+
+      }
+
+    };
+
+
+
+    load();
+
+    return () => {
+
+      cancelled = true;
+
+    };
+
+  }, [shareToken, user?.id, memberAccess]);
+
+
+
+  const posts = useMemo(() => dedupePostsById(data?.posts ?? []), [data?.posts]);
+
+  const canStream = !!data?.canStream;
+
+
+
+  const featured = useMemo(() => {
+
+    if (searchQuery) return null;
+
+    if (memberAccess) return posts[0] ?? null;
+
+    return data?.post ?? posts[0] ?? null;
+
+  }, [searchQuery, memberAccess, posts, data?.post]);
+
+
+
+  const visiblePosts = useMemo(() => filterAdminItems(posts, searchQuery), [posts, searchQuery]);
+
+
+
+  const listPosts = useMemo(() => {
+
+    if (searchQuery) return visiblePosts;
+
+    if (memberAccess) return visiblePosts.slice(1);
+
+    const featuredId = normalizePostId(featured?.id);
+
+    return visiblePosts.filter((post) => normalizePostId(post.id) !== featuredId);
+
+  }, [visiblePosts, featured, searchQuery, memberAccess]);
+
+
+
+  const soundCount = posts.length;
+
+
+
+  const toolbar = !loading && posts.length > 0 && (
+
+    <MemberEpisodeToolbar
+
+      onSearch={setSearchQuery}
+
+      resultCount={visiblePosts.length}
+
+      totalCount={posts.length}
+
+    />
+
+  );
+
+
+
+  const emptyMessage =
+
+    posts.length > 0 && visiblePosts.length === 0
+
+      ? 'No episodes match your search.'
+
+      : 'No episodes have been published yet.';
+
+
+
+  return (
+
+    <div className="ht-page feed-page">
+
+      <div className="library-sticky-stack feed-ht-desktop-only">
+
+        <ShareNav />
+
+      </div>
+
+
+
+      <div className="pod-feed-mobile-only">
+
+        <div className="library-sticky-head">
+
+          <ShareMobileHeader
+
+            title={PODCAST_AUTHOR}
+
+            subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
+
+          />
+
+          {toolbar}
+
+        </div>
+
+
+
+        {error && <div className="pod-banner pod-banner-error">{error}</div>}
+
+
+
+        <ShareAccessNotice
+
+          memberAccess={memberAccess}
+
+          memberMessage="Signed in with member access — browse and stream your full catalog."
+
+          style={{ margin: '0.75rem 1rem 0' }}
+
+        />
+
+
+
+        {loading ? (
+
+          <div className="pod-empty">Loading episodes…</div>
+
+        ) : visiblePosts.length > 0 || featured ? (
+
+          <>
+
+            {featured && <PodcastFeaturedEpisode post={featured} canStream={canStream} />}
+
+            {listPosts.length > 0 && (
+
+              <>
+
+                <p className="pod-feed-section-label">All episodes</p>
+
+                <div className="pod-feed-list">
+
+                  {listPosts.map((post) => (
+
+                    <PodcastEpisodeCard key={normalizePostId(post.id)} post={post} canStream={canStream} />
+
+                  ))}
+
+                </div>
+
+              </>
+
+            )}
+
+          </>
+
+        ) : (
+
+          <div className="pod-empty">{emptyMessage}</div>
+
+        )}
+
+
+
+        <ShareMobileNav />
+
+      </div>
+
+
+
+      <section
+
+        className="ht-profile-banner feed-ht-desktop-only"
+
+        style={{ backgroundImage: `url("${PODCAST_BANNER_URL}")` }}
+
+      >
+
+        <div className="ht-profile-banner-overlay" />
+
+        <div className="ht-profile-banner-inner">
+
+          <img className="ht-profile-avatar" src={PODCAST_AVATAR_URL} alt="" />
+
+          <div className="ht-profile-copy">
+
+            <h1 className="ht-profile-heading">{PODCAST_AUTHOR}</h1>
+
+            <p className="ht-profile-bio">{PODCAST_PROFILE_BIO}</p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <div className="ht-layout feed-ht-desktop-only">
+
+        <main className="ht-main">
+
+          <div className="feed-sticky-subhead">
+
+            <div className="ht-tabs-bar library-sticky-tabs">
+
+              <div className="ht-tabs">
+
+                <span className="ht-tab ht-tab-active">
+
+                  {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
+
+                </span>
+
+                <Link to={`${basePath}/library`} className="ht-tab">
+
+                  Library
+
+                </Link>
+
+              </div>
+
+            </div>
+
+            {toolbar}
+
+          </div>
+
+
+
+          <ShareAccessNotice
+
+            memberAccess={memberAccess}
+
+            memberMessage="Signed in with member access — browse and stream your full catalog."
+
+          />
+
+
+
+          {error && <div className="ht-banner ht-banner-error">{error}</div>}
+
+
+
+          {loading ? (
+
+            <div className="ht-empty">Loading sounds…</div>
+
+          ) : visiblePosts.length > 0 || featured ? (
+
+            <>
+
+              {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
+
+              <div className="ht-track-list">
+
+                {listPosts.map((post, index) => (
+
+                  <ProfileTrackRow
+
+                    key={normalizePostId(post.id)}
+
+                    post={post}
+
+                    rank={index + (featured ? 2 : 1)}
+
+                    canStream={canStream}
+
+                  />
+
+                ))}
+
+              </div>
+
+            </>
+
+          ) : (
+
+            <div className="ht-empty">{emptyMessage}</div>
+
+          )}
+
+        </main>
+
+
+
+        <aside className="ht-sidebar">
+
+          <h4 className="ht-sidebar-title">
+
+            {soundCount} {soundCount === 1 ? 'Sound' : 'Sounds'}
+
+          </h4>
+
+          {posts.length > 0 && (
+
+            <div className="ht-sidebar-covers">
+
+              {posts.slice(0, 8).map((post) => {
+
+                const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+
+                const thumb = coverUrl ? (
+
+                  <img src={coverUrl} alt="" />
+
+                ) : (
+
+                  <span aria-hidden>♪</span>
+
+                );
+
+                const postKey = normalizePostId(post.id);
+
+                return canStream ? (
+
+                  <Link key={postKey} to={streamPath(post.id)} state={streamState(post)} className="ht-sidebar-thumb">
+
+                    {thumb}
+
+                  </Link>
+
+                ) : (
+
+                  <span key={postKey} className="ht-sidebar-thumb">
+
+                    {thumb}
+
+                  </span>
+
+                );
+
+              })}
+
+            </div>
+
+          )}
+
+          <p className="ht-sidebar-note">
+
+            <Link to="/signin">Sign in</Link> for RSS feeds and downloads.
+
+          </p>
+
+        </aside>
+
+      </div>
+
+    </div>
+
+  );
+
+};
+
+
+
+export default ShareFeed;
+

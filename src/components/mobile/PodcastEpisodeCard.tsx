@@ -25,7 +25,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   selected = false,
   onSelectChange
 }) => {
-  const { streamPath, streamState, startPlayback } = useEpisodePlayback(post, canStream);
+  const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, canStream);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
@@ -90,7 +90,15 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   return (
     <article className="pod-episode-card">
       {canStream ? (
-        <Link to={streamPath} state={streamState} className="pod-episode-card-main" onClick={handleCardActivate}>
+        <Link
+          to={streamPath}
+          state={streamState}
+          className="pod-episode-card-main"
+          onClick={handleCardActivate}
+          onMouseEnter={prefetchStream}
+          onFocus={prefetchStream}
+          onTouchStart={prefetchStream}
+        >
           {coverWithSelect}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>

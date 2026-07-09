@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useOptionalShare } from '../contexts/ShareContext';
 import { usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from '../components/PostCard';
-import { isIOSDevice } from '../utils/streamLoader';
+import { prefetchEpisodeStream } from '../utils/streamLoader';
 import { useEpisodeStreamLink } from './useEpisodeStreamLink';
 import { useStreamLinkState } from './useStreamLinkState';
 
@@ -13,22 +13,18 @@ export const useEpisodePlayback = (post: FeedPost, canStream: boolean) => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const share = useOptionalShare();
-  const { prepareEpisode, playEpisode, advanceToPost } = usePlayer();
+  const { playEpisode, advanceToPost } = usePlayer();
   const memberStreamState = useStreamLinkState(post);
   const { streamPath, streamState } = useEpisodeStreamLink(post);
 
   const primePlayback = useCallback(
     (streamUrl: string) => {
       advanceToPost(post.id);
-      // iOS WebKit requires audio.play() inside the tap handler. Android loads via blob
-      // and starts playback once the stream page has finished preparing the file.
-      if (isIOSDevice()) {
-        playEpisode(post.id, streamUrl, post.duration_secs);
-      } else {
-        prepareEpisode(post.id, streamUrl, post.duration_secs);
-      }
+      // Start playback in the user-gesture handler so every platform can begin
+      // buffering immediately (SoundCloud-style) instead of waiting for the stream page.
+      playEpisode(post.id, streamUrl, post.duration_secs);
     },
-    [advanceToPost, playEpisode, post, prepareEpisode]
+    [advanceToPost, playEpisode, post]
   );
 
   const startPlayback = useCallback(() => {
@@ -57,9 +53,24 @@ export const useEpisodePlayback = (post: FeedPost, canStream: boolean) => {
     user?.rss_token
   ]);
 
+  const prefetchStream = useCallback(() => {
+    if (!canStream) return;
+    if (share) {
+      const streamUrl = user?.rss_token
+        ? buildStreamUrl(post.id, user.rss_token)
+        : buildPublicShareStreamUrl(post.id, share.shareToken);
+      prefetchEpisodeStream(post.id, streamUrl);
+      return;
+    }
+    if (user?.rss_token) {
+      prefetchEpisodeStream(post.id, buildStreamUrl(post.id, user.rss_token));
+    }
+  }, [canStream, post.id, share, user?.rss_token]);
+
   return {
     streamPath,
     streamState: share ? share.streamState(post) : memberStreamState,
-    startPlayback
+    startPlayback,
+    prefetchStream
   };
 };

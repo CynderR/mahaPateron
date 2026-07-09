@@ -17,7 +17,8 @@ import {
   getInflightStreamBlob,
   loadStreamBlob,
   prefetchStreamMedia,
-  prefersBlobPlayback
+  prefersBlobPlayback,
+  shouldTryBlobFallback
 } from '../utils/streamLoader';
 import { normalizePostId, postIdsMatch } from '../utils/episodeListHelpers';
 import {
@@ -156,7 +157,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [duration, setDuration] = useState(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [mediaLoading, setMediaLoading] = useState(false);
-  const [mediaReady, setMediaReady] = useState(!prefersBlobPlayback());
+  const [mediaReady, setMediaReady] = useState(false);
   const [autoplayTimeoutHours, setAutoplayTimeoutHoursState] = useState<AutoplayTimeoutHours>(readAutoplayTimeoutHours);
   const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
 
@@ -299,8 +300,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       blobUrlRef.current = null;
-      setMediaLoading(prefersBlobPlayback());
-      setMediaReady(!prefersBlobPlayback());
+      setMediaLoading(true);
+      setMediaReady(false);
 
       const audio = audioRef.current;
       if (audio && previousPostId && previousPostId !== postId) {
@@ -392,7 +393,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const requestPlay = useCallback(() => {
     const audio = audioRef.current;
-    if (!audio || !assignedSourceRef.current) return;
+    const assigned = assignedSourceRef.current;
+    if (!audio || !assigned) return;
 
     if (autoplayTimedOutRef.current) {
       setPlaybackError('Autoplay limit reached. Choose a new limit to continue.');
@@ -410,30 +412,26 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     clearPendingPlay();
     setPlaybackError(null);
+    playRequestedRef.current = true;
 
-    if (prefersBlobPlayback() && !blobUrlRef.current) {
-      const assigned = assignedSourceRef.current;
-      const pending = assigned ? getInflightStreamBlob(assigned.postId) : null;
-      if (pending) {
-        setMediaLoading(true);
-        pending
-          .then((blobUrl) => {
-            if (assignedSourceRef.current?.postId !== assigned?.postId) return;
-            blobUrlRef.current = blobUrl;
-            setMediaReady(true);
-            setMediaLoading(false);
-            setPlaybackError(null);
-            requestPlayRef.current();
-          })
-          .catch((err: Error) => {
-            if (assignedSourceRef.current?.postId !== assigned?.postId) return;
-            setMediaLoading(false);
-            setMediaReady(false);
-            setPlaybackError(err.message || 'Could not load this episode.');
-          });
-        return;
-      }
-      setPlaybackError('Still loading audio…');
+    const pendingBlob = getInflightStreamBlob(assigned.postId);
+    if (pendingBlob && !blobUrlRef.current) {
+      setMediaLoading(true);
+      pendingBlob
+        .then((blobUrl) => {
+          if (assignedSourceRef.current?.postId !== assigned.postId) return;
+          blobUrlRef.current = blobUrl;
+          setMediaReady(true);
+          setMediaLoading(false);
+          setPlaybackError(null);
+          requestPlayRef.current();
+        })
+        .catch((err: Error) => {
+          if (assignedSourceRef.current?.postId !== assigned.postId) return;
+          setMediaLoading(false);
+          setMediaReady(false);
+          setPlaybackError(err.message || 'Could not load this episode.');
+        });
       return;
     }
 
@@ -443,7 +441,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
 
     beginPlayback(audio);
-  }, [armAutoplayDeadline, autoplayTimeoutHours, beginPlayback, clearPendingPlay, isAutoplayTimeoutExpired, primeAudioSource, stopForAutoplayTimeout]);
+  }, [
+    armAutoplayDeadline,
+    autoplayTimeoutHours,
+    beginPlayback,
+    clearPendingPlay,
+    isAutoplayTimeoutExpired,
+    primeAudioSource,
+    stopForAutoplayTimeout
+  ]);
 
   useEffect(() => {
     requestPlayRef.current = requestPlay;
@@ -480,43 +486,69 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const preloadEpisodeMedia = useCallback(
     (postId: string, streamUrl: string) => {
-      const forcePrime = !sourceIsPrimed(postId);
-
-      if (!prefersBlobPlayback()) {
-        primeAudioSource(forcePrime);
-        setMediaReady(true);
-        setMediaLoading(false);
-        return;
-      }
+      prefetchStreamMedia(postId, streamUrl).catch(() => {});
 
       const cached = getCachedStreamBlob(postId);
       if (cached) {
         blobUrlRef.current = cached;
-        primeAudioSource(!sourceIsPrimed(postId));
+      }
+
+      const forcePrime = !sourceIsPrimed(postId);
+      primeAudioSource(forcePrime);
+
+      const audio = audioRef.current;
+      if (!audio) return;
+
+      const markReady = () => {
+        if (assignedSourceRef.current?.postId !== postId) return;
         setMediaReady(true);
         setMediaLoading(false);
+        setPlaybackError(null);
+      };
+
+      if (audio.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA) {
+        markReady();
         return;
       }
 
       setMediaLoading(true);
       setMediaReady(false);
 
-      loadStreamBlob(postId, streamUrl)
-        .then((blobUrl) => {
-          if (assignedSourceRef.current?.postId !== postId) return;
-          blobUrlRef.current = blobUrl;
-          primeAudioSource(!sourceIsPrimed(postId));
-          setMediaReady(true);
+      const onCanPlay = () => {
+        audio.removeEventListener('error', onError);
+        markReady();
+      };
+
+      const onError = () => {
+        audio.removeEventListener('canplay', onCanPlay);
+        if (assignedSourceRef.current?.postId !== postId) return;
+        if (!shouldTryBlobFallback() || blobUrlRef.current) {
           setMediaLoading(false);
-          setPlaybackError(null);
-        })
-        .catch((err: Error) => {
-          if (assignedSourceRef.current?.postId !== postId) return;
-          blobUrlRef.current = null;
           setMediaReady(false);
-          setMediaLoading(false);
-          setPlaybackError(err.message || 'Could not load this episode.');
-        });
+          setPlaybackError('Could not load this episode.');
+          return;
+        }
+
+        loadStreamBlob(postId, streamUrl)
+          .then((blobUrl) => {
+            if (assignedSourceRef.current?.postId !== postId) return;
+            blobUrlRef.current = blobUrl;
+            primeAudioSource(true);
+            markReady();
+            if (playRequestedRef.current) {
+              requestPlayRef.current();
+            }
+          })
+          .catch((err: Error) => {
+            if (assignedSourceRef.current?.postId !== postId) return;
+            setMediaLoading(false);
+            setMediaReady(false);
+            setPlaybackError(err.message || 'Could not load this episode.');
+          });
+      };
+
+      audio.addEventListener('canplay', onCanPlay, { once: true });
+      audio.addEventListener('error', onError, { once: true });
     },
     [primeAudioSource, sourceIsPrimed]
   );

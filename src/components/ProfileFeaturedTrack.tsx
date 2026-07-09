@@ -28,12 +28,18 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   const { user } = useAuth();
   const showPlayControls =
     canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
-  const { streamPath, streamState, startPlayback } = useEpisodePlayback(post, showPlayControls);
+  const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, showPlayControls);
   const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
 
   const primePlay = (e: React.MouseEvent) => {
     e.preventDefault();
     startPlayback();
+  };
+
+  const warmHandlers = {
+    onMouseEnter: prefetchStream,
+    onFocus: prefetchStream,
+    onTouchStart: prefetchStream
   };
 
   const cover = coverUrl ? (
@@ -54,6 +60,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
             className="ht-play-btn"
             aria-label={`Play ${post.title}`}
             onClick={primePlay}
+            {...warmHandlers}
           >
             <svg viewBox="0 0 24 24" aria-hidden>
               <path d="M8 5v14l11-7z" fill="currentColor" />
@@ -68,7 +75,13 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         )}
         <div className="ht-featured-info">
           {showPlayControls ? (
-            <Link to={streamPath} state={streamState} className="ht-featured-title-link" onClick={primePlay}>
+            <Link
+              to={streamPath}
+              state={streamState}
+              className="ht-featured-title-link"
+              onClick={primePlay}
+              {...warmHandlers}
+            >
               <h2 className="ht-featured-title">{post.title}</h2>
             </Link>
           ) : (
@@ -110,7 +123,13 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         </label>
       )}
       {showPlayControls ? (
-        <Link to={streamPath} state={streamState} className="ht-featured-cover-link" onClick={primePlay}>
+        <Link
+          to={streamPath}
+          state={streamState}
+          className="ht-featured-cover-link"
+          onClick={primePlay}
+          {...warmHandlers}
+        >
           {cover}
         </Link>
       ) : (
