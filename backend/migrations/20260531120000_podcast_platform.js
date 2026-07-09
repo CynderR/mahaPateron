@@ -174,9 +174,15 @@ const runPodcastMigration = async (db) => {
   }
 
   // Comped / manual-payment users are not on Stripe monthly billing.
+  // Free and non-card subscribers always show Payment → Subscribed (is_paying on).
   await run(
     db,
     `UPDATE users SET monthly_payments = 0
+     WHERE payment_category IN ('free', 'non_card')`
+  );
+  await run(
+    db,
+    `UPDATE users SET is_paying = 1
      WHERE payment_category IN ('free', 'non_card')`
   );
 

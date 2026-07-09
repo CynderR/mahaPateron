@@ -16,15 +16,70 @@ const {
 } = require('../database');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
+const {
+  cancelStripeSubscriptionForUser,
+  applyStripeForPayingCategoryChange
+} = require('../utils/stripeBilling');
+const {
+  FREE_CATEGORY,
+  NON_CARD_CATEGORY,
+  PAYING_SUBSCRIBER_CATEGORY,
+  normalizePaymentCategory,
+  isSubscribedCategory
+} = require('../utils/paymentCategories');
 
 const router = express.Router();
 
-const PAYMENT_CATEGORIES = ['full', 'free', 'discounted', 'non_card'];
+const PAYMENT_CATEGORIES = ['full', 'free', 'paying_subscriber', 'non_card'];
 
 const sanitizeUser = (user) => {
   if (!user) return user;
   const { password, password_reset_token, password_reset_expires, ...rest } = user;
   return rest;
+};
+
+// Free subscribers always show Payment → Subscribed and skip Stripe billing.
+const applyFreeSubscriberRules = (data) => {
+  if (data.payment_category !== FREE_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: 1,
+    monthly_payments: 0
+  };
+};
+
+// Non-card subscribers are subscribed but never billed through Stripe.
+const applyNonCardSubscriberRules = (data) => {
+  if (data.payment_category !== NON_CARD_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: 1,
+    monthly_payments: 0
+  };
+};
+
+// Paying subscribers are eligible for Stripe monthly billing.
+// pendingCheckout: keep Payment Not-active until Stripe checkout succeeds
+// (used for admin non-card → paying subscriber = Option B).
+const applyPayingSubscriberRules = (data, { pendingCheckout = false } = {}) => {
+  if (data.payment_category !== PAYING_SUBSCRIBER_CATEGORY) return data;
+  return {
+    ...data,
+    is_paying: pendingCheckout ? 0 : 1,
+    monthly_payments: data.monthly_payments !== undefined ? data.monthly_payments : 1
+  };
+};
+
+const applySubscribedCategoryRules = (data, options = {}) => {
+  const category = normalizePaymentCategory(data.payment_category);
+  if (category === FREE_CATEGORY) return applyFreeSubscriberRules({ ...data, payment_category: FREE_CATEGORY });
+  if (category === NON_CARD_CATEGORY) {
+    return applyNonCardSubscriberRules({ ...data, payment_category: NON_CARD_CATEGORY });
+  }
+  if (category === PAYING_SUBSCRIBER_CATEGORY) {
+    return applyPayingSubscriberRules({ ...data, payment_category: PAYING_SUBSCRIBER_CATEGORY }, options);
+  }
+  return data;
 };
 
 // GET / — paginated list with filters.
@@ -101,19 +156,25 @@ router.post('/', async (req, res) => {
     const rawPassword = password || require('crypto').randomBytes(16).toString('hex');
     const hashedPassword = await bcrypt.hash(rawPassword, 10);
 
+    const freeFields = applySubscribedCategoryRules({
+      payment_category: payment_category || 'full',
+      is_paying: !!is_paying,
+      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false'
+    });
+
     const newUser = await createUser({
       username,
       email,
       password: hashedPassword,
       whatsapp_id: whatsapp_id || null,
       signal_id: signal_id || null,
-      payment_category: payment_category || 'full',
+      payment_category: freeFields.payment_category,
       access_type: access_type || 'streaming',
       subscription_price: subscription_price !== undefined && subscription_price !== '' ? parseFloat(subscription_price) : null,
       is_admin: !!is_admin,
-      is_paying: !!is_paying,
+      is_paying: !!freeFields.is_paying,
       back_catalog_access: !!back_catalog_access,
-      monthly_payments: monthly_payments !== false && monthly_payments !== 0 && monthly_payments !== 'false',
+      monthly_payments: freeFields.monthly_payments,
       download_access: !!download_access
     });
 
@@ -129,7 +190,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const data = { ...req.body };
+    let data = { ...req.body };
 
     if (data.payment_category && !PAYMENT_CATEGORIES.includes(data.payment_category)) {
       return res.status(400).json({ error: 'Invalid payment_category' });
@@ -181,12 +242,46 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const nextCategory = data.payment_category !== undefined
+      ? normalizePaymentCategory(data.payment_category)
+      : normalizePaymentCategory(existing.payment_category);
+
+    if (data.payment_category !== undefined) {
+      data.payment_category = nextCategory;
+    }
+
+    const previousCategory = normalizePaymentCategory(existing.payment_category);
+    const categoryChanged =
+      data.payment_category !== undefined && nextCategory !== previousCategory;
+    // Admin non-card → paying subscriber: Stripe-eligible only; access after checkout.
+    const pendingCheckoutFromNonCard =
+      categoryChanged &&
+      previousCategory === NON_CARD_CATEGORY &&
+      nextCategory === PAYING_SUBSCRIBER_CATEGORY;
+
+    if (categoryChanged) {
+      const stripeUpdates = await applyStripeForPayingCategoryChange(existing, nextCategory);
+      data = { ...data, ...stripeUpdates };
+    }
+
+    if (isSubscribedCategory(nextCategory)) {
+      data = applySubscribedCategoryRules(
+        { ...data, payment_category: nextCategory },
+        { pendingCheckout: pendingCheckoutFromNonCard }
+      );
+    }
+
     const activating =
       data.is_paying === 1 && !existing.is_paying;
 
     await updateUserFields(id, data);
-    if (activating) {
+    // Do not activate on non-card → paying_subscriber; webhook activates after payment.
+    if (activating && nextCategory === PAYING_SUBSCRIBER_CATEGORY && !pendingCheckoutFromNonCard) {
       await activateUserSubscription(id);
+    } else if (activating && nextCategory === FREE_CATEGORY) {
+      await updateUserFields(id, { subscribed_at: new Date().toISOString() });
+    } else if (activating && nextCategory === NON_CARD_CATEGORY) {
+      await updateUserFields(id, { subscribed_at: new Date().toISOString() });
     }
     const updated = await getUserById(id);
     res.json({ message: 'User updated', user: sanitizeUser(updated) });
@@ -212,9 +307,22 @@ router.post('/:id/restore', async (req, res) => {
   }
 });
 
-// DELETE /:id — admin can either permanently delete or anonymize identifiers.
+// DELETE /:id — cancel Stripe billing (if any), then soft or permanent delete.
 router.delete('/:id', async (req, res) => {
   try {
+    const user = await getUserById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await cancelStripeSubscriptionForUser(user);
+    if (user.stripe_sub_id) {
+      await updateUserFields(user.id, {
+        is_paying: 0,
+        stripe_sub_id: null
+      });
+    }
+
     const mode = req.body?.mode === 'permanent' ? 'permanent' : 'reuse_email';
     const result =
       mode === 'permanent'

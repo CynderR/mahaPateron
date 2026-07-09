@@ -13,6 +13,8 @@ export const adminAccessTypeValue = (accessType?: string | null): 'streaming' | 
 
 export const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 export const FREE_PAYMENT_CATEGORY = 'free';
+export const NON_CARD_PAYMENT_CATEGORY = 'non_card';
+export const PAYING_SUBSCRIBER_PAYMENT_CATEGORY = 'paying_subscriber';
 export const PREVIEW_STREAM_SECONDS = 60;
 
 export const memberIsPaying = (value?: boolean | number | null): boolean =>
@@ -28,16 +30,29 @@ export const memberIsNotSubscribed = (
   (paymentCategory || NOT_SUBSCRIBED_PAYMENT_CATEGORY) === NOT_SUBSCRIBED_PAYMENT_CATEGORY &&
   !memberIsPaying(isPaying);
 
+/** Inactive paying track: category is paying_subscriber but checkout not completed. */
+export const memberIsInactivePayingSubscriber = (
+  paymentCategory?: string | null,
+  isPaying?: boolean | number | null
+): boolean => paymentCategory === PAYING_SUBSCRIBER_PAYMENT_CATEGORY && !memberIsPaying(isPaying);
+
 export const memberHasFullStreamAccess = (
   isPaying?: boolean | number | null,
   paymentCategory?: string | null
 ): boolean => {
   if (paymentCategory === FREE_PAYMENT_CATEGORY) return true;
+  if (paymentCategory === NON_CARD_PAYMENT_CATEGORY) return memberIsPaying(isPaying);
   return memberIsPaying(isPaying) && !memberIsNotSubscribed(paymentCategory, isPaying);
 };
 
-export const memberHasShareFullAccess = (paymentCategory?: string | null): boolean =>
-  !memberIsNotSubscribed(paymentCategory, true);
+export const memberHasShareFullAccess = (
+  paymentCategory?: string | null,
+  isPaying?: boolean | number | null
+): boolean => {
+  if (memberIsNotSubscribed(paymentCategory, isPaying ?? true)) return false;
+  if (memberIsInactivePayingSubscriber(paymentCategory, isPaying)) return false;
+  return true;
+};
 
 export const memberStreamPreviewSeconds = (
   paymentCategory?: string | null,

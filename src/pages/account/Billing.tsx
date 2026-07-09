@@ -9,6 +9,7 @@ interface BillingConfig {
   publishableKey: string | null;
   configured: boolean;
   defaultPrice: number;
+  stripePriceConfigured?: boolean;
 }
 
 interface Subscription {
@@ -96,11 +97,20 @@ const Billing: React.FC = () => {
   }, []);
 
   const startSubscription = async () => {
+    if (busy) return;
     setBusy(true);
     setError('');
     try {
-      const res = await axios.post<{ clientSecret: string }>('/payments/create-subscription');
-      if (res.data.clientSecret) {
+      const res = await axios.post<{
+        clientSecret: string | null;
+        alreadyActive?: boolean;
+        reused?: boolean;
+        status?: string;
+      }>('/payments/create-subscription');
+      if (res.data.alreadyActive) {
+        setMessage('You already have a subscription on this account.');
+        await loadAll();
+      } else if (res.data.clientSecret) {
         setClientSecret(res.data.clientSecret);
       } else {
         setMessage('Subscription created.');
@@ -162,6 +172,13 @@ const Billing: React.FC = () => {
         ) : !config?.configured ? (
           <div className="pod-card">
             <p style={{ margin: 0 }}>Billing is not configured yet. Please check back soon.</p>
+          </div>
+        ) : config.stripePriceConfigured === false ? (
+          <div className="pod-card">
+            <p style={{ margin: 0 }}>
+              Billing is not ready: the official Stripe Price ID has not been set. An administrator
+              must set <code>STRIPE_PRICE_ID</code> or platform <code>stripe_price_id</code>.
+            </p>
           </div>
         ) : clientSecret && stripePromise ? (
           <div className="pod-card">

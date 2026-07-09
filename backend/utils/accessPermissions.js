@@ -15,20 +15,24 @@ const userIsNotSubscribed = (user) =>
 const userHasFullStreamAccess = (user) => {
   if (!user) return false;
   if (user.payment_category === FREE_PAYMENT_CATEGORY) return true;
+  if (user.payment_category === 'non_card') return memberIsPaying(user);
   return memberIsPaying(user) && !userIsNotSubscribed(user);
 };
 
 const userHasShareMemberFullAccess = (user) => {
   if (!user) return false;
-  // Share links: only non–not-subscribed members (free, discounted, non_card) get full catalog.
-  return !userIsNotSubscribed(user);
+  // Share links: only active members (free, non_card, or paid paying_subscriber).
+  if (userIsNotSubscribed(user)) return false;
+  if (user.payment_category === 'paying_subscriber' && !memberIsPaying(user)) return false;
+  return true;
 };
 
 const userSubscriptionInactive = (user) => {
   if (!user) return true;
   if (user.payment_category === FREE_PAYMENT_CATEGORY) return false;
+  if (user.payment_category === 'non_card') return false;
   if (userIsNotSubscribed(user)) return false;
-  return !user.is_paying;
+  return !memberIsPaying(user);
 };
 
 const streamPreviewSeconds = (user) => (userIsNotSubscribed(user) ? PREVIEW_STREAM_SECONDS : null);

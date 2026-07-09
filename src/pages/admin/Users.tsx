@@ -324,8 +324,19 @@ const Users: React.FC = () => {
               </label>
             </div>
             <div className="pod-form-group">
-              <label>Subscription price (leave blank for platform default)</label>
-              <input className="pod-input" type="number" step="0.01" min="0" value={newUser.subscription_price} onChange={(e) => setNewUser({ ...newUser, subscription_price: e.target.value })} />
+              <label>Subscription price (optional; for records only)</label>
+              <input
+                className="pod-input"
+                type="number"
+                step="0.01"
+                min="0"
+                value={newUser.subscription_price}
+                onChange={(e) => setNewUser({ ...newUser, subscription_price: e.target.value })}
+              />
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Stripe checkout bills every paying subscriber with the official Dashboard Price
+                (<code>stripe_price_id</code> / <code>STRIPE_PRICE_ID</code>). This field does not change the charged amount.
+              </p>
             </div>
             <button type="submit" className="pod-btn">
               Create user
