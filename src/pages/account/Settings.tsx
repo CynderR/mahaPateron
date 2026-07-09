@@ -166,7 +166,7 @@ const Settings: React.FC = () => {
             Deleting your account anonymizes your data, cancels your subscription, and disables your RSS feed.
           </p>
           <button type="button" className="pod-btn pod-btn-danger" onClick={deleteAccount}>
-            Delete my account
+            Unsubscribe
           </button>
         </div>
       </main>
