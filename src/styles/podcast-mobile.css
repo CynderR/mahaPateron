@@ -305,42 +305,78 @@
 
   .pod-episode-card {
     position: relative;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    column-gap: 0.65rem;
-    align-items: center;
-    padding: 0.85rem 1rem calc(0.85rem + 3px);
+    padding: 0.75rem 1rem calc(0.75rem + 3px);
     border-bottom: 1px solid var(--border-primary);
   }
 
-  .pod-episode-card-main {
-    grid-column: 1;
-    grid-row: 1;
+  .pod-episode-card-row {
     display: flex;
     align-items: flex-start;
-    gap: 0.85rem;
+    gap: 0.45rem;
     min-width: 0;
+  }
+
+  .pod-episode-select-inline {
+    flex-shrink: 0;
+    align-self: center;
     padding: 0;
-    border-bottom: none;
+    margin: 0;
+    min-width: auto;
+    min-height: auto;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .pod-episode-card .member-episode-checkbox {
+    width: 1.05rem;
+    height: 1.05rem;
+    min-width: 1.05rem;
+    min-height: 1.05rem;
+    border-width: 1.5px;
+  }
+
+  .pod-episode-card .member-episode-checkbox:checked::after {
+    width: 0.28rem;
+    height: 0.55rem;
+    border-width: 0 1.5px 1.5px 0;
+  }
+
+  .pod-episode-card-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    padding: 0;
     text-decoration: none;
     color: inherit;
   }
 
-  .pod-episode-aside {
-    grid-column: 2;
-    grid-row: 1;
+  .pod-episode-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .pod-episode-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .pod-episode-actions {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 0.35rem;
+    justify-content: flex-start;
+    gap: 0.15rem;
     flex-shrink: 0;
+    margin-top: 0.05rem;
   }
 
   .pod-episode-card > .playback-progress-thin,
   .pod-episode-card > .pod-episode-progress {
-    grid-column: 1 / -1;
-    grid-row: 2;
     position: relative;
     left: auto;
     right: auto;
@@ -363,9 +399,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 2.5rem;
-    height: 2.5rem;
-    margin-top: 0;
+    width: 2rem;
+    height: 2rem;
+    margin-top: 0.05rem;
     border: none;
     border-radius: 50%;
     background: #e53e3e;
@@ -375,15 +411,15 @@
   }
 
   .pod-episode-play svg {
-    width: 1.1rem;
-    height: 1.1rem;
+    width: 0.85rem;
+    height: 0.85rem;
     pointer-events: none;
   }
 
   .pod-episode-cover {
-    width: 4.25rem;
-    height: 4.25rem;
-    border-radius: 0.5rem;
+    width: 3.75rem;
+    height: 3.75rem;
+    border-radius: 0.45rem;
     object-fit: contain;
     flex-shrink: 0;
     background: var(--bg-tertiary);
@@ -450,18 +486,25 @@
     overflow: hidden;
   }
 
-  .pod-episode-fav {
+  .pod-episode-fav.player-favorite-btn {
     flex-shrink: 0;
+    width: 1.75rem;
+    height: 1.75rem;
     margin-top: 0;
+    color: var(--text-secondary);
+  }
+
+  .pod-episode-fav.player-favorite-btn svg {
+    width: 1.05rem;
+    height: 1.05rem;
   }
 
   .pod-episode-download {
     flex-shrink: 0;
-    max-width: 4.5rem;
-    padding-left: 0.35rem;
-    padding-right: 0.35rem;
-    font-size: 0.68rem;
-    line-height: 1.2;
+    max-width: 3.5rem;
+    padding: 0.2rem 0.3rem;
+    font-size: 0.62rem;
+    line-height: 1.15;
     white-space: normal;
     text-align: center;
   }
@@ -866,29 +909,6 @@
 
   .member-episode-toolbar-row .member-episode-count {
     flex: 1 1 100%;
-  }
-
-  .pod-episode-cover-stack {
-    position: relative;
-    flex-shrink: 0;
-  }
-
-  .pod-episode-select {
-    position: absolute;
-    top: 0.3rem;
-    left: 0.3rem;
-    z-index: 2;
-    min-width: 2.25rem;
-    min-height: 2.25rem;
-    padding: 0.15rem;
-    border-radius: 0.35rem;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.18);
-  }
-
-  [data-theme='dark'] .pod-episode-select {
-    background: rgba(26, 32, 44, 0.94);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
   }
 
   .pod-featured-latest-head .member-episode-checkbox-wrap {
