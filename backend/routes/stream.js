@@ -6,7 +6,7 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
-const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive, userHasRssFeedAccess } = require('../utils/accessPermissions');
+const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive, userNeedsFrozenRssStreamPolicy } = require('../utils/accessPermissions');
 
 const router = express.Router();
 
@@ -146,7 +146,7 @@ router.get('/:postId', async (req, res) => {
 
         const rssTokenAuth = Boolean(req.query.token);
 
-        if (rssTokenAuth && !userHasRssFeedAccess(user)) {
+        if (rssTokenAuth && userNeedsFrozenRssStreamPolicy(user)) {
           post = await getPostById(req.params.postId);
           if (!post || !post.is_published) {
             return res.status(404).json({ error: 'Episode not found' });

@@ -17,8 +17,8 @@ export const NON_CARD_PAYMENT_CATEGORY = 'non_card';
 export const PAYING_SUBSCRIBER_PAYMENT_CATEGORY = 'paying_subscriber';
 export const PREVIEW_STREAM_SECONDS = 60;
 
-export const memberIsPaying = (value?: boolean | number | null): boolean =>
-  value === true || value === 1;
+export const memberIsPaying = (value?: boolean | number | string | null): boolean =>
+  value === true || value === 1 || value === '1';
 
 export const memberHasDownloadEnabled = (value?: boolean | number | null): boolean =>
   value === true || value === 1;

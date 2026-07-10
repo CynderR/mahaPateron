@@ -50,6 +50,15 @@ const userHasRssFeedAccess = (user) => {
   return streamType === 'rss' || streamType === 'both';
 };
 
+// Browser playback uses rss_token URLs; only inactive / RSS-only members need the
+// frozen podcast-app stream policy (not streaming-only subscribers).
+const userNeedsFrozenRssStreamPolicy = (user) => {
+  if (!user) return true;
+  if (userHasRssFeedAccess(user)) return false;
+  if (userSubscriptionInactive(user)) return true;
+  return !accessFlags(user).canStream;
+};
+
 const userHasFullCatalogAccess = (user) => {
   if (!user) return false;
   if (user.payment_category === FREE_PAYMENT_CATEGORY) return true;
@@ -96,5 +105,6 @@ module.exports = {
   streamPreviewSeconds,
   previewMaxByte,
   userHasDownloadAccess,
-  userHasRssFeedAccess
+  userHasRssFeedAccess,
+  userNeedsFrozenRssStreamPolicy
 };
