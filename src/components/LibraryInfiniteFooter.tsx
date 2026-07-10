@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface LibraryInfiniteFooterProps {
-  sentinelRef: React.RefObject<HTMLDivElement | null>;
+  sentinelRef: React.Ref<HTMLDivElement | null>;
   loadingMore: boolean;
   hasMore: boolean;
   showEnd?: boolean;

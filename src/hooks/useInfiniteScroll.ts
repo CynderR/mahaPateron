@@ -1,37 +1,84 @@
-import { useEffect, useRef } from 'react';
-import { isIOSDevice } from '../utils/streamLoader';
+import { useCallback, useEffect, useRef } from 'react';
+
+const ROOT_MARGIN_PX = 600;
+
+const isVisible = (el: HTMLElement): boolean => {
+  if (!el.isConnected) return false;
+  const style = window.getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden') return false;
+  return el.getClientRects().length > 0;
+};
+
+const pickVisibleSentinel = (nodes: Set<HTMLDivElement>): HTMLDivElement | null => {
+  for (const node of nodes) {
+    if (isVisible(node)) return node;
+  }
+  return null;
+};
+
+const prefersScrollFallback = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
+};
+
+const isNearViewport = (el: HTMLElement): boolean => {
+  const rect = el.getBoundingClientRect();
+  return rect.top <= window.innerHeight + ROOT_MARGIN_PX;
+};
 
 export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
   const onLoadMoreRef = useRef(onLoadMore);
   onLoadMoreRef.current = onLoadMore;
 
+  const nodesRef = useRef<Set<HTMLDivElement>>(new Set());
+  const bindRef = useRef<(() => void) | null>(null);
+
+  const sentinelRef = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      nodesRef.current.add(node);
+    }
+    bindRef.current?.();
+  }, []);
+
   useEffect(() => {
-    if (!enabled) return;
-    const el = sentinelRef.current;
-    if (!el) return;
+    if (!enabled) {
+      bindRef.current = null;
+      return;
+    }
+
+    let observer: IntersectionObserver | null = null;
+    let scrollRaf = 0;
 
     const maybeLoadMore = () => {
-      const rect = el.getBoundingClientRect();
-      if (rect.top <= window.innerHeight + 600) {
-        onLoadMoreRef.current();
-      }
+      const target = pickVisibleSentinel(nodesRef.current);
+      if (!target || !isNearViewport(target)) return;
+      onLoadMoreRef.current();
     };
 
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0]?.isIntersecting) {
-          onLoadMoreRef.current();
-        }
-      },
-      { root: null, rootMargin: '600px 0px', threshold: 0 }
-    );
+    const bind = () => {
+      observer?.disconnect();
+      observer = null;
 
-    observer.observe(el);
+      const target = pickVisibleSentinel(nodesRef.current);
+      if (!target) return;
 
-    let scrollRaf = 0;
+      observer = new IntersectionObserver(
+        (entries) => {
+          if (entries.some((entry) => entry.isIntersecting)) {
+            onLoadMoreRef.current();
+          }
+        },
+        { root: null, rootMargin: `${ROOT_MARGIN_PX}px 0px`, threshold: 0 }
+      );
+      observer.observe(target);
+      maybeLoadMore();
+    };
+
+    bindRef.current = bind;
+    bind();
+
     const onScroll = () => {
-      if (!isIOSDevice()) return;
+      if (!prefersScrollFallback()) return;
       if (scrollRaf) return;
       scrollRaf = window.requestAnimationFrame(() => {
         scrollRaf = 0;
@@ -39,17 +86,30 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
       });
     };
 
-    if (isIOSDevice()) {
+    const onLayoutChange = () => {
+      bind();
+      maybeLoadMore();
+    };
+
+    if (prefersScrollFallback()) {
       window.addEventListener('scroll', onScroll, { passive: true });
       document.addEventListener('scroll', onScroll, { passive: true });
-      maybeLoadMore();
+      window.visualViewport?.addEventListener('scroll', onScroll);
+      window.visualViewport?.addEventListener('resize', onLayoutChange);
     }
 
+    const media = window.matchMedia('(max-width: 768px)');
+    media.addEventListener('change', onLayoutChange);
+
     return () => {
-      observer.disconnect();
+      bindRef.current = null;
+      observer?.disconnect();
       if (scrollRaf) window.cancelAnimationFrame(scrollRaf);
       window.removeEventListener('scroll', onScroll);
       document.removeEventListener('scroll', onScroll);
+      window.visualViewport?.removeEventListener('scroll', onScroll);
+      window.visualViewport?.removeEventListener('resize', onLayoutChange);
+      media.removeEventListener('change', onLayoutChange);
     };
   }, [enabled]);
 
