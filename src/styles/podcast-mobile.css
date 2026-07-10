@@ -70,7 +70,7 @@
 
   :root {
     --pod-mobile-nav-height: 4.75rem;
-    --pod-mobile-now-playing-height: 3.9rem;
+    --pod-mobile-now-playing-height: calc(3.75rem + 1.15rem + 3px);
     --member-selection-bar-height: 3.35rem;
   }
 
@@ -302,27 +302,51 @@
 
   /* ----- Episode list cards ----- */
 
-  .pod-episode-card,
+  .pod-episode-card {
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 0.65rem;
+    align-items: center;
+    padding: 0.85rem 1rem calc(0.85rem + 3px);
+    border-bottom: 1px solid var(--border-primary);
+  }
+
   .pod-episode-card-main {
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     align-items: flex-start;
     gap: 0.85rem;
-    padding: 0.85rem 1rem;
-    border-bottom: 1px solid var(--border-primary);
+    min-width: 0;
+    padding: 0;
+    border-bottom: none;
     text-decoration: none;
     color: inherit;
   }
 
-  .pod-episode-card {
-    position: relative;
-    padding-right: 0.65rem;
+  .pod-episode-aside {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    flex-shrink: 0;
   }
 
-  .pod-episode-card-main {
-    flex: 1;
-    min-width: 0;
-    padding: 0;
-    border-bottom: none;
+  .pod-episode-card > .playback-progress-thin,
+  .pod-episode-card > .pod-episode-progress {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    position: relative;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    width: 100%;
+    margin-top: 0.35rem;
+    border-radius: 999px;
   }
 
   .pod-episode-card-main:active {
@@ -335,13 +359,12 @@
 
   .pod-episode-play {
     flex-shrink: 0;
-    align-self: center;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 2.5rem;
     height: 2.5rem;
-    margin-top: 0.15rem;
+    margin-top: 0;
     border: none;
     border-radius: 50%;
     background: #e53e3e;
@@ -428,12 +451,23 @@
 
   .pod-episode-fav {
     flex-shrink: 0;
-    margin-top: 0.15rem;
+    margin-top: 0;
+  }
+
+  .pod-episode-download {
+    flex-shrink: 0;
+    max-width: 4.5rem;
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+    font-size: 0.68rem;
+    line-height: 1.2;
+    white-space: normal;
+    text-align: center;
   }
 
   .pod-episode-share {
     flex-shrink: 0;
-    margin-top: 0.15rem;
+    margin-top: 0;
   }
 
   .pod-featured-actions {

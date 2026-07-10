@@ -111,7 +111,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
           </div>
         </Link>
       ) : (
-        <>
+        <div className="pod-episode-card-main">
           {coverWithSelect}
           <div className="pod-episode-body">
             <p className="pod-episode-show">{PODCAST_AUTHOR}</p>
@@ -122,20 +122,22 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
             </div>
             {displayDescription && <p className="pod-episode-desc">{displayDescription}</p>}
           </div>
-        </>
+        </div>
       )}
       {canStream && (
-        <button type="button" className="pod-episode-play" onClick={handlePlay} aria-label={`Play ${post.title}`}>
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <path d="M8 5v14l11-7z" fill="currentColor" />
-          </svg>
-        </button>
+        <div className="pod-episode-aside">
+          <button type="button" className="pod-episode-play" onClick={handlePlay} aria-label={`Play ${post.title}`}>
+            <svg viewBox="0 0 24 24" aria-hidden>
+              <path d="M8 5v14l11-7z" fill="currentColor" />
+            </svg>
+          </button>
+          <FavoriteButton postId={post.id} className="pod-episode-fav" />
+          {canDownload && (
+            <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="pod-episode-download" />
+          )}
+          <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
+        </div>
       )}
-      {canStream && <FavoriteButton postId={post.id} className="pod-episode-fav" />}
-      {canDownload && (
-        <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="pod-episode-download" />
-      )}
-      <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
       <PlaybackProgressBar
         postId={post.id}
         durationSecs={post.duration_secs}
