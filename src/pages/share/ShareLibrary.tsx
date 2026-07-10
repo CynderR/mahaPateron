@@ -167,8 +167,6 @@ const ShareLibrary: React.FC = () => {
           />
         </div>
 
-        {toolbar}
-
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <ShareAccessNotice
@@ -181,6 +179,7 @@ const ShareLibrary: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
+            {toolbar}
             <div className="pod-feed-list">
               {entries.map((entry) => (
                 <PodcastEpisodeCard key={entry.id} post={entry} canStream={canStream && entry.accessible} />
@@ -189,14 +188,16 @@ const ShareLibrary: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+            {toolbar}
+            <div className="pod-empty">{emptyMessage}</div>
+          </>
         )}
 
         <ShareMobileNav />
       </div>
 
       <main className="podcast-main feed-ht-desktop-only library-main">
-        {toolbar}
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <ShareAccessNotice
@@ -208,6 +209,7 @@ const ShareLibrary: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
+            {toolbar}
             <div className="pod-feed-grid">
               {entries.map((entry) => (
                 <PostCard
@@ -221,7 +223,10 @@ const ShareLibrary: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+            {toolbar}
+            <div className="pod-empty">{emptyMessage}</div>
+          </>
         )}
       </main>
     </div>

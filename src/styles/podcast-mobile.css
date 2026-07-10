@@ -169,8 +169,8 @@
     border-bottom: none;
   }
 
-  .feed-page .pod-feed-mobile-only > .member-episode-toolbar,
-  .library-page .pod-feed-mobile-only > .member-episode-toolbar {
+  .feed-page .pod-feed-mobile-only .member-episode-toolbar,
+  .library-page .pod-feed-mobile-only .member-episode-toolbar {
     padding: 0 1rem 0.75rem;
     margin-bottom: 0;
   }

@@ -231,8 +231,6 @@ const Library: React.FC = () => {
           />
         </div>
 
-        {renderToolbar(true)}
-
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         {!loading && isNotSubscribed && (
@@ -257,6 +255,7 @@ const Library: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
+            {renderToolbar(true)}
             <div className="pod-feed-list">
               {entries.map((entry) => (
                 <PodcastEpisodeCard
@@ -272,14 +271,16 @@ const Library: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+            {renderToolbar(true)}
+            <div className="pod-empty">{emptyMessage}</div>
+          </>
         )}
 
         <PodcastMobileNav />
       </div>
 
       <main className="podcast-main feed-ht-desktop-only library-main">
-        {renderToolbar()}
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         {!loading && isNotSubscribed && (
@@ -305,6 +306,7 @@ const Library: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
+            {renderToolbar()}
             <div className="pod-feed-grid">
               {entries.map((entry) => (
                 <PostCard
@@ -322,7 +324,10 @@ const Library: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+            {renderToolbar()}
+            <div className="pod-empty">{emptyMessage}</div>
+          </>
         )}
       </main>
     </div>

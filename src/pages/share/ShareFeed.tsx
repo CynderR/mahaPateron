@@ -202,10 +202,6 @@ const ShareFeed: React.FC = () => {
 
         </div>
 
-        {toolbar}
-
-
-
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
 
@@ -232,6 +228,8 @@ const ShareFeed: React.FC = () => {
 
             {featured && <PodcastFeaturedEpisode post={featured} canStream={canStream} />}
 
+            {toolbar}
+
             {listPosts.length > 0 && (
 
               <>
@@ -256,7 +254,13 @@ const ShareFeed: React.FC = () => {
 
         ) : (
 
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+
+            {toolbar}
+
+            <div className="pod-empty">{emptyMessage}</div>
+
+          </>
 
         )}
 
@@ -324,8 +328,6 @@ const ShareFeed: React.FC = () => {
 
           </div>
 
-          {toolbar}
-
           <ShareAccessNotice
 
             memberAccess={memberAccess}
@@ -349,6 +351,8 @@ const ShareFeed: React.FC = () => {
             <>
 
               {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
+
+              {toolbar}
 
               <div className="ht-track-list">
 
@@ -374,7 +378,13 @@ const ShareFeed: React.FC = () => {
 
           ) : (
 
-            <div className="ht-empty">{emptyMessage}</div>
+            <>
+
+              {toolbar}
+
+              <div className="ht-empty">{emptyMessage}</div>
+
+            </>
 
           )}
 

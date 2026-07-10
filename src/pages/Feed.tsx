@@ -448,10 +448,6 @@ const Feed: React.FC = () => {
 
         </div>
 
-        {renderToolbar(true)}
-
-
-
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
 
@@ -508,13 +504,21 @@ const Feed: React.FC = () => {
 
             )}
 
+            {renderToolbar(true)}
+
             {episodeList}
 
           </>
 
         ) : (
 
-          <div className="pod-empty">{emptyMessage}</div>
+          <>
+
+            {renderToolbar(true)}
+
+            <div className="pod-empty">{emptyMessage}</div>
+
+          </>
 
         )}
 
@@ -588,8 +592,6 @@ const Feed: React.FC = () => {
 
           </div>
 
-          {renderToolbar()}
-
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
 
 
@@ -646,13 +648,21 @@ const Feed: React.FC = () => {
 
               )}
 
+              {renderToolbar()}
+
               {episodeList}
 
             </>
 
           ) : (
 
-            <div className="ht-empty">{emptyMessage}</div>
+            <>
+
+              {renderToolbar()}
+
+              <div className="ht-empty">{emptyMessage}</div>
+
+            </>
 
           )}
 
