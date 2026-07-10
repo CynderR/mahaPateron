@@ -200,9 +200,9 @@ const ShareFeed: React.FC = () => {
 
           />
 
-          {toolbar}
-
         </div>
+
+        {toolbar}
 
 
 
@@ -322,11 +322,9 @@ const ShareFeed: React.FC = () => {
 
             </div>
 
-            {toolbar}
-
           </div>
 
-
+          {toolbar}
 
           <ShareAccessNotice
 

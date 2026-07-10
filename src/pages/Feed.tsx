@@ -446,9 +446,9 @@ const Feed: React.FC = () => {
 
           />
 
-          {renderToolbar(true)}
-
         </div>
+
+        {renderToolbar(true)}
 
 
 
@@ -586,11 +586,9 @@ const Feed: React.FC = () => {
 
             </div>
 
-            {renderToolbar()}
-
           </div>
 
-
+          {renderToolbar()}
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
 

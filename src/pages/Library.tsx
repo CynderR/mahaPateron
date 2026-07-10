@@ -220,7 +220,6 @@ const Library: React.FC = () => {
         <PodcastNav />
         <div className="library-sticky-head-inner">
           <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
-          {renderToolbar()}
         </div>
       </div>
 
@@ -230,8 +229,9 @@ const Library: React.FC = () => {
             title="Library"
             subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
           />
-          {renderToolbar(true)}
         </div>
+
+        {renderToolbar(true)}
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
@@ -279,6 +279,7 @@ const Library: React.FC = () => {
       </div>
 
       <main className="podcast-main feed-ht-desktop-only library-main">
+        {renderToolbar()}
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         {!loading && isNotSubscribed && (

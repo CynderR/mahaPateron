@@ -156,7 +156,6 @@ const ShareLibrary: React.FC = () => {
             </div>
           </div>
           <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
-          {toolbar}
         </div>
       </div>
 
@@ -166,8 +165,9 @@ const ShareLibrary: React.FC = () => {
             title="Library"
             subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
           />
-          {toolbar}
         </div>
+
+        {toolbar}
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
@@ -196,6 +196,7 @@ const ShareLibrary: React.FC = () => {
       </div>
 
       <main className="podcast-main feed-ht-desktop-only library-main">
+        {toolbar}
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
         <ShareAccessNotice
