@@ -360,6 +360,15 @@
     min-width: 0;
   }
 
+  .pod-episode-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0.2rem;
+    flex-shrink: 0;
+  }
+
   .pod-episode-copy {
     flex: 1;
     min-width: 0;
@@ -373,6 +382,10 @@
     gap: 0.15rem;
     flex-shrink: 0;
     margin-top: 0.05rem;
+  }
+
+  .pod-episode-actions:empty {
+    display: none;
   }
 
   .pod-episode-card > .playback-progress-thin,
@@ -401,7 +414,7 @@
     justify-content: center;
     width: 2rem;
     height: 2rem;
-    margin-top: 0.05rem;
+    margin-top: 0;
     border: none;
     border-radius: 50%;
     background: #e53e3e;
