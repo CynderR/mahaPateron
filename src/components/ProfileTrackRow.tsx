@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { buildImageUrl } from '../config';
 import { useAuth } from '../contexts/AuthContext';
 import { FeedPost } from './PostCard';
-import { formatDuration, PODCAST_GENRE, PODCAST_AUTHOR } from '../podcastMeta';
+import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
@@ -119,7 +119,6 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
             )}
           </div>
           <div className="ht-track-side">
-            <span className="ht-track-genre">{PODCAST_GENRE}</span>
             <span className="ht-track-duration">{formatDuration(post.duration_secs)}</span>
           </div>
         </div>
