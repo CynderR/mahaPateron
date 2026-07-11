@@ -10,7 +10,10 @@ const isVisible = (el: HTMLElement): boolean => {
 };
 
 const pickVisibleSentinel = (nodes: Set<HTMLDivElement>): HTMLDivElement | null => {
-  for (const node of nodes) {
+  // #region agent log
+  fetch('http://127.0.0.1:7243/ingest/6e2f4ce6-d23e-49c6-a2a1-a23bf82f5433',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'817be1'},body:JSON.stringify({sessionId:'817be1',runId:'post-fix',hypothesisId:'A',location:'useInfiniteScroll.ts:pickVisibleSentinel',message:'pickVisibleSentinel called',data:{size:nodes.size},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  for (const node of Array.from(nodes)) {
     if (isVisible(node)) return node;
   }
   return null;
