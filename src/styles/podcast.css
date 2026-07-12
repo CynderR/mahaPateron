@@ -3100,10 +3100,39 @@ body.global-now-playing-active .podcast-main {
   cursor: pointer;
 }
 
+.admin-post-edit-cover .pod-image-preview {
+  display: block;
+  margin-bottom: 0.65rem;
+}
+
+.admin-post-edit-cover-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .admin-post-edit-actions {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.settings-rss-card p {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+a.settings-rss-btn,
+a.pod-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.settings-rss-back {
+  margin: 0 0 1rem;
 }
 
 .ht-track-share {

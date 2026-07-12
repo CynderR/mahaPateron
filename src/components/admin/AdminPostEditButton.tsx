@@ -1,5 +1,6 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import axios from 'axios';
+import { buildImageUrl } from '../../config';
 import { buildDescription } from '../../utils/parseMp3Metadata';
 import { AdminPostDetail, editableFieldsFromPost } from '../../utils/adminPostHelpers';
 
@@ -11,6 +12,8 @@ interface AdminPostEditButtonProps {
 
 const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postTitle, onSaved }) => {
   const dialogTitleId = useId();
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const previewUrlRef = useRef<string>('');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -22,6 +25,29 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
   const [genre, setGenre] = useState('');
   const [notes, setNotes] = useState('');
   const [isPublished, setIsPublished] = useState(true);
+  const [currentImageFilename, setCurrentImageFilename] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
+
+  const clearLocalPreview = () => {
+    if (previewUrlRef.current.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrlRef.current);
+    }
+    previewUrlRef.current = '';
+  };
+
+  const setLocalPreview = (file: File | null) => {
+    clearLocalPreview();
+    if (!file) {
+      setImageFile(null);
+      setImagePreview(currentImageFilename ? buildImageUrl(currentImageFilename) : '');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    previewUrlRef.current = url;
+    setImageFile(file);
+    setImagePreview(url);
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -39,6 +65,10 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
     let cancelled = false;
     setLoading(true);
     setError('');
+    setImageFile(null);
+    clearLocalPreview();
+    if (coverInputRef.current) coverInputRef.current.value = '';
+
     axios
       .get<{ post: AdminPostDetail }>(`/admin/posts/${encodeURIComponent(postId)}`)
       .then((res) => {
@@ -51,6 +81,9 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
         setGenre(fields.genre);
         setNotes(fields.notes);
         setIsPublished(fields.isPublished);
+        const filename = res.data.post.image_filename || null;
+        setCurrentImageFilename(filename);
+        setImagePreview(filename ? buildImageUrl(filename) : '');
       })
       .catch(() => {
         if (!cancelled) setError('Could not load episode metadata.');
@@ -64,6 +97,21 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
     };
   }, [open, postId]);
 
+  useEffect(() => {
+    if (open) return;
+    clearLocalPreview();
+    setImageFile(null);
+    setImagePreview('');
+    setCurrentImageFilename(null);
+  }, [open]);
+
+  useEffect(
+    () => () => {
+      clearLocalPreview();
+    },
+    []
+  );
+
   const handleOpen = () => {
     setError('');
     setOpen(true);
@@ -72,6 +120,20 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
   const handleClose = () => {
     if (saving) return;
     setOpen(false);
+  };
+
+  const handleImageChange = (file: File | null) => {
+    if (!file) {
+      setLocalPreview(null);
+      return;
+    }
+    if (!/^image\/(jpeg|png|webp)$/i.test(file.type)) {
+      setError('Cover image must be JPEG, PNG, or WebP.');
+      if (coverInputRef.current) coverInputRef.current.value = '';
+      return;
+    }
+    setError('');
+    setLocalPreview(file);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -94,6 +156,7 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
     form.append('genre', genre.trim());
     form.append('notes', notes);
     form.append('is_published', String(isPublished));
+    if (imageFile) form.append('image', imageFile);
 
     setSaving(true);
     try {
@@ -209,6 +272,48 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder="Episode notes shown below the metadata"
+                  />
+                </div>
+
+                <div className="pod-form-group admin-post-edit-cover">
+                  <label>Cover image</label>
+                  {imagePreview ? (
+                    <img className="pod-image-preview" src={imagePreview} alt="Cover preview" />
+                  ) : (
+                    <p className="pod-dropzone-hint" style={{ margin: '0 0 0.5rem' }}>
+                      No cover image yet. Choose one to add it.
+                    </p>
+                  )}
+                  <div className="admin-post-edit-cover-actions">
+                    <button
+                      type="button"
+                      className="pod-btn pod-btn-secondary"
+                      onClick={() => coverInputRef.current?.click()}
+                      disabled={saving}
+                    >
+                      {imagePreview ? 'Change cover' : 'Add cover image'}
+                    </button>
+                    {imageFile && (
+                      <button
+                        type="button"
+                        className="pod-btn pod-btn-secondary"
+                        onClick={() => {
+                          if (coverInputRef.current) coverInputRef.current.value = '';
+                          setLocalPreview(null);
+                        }}
+                        disabled={saving}
+                      >
+                        Undo new cover
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    ref={coverInputRef}
+                    id={`${dialogTitleId}-cover`}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    hidden
+                    onChange={(e) => handleImageChange(e.target.files ? e.target.files[0] : null)}
                   />
                 </div>
 

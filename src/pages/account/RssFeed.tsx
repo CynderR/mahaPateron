@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
+import PodcastMobileNav, { PodcastMobileHeader } from '../../components/mobile/PodcastMobileNav';
 import RssCopyWidget from '../../components/RssCopyWidget';
 import { buildRssUrl, rssTokenFromUrl } from '../../config';
 
@@ -38,10 +39,23 @@ const RssFeed: React.FC = () => {
   }, [data?.rssUrl]);
 
   return (
-    <div className="podcast-page">
-      <PodcastNav />
+    <div className="podcast-page rss-page">
+      <div className="feed-ht-desktop-only">
+        <PodcastNav />
+      </div>
+
+      <div className="pod-feed-mobile-only">
+        <PodcastMobileHeader title="RSS feed" subtitle="Private podcast URL" />
+      </div>
+
       <main className="podcast-main">
-        <h2 className="podcast-section-title">Your Private RSS Feed</h2>
+        <h2 className="podcast-section-title feed-ht-desktop-only">Your Private RSS Feed</h2>
+
+        <p className="pod-feed-mobile-only settings-rss-back">
+          <Link to="/account/settings" className="pod-btn pod-btn-secondary pod-btn-sm">
+            ← Back to Settings
+          </Link>
+        </p>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
@@ -67,7 +81,7 @@ const RssFeed: React.FC = () => {
                 <strong>MediaMonkey:</strong> Podcasts → Subscribe → paste the URL.
               </li>
               <li>
-                <strong>Apple Podcasts (desktop):</strong> File → Add a Show by URL, then paste.
+                <strong>Apple Podcasts:</strong> Library → Edit → Add a Show by URL, then paste.
               </li>
             </ol>
           </div>
@@ -82,6 +96,8 @@ const RssFeed: React.FC = () => {
           </div>
         )}
       </main>
+
+      <PodcastMobileNav />
     </div>
   );
 };
