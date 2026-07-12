@@ -51,12 +51,31 @@ const ACTIVE_SUB_STATUSES = new Set(['active', 'trialing']);
 const AWAITING_PAYMENT_STATUSES = new Set(['incomplete', 'unpaid']);
 const TERMINAL_SUB_STATUSES = new Set(['canceled', 'incomplete_expired']);
 
-const getPaymentIntentClientSecret = (subscription) => {
+// Stripe Basil API (SDK v22+) puts the Payment Element secret on
+// invoice.confirmation_secret; older APIs used invoice.payment_intent.
+const SUBSCRIPTION_CLIENT_SECRET_EXPAND = [
+  'latest_invoice.confirmation_secret',
+  'latest_invoice.payment_intent'
+];
+
+const getSubscriptionClientSecret = (subscription) => {
   const invoice = subscription && subscription.latest_invoice;
   if (!invoice || typeof invoice === 'string') return null;
+
+  const confirmationSecret = invoice.confirmation_secret;
+  if (
+    confirmationSecret &&
+    typeof confirmationSecret === 'object' &&
+    confirmationSecret.client_secret
+  ) {
+    return confirmationSecret.client_secret;
+  }
+
   const paymentIntent = invoice.payment_intent;
-  if (!paymentIntent || typeof paymentIntent === 'string') return null;
-  return paymentIntent.client_secret || null;
+  if (paymentIntent && typeof paymentIntent === 'object' && paymentIntent.client_secret) {
+    return paymentIntent.client_secret;
+  }
+  return null;
 };
 
 // If the user already has a usable Stripe subscription, reuse it instead of
@@ -66,7 +85,7 @@ const resolveExistingSubscription = async (user) => {
 
   try {
     const existing = await stripe.subscriptions.retrieve(user.stripe_sub_id, {
-      expand: ['latest_invoice.payment_intent']
+      expand: SUBSCRIPTION_CLIENT_SECRET_EXPAND
     });
 
     if (ACTIVE_SUB_STATUSES.has(existing.status)) {
@@ -79,7 +98,7 @@ const resolveExistingSubscription = async (user) => {
     }
 
     if (AWAITING_PAYMENT_STATUSES.has(existing.status)) {
-      const clientSecret = getPaymentIntentClientSecret(existing);
+      const clientSecret = getSubscriptionClientSecret(existing);
       if (clientSecret) {
         return {
           reused: true,
@@ -88,7 +107,7 @@ const resolveExistingSubscription = async (user) => {
           clientSecret
         };
       }
-      // Incomplete/unpaid but no PaymentIntent to confirm — cancel and recreate.
+      // Incomplete/unpaid but no secret to confirm — cancel and recreate.
       try {
         await stripe.subscriptions.cancel(existing.id);
       } catch (cancelError) {
@@ -215,20 +234,57 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
       });
     }
 
-    const subscription = await stripe.subscriptions.create({
-      customer: customerId,
-      items: [{ price: priceId }],
-      payment_behavior: 'default_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
-      expand: ['latest_invoice.payment_intent']
-    });
+    let subscription;
+    try {
+      subscription = await stripe.subscriptions.create({
+        customer: customerId,
+        items: [{ price: priceId }],
+        payment_behavior: 'default_incomplete',
+        payment_settings: { save_default_payment_method: 'on_subscription' },
+        expand: SUBSCRIPTION_CLIENT_SECRET_EXPAND
+      });
+    } catch (createError) {
+      // Stale customer ID from a previous Stripe mode/account — recreate customer once.
+      if (
+        createError &&
+        createError.code === 'resource_missing' &&
+        String(createError.message || '').includes('No such customer')
+      ) {
+        const customer = await stripe.customers.create({
+          email: freshUser.email,
+          name: freshUser.username,
+          metadata: { app_user_id: String(freshUser.id) }
+        });
+        customerId = customer.id;
+        await updateUserFields(freshUser.id, {
+          stripe_customer_id: customerId,
+          stripe_sub_id: null
+        });
+        subscription = await stripe.subscriptions.create({
+          customer: customerId,
+          items: [{ price: priceId }],
+          payment_behavior: 'default_incomplete',
+          payment_settings: { save_default_payment_method: 'on_subscription' },
+          expand: SUBSCRIPTION_CLIENT_SECRET_EXPAND
+        });
+      } else {
+        throw createError;
+      }
+    }
 
     await updateUserFields(freshUser.id, { stripe_sub_id: subscription.id });
 
-    const paymentIntent = subscription.latest_invoice && subscription.latest_invoice.payment_intent;
+    const clientSecret = getSubscriptionClientSecret(subscription);
+    if (!clientSecret) {
+      return res.status(500).json({
+        error:
+          'Subscription was created but no payment secret was returned. Check Stripe API version / invoice confirmation_secret.'
+      });
+    }
+
     res.json({
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent ? paymentIntent.client_secret : null
+      clientSecret
     });
   } catch (error) {
     console.error('Create subscription error:', error);

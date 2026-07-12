@@ -113,7 +113,7 @@ const Billing: React.FC = () => {
       } else if (res.data.clientSecret) {
         setClientSecret(res.data.clientSecret);
       } else {
-        setMessage('Subscription created.');
+        setError('Could not start payment. Please try again, or contact support if this continues.');
         await loadAll();
       }
     } catch (e: any) {
