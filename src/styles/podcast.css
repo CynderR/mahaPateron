@@ -3117,6 +3117,24 @@ body.global-now-playing-active .podcast-main {
   gap: 0.5rem;
 }
 
+.settings-rss-card p {
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+a.settings-rss-btn,
+a.pod-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
+.settings-rss-back {
+  margin: 0 0 1rem;
+}
+
 .ht-track-share {
   margin-left: auto;
 }
