@@ -284,6 +284,27 @@
   color: var(--text-info);
 }
 
+.pod-banner-subscribe {
+  background: #fff;
+  color: #000;
+  border: 1px solid var(--border-primary);
+  font-weight: 500;
+}
+
+.pod-banner-subscribe-link {
+  color: #1a4d8f;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.pod-banner-subscribe-link:hover {
+  color: #0f3a6b;
+}
+
+.stream-card-banner .pod-banner-subscribe {
+  margin: 0;
+}
+
 .share-access-notice {
   background: var(--bg-info);
   color: #000;

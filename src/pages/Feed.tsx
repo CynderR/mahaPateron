@@ -26,6 +26,8 @@ import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 
+import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
+
 import { FeedPost } from '../components/PostCard';
 
 import { buildImageUrl } from '../config';
@@ -452,15 +454,7 @@ const Feed: React.FC = () => {
 
 
 
-        {!loading && isNotSubscribed && (
-
-          <div className="pod-banner pod-banner-info">
-
-            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
-
-          </div>
-
-        )}
+        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
 
 
 
@@ -596,15 +590,7 @@ const Feed: React.FC = () => {
 
 
 
-          {!loading && isNotSubscribed && (
-
-            <div className="ht-banner ht-banner-info">
-
-              Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
-
-            </div>
-
-          )}
+          {!loading && isNotSubscribed && <SubscribeAccessBanner className="ht-banner" />}
 
 
 
