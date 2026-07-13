@@ -14,6 +14,8 @@ import StreamPlayer from '../components/StreamPlayer';
 
 import AdminFeedShareAction from '../components/admin/AdminFeedShareAction';
 
+import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
+
 import ThemeToggle from '../components/ThemeToggle';
 
 import { FeedPost } from '../components/PostCard';
@@ -403,11 +405,7 @@ const Stream: React.FC = () => {
 
           <div className="stream-card stream-card-banner">
 
-            <p className="stream-unavailable" style={{ margin: 0 }}>
-
-              Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
-
-            </p>
+            <SubscribeAccessBanner />
 
           </div>
 

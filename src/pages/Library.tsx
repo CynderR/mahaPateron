@@ -10,6 +10,7 @@ import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
+import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
 import {
@@ -233,11 +234,7 @@ const Library: React.FC = () => {
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && isNotSubscribed && (
-          <div className="pod-banner pod-banner-info">
-            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
-          </div>
-        )}
+        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
 
         {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
@@ -283,11 +280,7 @@ const Library: React.FC = () => {
       <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
 
-        {!loading && isNotSubscribed && (
-          <div className="pod-banner pod-banner-info">
-            Preview: 1 minute per episode. <Link to="/account/billing">Subscribe</Link> for full access.
-          </div>
-        )}
+        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
 
         {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
