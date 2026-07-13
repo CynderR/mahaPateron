@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { ROUTER_BASENAME } from '../../config';
 import PodcastNav from '../../components/PodcastNav';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface BillingConfig {
   publishableKey: string | null;
@@ -22,6 +23,8 @@ interface Subscription {
   amount?: number | null;
   currency?: string;
 }
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Inner form rendered once a PaymentIntent client secret exists.
 const CheckoutForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
@@ -66,6 +69,7 @@ const CheckoutForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 };
 
 const Billing: React.FC = () => {
+  const { refreshUser } = useAuth();
   const [config, setConfig] = useState<BillingConfig | null>(null);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [clientSecret, setClientSecret] = useState('');
@@ -79,22 +83,35 @@ const Billing: React.FC = () => {
     [config]
   );
 
-  const loadAll = async () => {
+  const loadAll = useCallback(async () => {
     try {
       const cfg = await axios.get<BillingConfig>('/payments/config');
       setConfig(cfg.data);
       const sub = await axios.get<Subscription>('/payments/subscription');
       setSubscription(sub.data);
+      await refreshUser();
     } catch (e) {
       setError('Could not load billing information.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshUser]);
+
+  // Webhooks can lag a moment after confirmPayment — poll profile briefly.
+  const syncAccessAfterPayment = useCallback(async () => {
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      const profile = await refreshUser();
+      if (profile && (profile.is_paying === true || profile.is_paying === 1)) {
+        return;
+      }
+      await sleep(800);
+    }
+    await refreshUser();
+  }, [refreshUser]);
 
   useEffect(() => {
     loadAll();
-  }, []);
+  }, [loadAll]);
 
   const startSubscription = async () => {
     if (busy) return;
@@ -150,6 +167,13 @@ const Billing: React.FC = () => {
     }
   };
 
+  const handlePaymentDone = async () => {
+    setClientSecret('');
+    setMessage('Payment confirmed. Your subscription is now active.');
+    await syncAccessAfterPayment();
+    await loadAll();
+  };
+
   return (
     <div className="podcast-page">
       <PodcastNav />
@@ -166,7 +190,9 @@ const Billing: React.FC = () => {
             <h3 style={{ marginTop: 0 }}>Billing</h3>
             <p style={{ margin: 0 }}>
               Your account is managed by the administrator and is not billed monthly through Stripe.
-              {subscription.is_paying ? ' Your access is currently active.' : ' Contact support if you need access restored.'}
+              {subscription.is_paying
+                ? ' Your access is currently active.'
+                : ' Contact support if you need access restored.'}
             </p>
           </div>
         ) : !config?.configured ? (
@@ -184,13 +210,7 @@ const Billing: React.FC = () => {
           <div className="pod-card">
             <h3 style={{ marginTop: 0 }}>Enter payment details</h3>
             <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <CheckoutForm
-                onDone={() => {
-                  setClientSecret('');
-                  setMessage('Payment confirmed. Your subscription is now active.');
-                  loadAll();
-                }}
-              />
+              <CheckoutForm onDone={handlePaymentDone} />
             </Elements>
           </div>
         ) : subscription && (subscription.active || subscription.is_paying) ? (

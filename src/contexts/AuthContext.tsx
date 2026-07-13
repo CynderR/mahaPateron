@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { isIOSDevice } from '../utils/streamLoader';
@@ -28,6 +28,8 @@ interface AuthContextType {
   login: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => void;
+  /** Re-fetch /profile so is_paying / payment_category stay in sync after billing. */
+  refreshUser: () => Promise<User | null>;
   loading: boolean;
   isAdmin: boolean;
 }
@@ -130,6 +132,18 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Soft refresh — used after pay/cancel. Does not log the user out on failure.
+  const refreshUser = useCallback(async (): Promise<User | null> => {
+    try {
+      const response = await axios.get<User>('/profile');
+      setUser(response.data);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to refresh user profile:', error);
+      return null;
+    }
+  }, []);
+
   const login = async (email: string, password: string, rememberMe = true) => {
     try {
       const response = await axios.post('/login', { email, password, rememberMe });
@@ -171,6 +185,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     register,
     logout,
+    refreshUser,
     loading,
     isAdmin
   };

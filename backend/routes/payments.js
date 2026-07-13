@@ -355,19 +355,31 @@ const webhookHandler = async (req, res) => {
     switch (event.type) {
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object;
-        const user = await getUserByStripeCustomerId(invoice.customer);
+        const customerId =
+          typeof invoice.customer === 'string'
+            ? invoice.customer
+            : invoice.customer && invoice.customer.id;
+        const user = customerId ? await getUserByStripeCustomerId(customerId) : null;
         // Stripe only drives Payment for paying subscribers (not free / non-card).
         if (user && user.monthly_payments) {
           await activateUserSubscription(user.id);
-          if (invoice.subscription) {
-            await updateUserFields(user.id, { stripe_sub_id: invoice.subscription });
+          const subscriptionId =
+            typeof invoice.subscription === 'string'
+              ? invoice.subscription
+              : invoice.subscription && invoice.subscription.id;
+          if (subscriptionId) {
+            await updateUserFields(user.id, { stripe_sub_id: subscriptionId });
           }
         }
         break;
       }
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
-        const user = await getUserByStripeCustomerId(invoice.customer);
+        const customerId =
+          typeof invoice.customer === 'string'
+            ? invoice.customer
+            : invoice.customer && invoice.customer.id;
+        const user = customerId ? await getUserByStripeCustomerId(customerId) : null;
         if (user && user.monthly_payments) {
           await deactivateUserSubscription(user.id);
         }
@@ -375,10 +387,18 @@ const webhookHandler = async (req, res) => {
       }
       case 'customer.subscription.deleted': {
         const subscription = event.data.object;
+        const customerId =
+          typeof subscription.customer === 'string'
+            ? subscription.customer
+            : subscription.customer && subscription.customer.id;
         const user =
           (await getUserByStripeSubId(subscription.id)) ||
-          (await getUserByStripeCustomerId(subscription.customer));
+          (customerId ? await getUserByStripeCustomerId(customerId) : null);
         if (user && user.monthly_payments) {
+          // Ignore stale deletes after the user already started a newer subscription.
+          if (user.stripe_sub_id && user.stripe_sub_id !== subscription.id) {
+            break;
+          }
           await deactivateUserSubscription(user.id);
         }
         break;
