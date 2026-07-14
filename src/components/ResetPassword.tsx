@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { ThemeToggleFixed } from './ThemeToggle';
+import PasswordInput from './PasswordInput';
 import './Auth.css';
 
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -26,6 +27,8 @@ const ResetPassword: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -128,8 +131,7 @@ const ResetPassword: React.FC = () => {
             <form onSubmit={handleSubmit} className="auth-form">
               <div className="form-group">
                 <label htmlFor="newPassword">New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   id="newPassword"
                   name="newPassword"
                   value={formData.newPassword}
@@ -139,6 +141,8 @@ const ResetPassword: React.FC = () => {
                   placeholder="Enter new password"
                   disabled={loading || !!success}
                   autoComplete="new-password"
+                  show={showPassword}
+                  onToggle={() => setShowPassword((prev) => !prev)}
                 />
                 <small style={{ display: 'block', marginTop: '4px', color: '#666', fontSize: '0.875rem' }}>
                   Password must be at least 8 characters long
@@ -147,8 +151,7 @@ const ResetPassword: React.FC = () => {
 
               <div className="form-group">
                 <label htmlFor="confirmPassword">Confirm New Password</label>
-                <input
-                  type="password"
+                <PasswordInput
                   id="confirmPassword"
                   name="confirmPassword"
                   value={formData.confirmPassword}
@@ -158,6 +161,8 @@ const ResetPassword: React.FC = () => {
                   placeholder="Confirm new password"
                   disabled={loading || !!success}
                   autoComplete="new-password"
+                  show={showConfirmPassword}
+                  onToggle={() => setShowConfirmPassword((prev) => !prev)}
                 />
               </div>
 

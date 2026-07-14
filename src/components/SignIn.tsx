@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggleFixed } from './ThemeToggle';
+import PasswordInput from './PasswordInput';
 import './Auth.css';
 
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -19,6 +20,7 @@ const SignIn: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(
     () => localStorage.getItem('rememberMe') !== 'false'
   );
@@ -80,13 +82,15 @@ const SignIn: React.FC = () => {
 
           <div className="form-group">
             <label htmlFor="password">Password</label>
-            <input
-              type="password"
+            <PasswordInput
               id="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              autoComplete="current-password"
               placeholder="Enter your password"
+              show={showPassword}
+              onToggle={() => setShowPassword((prev) => !prev)}
             />
           </div>
 

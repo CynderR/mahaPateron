@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggleFixed } from './ThemeToggle';
+import PasswordInput from './PasswordInput';
 import './Auth.css';
 
 const SignUp: React.FC = () => {
@@ -17,12 +18,14 @@ const SignUp: React.FC = () => {
   const [message, setMessage] = useState('');
   const [verificationSent, setVerificationSent] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { register } = useAuth();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
@@ -104,130 +107,121 @@ const SignUp: React.FC = () => {
   return (
     <div className="auth-container">
       <ThemeToggleFixed />
-      {/* Fixed content layer */}
       <div className="auth-content-layer">
         <div className="auth-card">
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-        {message && (
-          <div className="success-message">
-            {message}
-          </div>
-        )}
+          {error && <div className="error-message">{error}</div>}
+          {message && <div className="success-message">{message}</div>}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="username">Username *</label>
-            <input
-              type="text"
-              id="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              required
-              placeholder="Choose a username"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="email">Email Address *</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              required
-              placeholder="Enter your email"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="password">Password *</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={8}
-              placeholder="Create a password (8+ characters)"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="confirmPassword">Confirm Password *</label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              placeholder="Confirm your password"
-            />
-          </div>
-
-          {verificationSent && (
+          <form onSubmit={handleSubmit} className="auth-form">
             <div className="form-group">
-              <label htmlFor="verificationCode">Verification Code *</label>
+              <label htmlFor="username">Username *</label>
               <input
                 type="text"
-                id="verificationCode"
-                name="verificationCode"
-                value={formData.verificationCode}
+                id="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 required
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                placeholder="Enter the 6-digit code"
+                placeholder="Choose a username"
               />
             </div>
-          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="auth-button"
-          >
-            {loading
-              ? verificationSent
-                ? 'Creating account...'
-                : 'Sending code...'
-              : verificationSent
-                ? 'Create Account'
-                : 'Send Verification Code'}
-          </button>
-          {verificationSent && (
-            <button
-              type="button"
-              className="auth-button auth-button-secondary"
-              disabled={loading}
-              onClick={requestVerificationCode}
-            >
-              Resend Code
+            <div className="form-group">
+              <label htmlFor="email">Email Address *</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                required
+                placeholder="Enter your email"
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password *</label>
+              <PasswordInput
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                minLength={8}
+                autoComplete="new-password"
+                placeholder="Create a password (8+ characters)"
+                show={showPassword}
+                onToggle={() => setShowPassword((prev) => !prev)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="confirmPassword">Confirm Password *</label>
+              <PasswordInput
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                autoComplete="new-password"
+                placeholder="Confirm your password"
+                show={showConfirmPassword}
+                onToggle={() => setShowConfirmPassword((prev) => !prev)}
+              />
+            </div>
+
+            {verificationSent && (
+              <div className="form-group">
+                <label htmlFor="verificationCode">Verification Code *</label>
+                <input
+                  type="text"
+                  id="verificationCode"
+                  name="verificationCode"
+                  value={formData.verificationCode}
+                  onChange={handleChange}
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="Enter the 6-digit code"
+                />
+              </div>
+            )}
+
+            <button type="submit" disabled={loading} className="auth-button">
+              {loading
+                ? verificationSent
+                  ? 'Creating account...'
+                  : 'Sending code...'
+                : verificationSent
+                  ? 'Create Account'
+                  : 'Send Verification Code'}
             </button>
-          )}
-        </form>
+            {verificationSent && (
+              <button
+                type="button"
+                className="auth-button auth-button-secondary"
+                disabled={loading}
+                onClick={requestVerificationCode}
+              >
+                Resend Code
+              </button>
+            )}
+          </form>
 
-        <div className="auth-footer">
-          <p>
-            Already have an account?{' '}
-            <Link to="/signin" className="auth-link">
-              Sign in here
-            </Link>
-          </p>
-          <p>
-            <Link to="/" className="auth-link">
-              ← Back to Home
-            </Link>
-          </p>
+          <div className="auth-footer">
+            <p>
+              Already have an account?{' '}
+              <Link to="/signin" className="auth-link">
+                Sign in here
+              </Link>
+            </p>
+            <p>
+              <Link to="/" className="auth-link">
+                ← Back to Home
+              </Link>
+            </p>
+          </div>
         </div>
-      </div>
       </div>
     </div>
   );
