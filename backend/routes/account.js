@@ -181,7 +181,7 @@ router.get('/rss', async (req, res) => {
 router.put('/settings', async (req, res) => {
   try {
     const userId = req.user.id;
-    const { username, email, whatsapp_id, signal_id } = req.body;
+    const { username, email } = req.body;
     const data = {};
 
     if (username !== undefined) {
@@ -198,8 +198,6 @@ router.put('/settings', async (req, res) => {
       }
       data.email = email;
     }
-    if (whatsapp_id !== undefined) data.whatsapp_id = whatsapp_id;
-    if (signal_id !== undefined) data.signal_id = signal_id;
 
     await updateUserFields(userId, data);
     const updated = await getUserById(userId);

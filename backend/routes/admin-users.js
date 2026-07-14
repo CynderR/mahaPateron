@@ -119,7 +119,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const {
-      username, email, password, whatsapp_id, signal_id,
+      username, email, password,
       payment_category, access_type, subscription_price, is_admin, is_paying,
       back_catalog_access, monthly_payments, download_access
     } = req.body;
@@ -165,8 +165,8 @@ router.post('/', async (req, res) => {
       username,
       email,
       password: hashedPassword,
-      whatsapp_id: whatsapp_id || null,
-      signal_id: signal_id || null,
+      whatsapp_id: null,
+      signal_id: null,
       payment_category: freeFields.payment_category,
       access_type: access_type || 'streaming',
       subscription_price: subscription_price !== undefined && subscription_price !== '' ? parseFloat(subscription_price) : null,

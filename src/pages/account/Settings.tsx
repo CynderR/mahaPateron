@@ -9,7 +9,7 @@ const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState({ username: '', email: '', whatsapp_id: '', signal_id: '' });
+  const [profile, setProfile] = useState({ username: '', email: '' });
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -18,9 +18,7 @@ const Settings: React.FC = () => {
     if (user) {
       setProfile({
         username: user.username || '',
-        email: user.email || '',
-        whatsapp_id: user.whatsapp_id || '',
-        signal_id: user.signal_id || ''
+        email: user.email || ''
       });
     }
   }, [user]);
@@ -117,24 +115,6 @@ const Settings: React.FC = () => {
               className="pod-input"
               value={profile.email}
               onChange={(e) => setProfile({ ...profile, email: e.target.value })}
-            />
-          </div>
-          <div className="pod-form-group">
-            <label htmlFor="whatsapp">WhatsApp ID</label>
-            <input
-              id="whatsapp"
-              className="pod-input"
-              value={profile.whatsapp_id}
-              onChange={(e) => setProfile({ ...profile, whatsapp_id: e.target.value })}
-            />
-          </div>
-          <div className="pod-form-group">
-            <label htmlFor="signal">Signal ID</label>
-            <input
-              id="signal"
-              className="pod-input"
-              value={profile.signal_id}
-              onChange={(e) => setProfile({ ...profile, signal_id: e.target.value })}
             />
           </div>
           <button type="submit" className="pod-btn">

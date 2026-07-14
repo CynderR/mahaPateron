@@ -23,8 +23,6 @@ interface NewUserForm {
   email: string;
   password: string;
   confirmPassword: string;
-  whatsapp_id: string;
-  signal_id: string;
   subscription_status: SubscriptionStatus;
   paying_tier: PayingTier;
   payment_category: PaymentCategory;
@@ -47,8 +45,6 @@ const emptyNewUser: NewUserForm = {
   email: '',
   password: '',
   confirmPassword: '',
-  whatsapp_id: '',
-  signal_id: '',
   subscription_status: 'not_subscribed' as SubscriptionStatus,
   paying_tier: 'paying_subscriber' as PayingTier,
   payment_category: NOT_SUBSCRIBED_PAYMENT_CATEGORY,
@@ -281,14 +277,6 @@ const Users: React.FC = () => {
                 show={showConfirmPassword}
                 onToggle={() => setShowConfirmPassword((v) => !v)}
               />
-            </div>
-            <div className="pod-form-group">
-              <label>WhatsApp ID</label>
-              <input className="pod-input" value={newUser.whatsapp_id} onChange={(e) => setNewUser({ ...newUser, whatsapp_id: e.target.value })} />
-            </div>
-            <div className="pod-form-group">
-              <label>Signal ID</label>
-              <input className="pod-input" value={newUser.signal_id} onChange={(e) => setNewUser({ ...newUser, signal_id: e.target.value })} />
             </div>
             <div className="pod-form-group">
               <label>Role</label>
