@@ -53,147 +53,286 @@ const UserTable: React.FC<UserTableProps> = ({
     navigator.clipboard.writeText(`${rssBaseUrl}/rss/${token}`).catch(() => {});
   };
 
-  return (
-    <div className="pod-table-wrap pod-table-wrap-users">
-      <table className="pod-table">
-        <thead>
-          <tr>
-            <th>User</th>
-            <th>Role</th>
-            <th title="Subscribed or Not Subscribed">Payment</th>
-            <th>Paying</th>
-            <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
-            <th title="Allow episode downloads for this user">Download</th>
-            <th>RSS</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((u) => {
-            const isDeleted = !!u.deleted_at;
+  const renderAccessControls = (u: AdminUser, isDeleted: boolean) => (
+    <>
+      <label className="pod-user-field">
+        <span className="pod-user-field-label">Role</span>
+        <select
+          className="pod-select"
+          value={u.is_admin ? 'admin' : 'user'}
+          disabled={isDeleted}
+          onChange={(e) => onUpdate(u.id, 'is_admin', e.target.value === 'admin')}
+        >
+          <option value="user">user</option>
+          <option value="admin">admin</option>
+        </select>
+      </label>
 
-            return (
-            <tr key={u.id} className={isDeleted ? 'pod-table-row-muted' : undefined}>
-              <td>
-                <div style={{ fontWeight: 600 }}>{u.username}</div>
-                <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{u.email}</div>
-                {isDeleted && (
-                  <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
-                    Deleted
-                  </div>
-                )}
-              </td>
-              <td>
-                <select
-                  className="pod-select"
-                  value={u.is_admin ? 'admin' : 'user'}
-                  disabled={isDeleted}
-                  onChange={(e) => onUpdate(u.id, 'is_admin', e.target.value === 'admin')}
-                >
-                  <option value="user">user</option>
-                  <option value="admin">admin</option>
-                </select>
-              </td>
-              <td>
-                <SubscriptionToggle
-                  value={subscriptionStatusFromUser(u.payment_category, u.is_paying)}
-                  disabled={isDeleted}
-                  onChange={(status) => onSubscriptionChange(u.id, status, u.payment_category)}
-                />
-              </td>
-              <td>
-                <PayingTierSelect
-                  paymentCategory={u.payment_category}
-                  isPaying={u.is_paying}
-                  disabled={isDeleted}
-                  onChange={(tier) => onPayingTierChange(u.id, tier)}
-                />
-              </td>
-              <td>
-                <select
-                  className="pod-select"
-                  value={adminAccessTypeValue(u.access_type)}
-                  disabled={isDeleted}
-                  onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
-                >
-                  {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <input
-                  type="checkbox"
-                  checked={!!u.download_access}
-                  title="Episode download access"
-                  disabled={isDeleted}
-                  onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
-                />
-              </td>
-              <td>
-                <button
-                  type="button"
-                  className="pod-btn pod-btn-secondary pod-btn-sm"
-                  disabled={isDeleted}
-                  onClick={() => copyRss(u.rss_token)}
-                >
-                  Copy URL
-                </button>
-              </td>
-              <td>
-                {isDeleted ? (
-                  <>
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-sm"
-                      onClick={() => onRestore(u.id)}
-                    >
-                      Undelete
-                    </button>
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-danger pod-btn-sm"
-                      style={{ marginTop: '0.35rem' }}
-                      onClick={() => onDelete(u.id, 'permanent')}
-                    >
-                      Permanently delete
-                    </button>
-                  </>
-                ) : (
-                  <>
+      <div className="pod-user-field">
+        <span className="pod-user-field-label">Payment</span>
+        <SubscriptionToggle
+          value={subscriptionStatusFromUser(u.payment_category, u.is_paying)}
+          disabled={isDeleted}
+          onChange={(status) => onSubscriptionChange(u.id, status, u.payment_category)}
+        />
+      </div>
+
+      <label className="pod-user-field">
+        <span className="pod-user-field-label">Paying</span>
+        <PayingTierSelect
+          paymentCategory={u.payment_category}
+          isPaying={u.is_paying}
+          disabled={isDeleted}
+          onChange={(tier) => onPayingTierChange(u.id, tier)}
+        />
+      </label>
+
+      <label className="pod-user-field">
+        <span className="pod-user-field-label" title="streaming: web player only. rss: web player plus podcast RSS feed.">
+          Access
+        </span>
+        <select
+          className="pod-select"
+          value={adminAccessTypeValue(u.access_type)}
+          disabled={isDeleted}
+          onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
+        >
+          {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <label className="pod-user-field pod-user-field-inline">
+        <input
+          type="checkbox"
+          checked={!!u.download_access}
+          title="Episode download access"
+          disabled={isDeleted}
+          onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
+        />
+        <span>Download access</span>
+      </label>
+    </>
+  );
+
+  const renderActions = (u: AdminUser, isDeleted: boolean) => (
+    <div className="pod-user-actions">
+      <button
+        type="button"
+        className="pod-btn pod-btn-secondary pod-btn-sm"
+        disabled={isDeleted}
+        onClick={() => copyRss(u.rss_token)}
+      >
+        Copy RSS URL
+      </button>
+
+      {isDeleted ? (
+        <>
+          <button type="button" className="pod-btn pod-btn-sm" onClick={() => onRestore(u.id)}>
+            Undelete
+          </button>
+          <button
+            type="button"
+            className="pod-btn pod-btn-danger pod-btn-sm"
+            onClick={() => onDelete(u.id, 'permanent')}
+          >
+            Permanently delete
+          </button>
+        </>
+      ) : (
+        <>
+          <select
+            className="pod-select"
+            value={deleteModes[u.id] || 'reuse_email'}
+            title="Choose how this account should be deleted"
+            onChange={(e) =>
+              setDeleteModes((current) => ({
+                ...current,
+                [u.id]: e.target.value as AdminDeleteMode
+              }))
+            }
+          >
+            <option value="reuse_email">Clear email + delete</option>
+            <option value="permanent">Permanently delete</option>
+          </select>
+          <button
+            type="button"
+            className="pod-btn pod-btn-danger pod-btn-sm"
+            onClick={() => onDelete(u.id, deleteModes[u.id] || 'reuse_email')}
+          >
+            Delete
+          </button>
+        </>
+      )}
+    </div>
+  );
+
+  return (
+    <>
+      {/* Desktop: wide table */}
+      <div className="pod-table-wrap pod-table-wrap-users pod-users-desktop">
+        <table className="pod-table">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th title="Subscribed or Not Subscribed">Payment</th>
+              <th>Paying</th>
+              <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
+              <th title="Allow episode downloads for this user">Download</th>
+              <th>RSS</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {users.map((u) => {
+              const isDeleted = !!u.deleted_at;
+
+              return (
+                <tr key={u.id} className={isDeleted ? 'pod-table-row-muted' : undefined}>
+                  <td>
+                    <div style={{ fontWeight: 600 }}>{u.username}</div>
+                    <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem' }}>{u.email}</div>
+                    {isDeleted && (
+                      <div style={{ color: 'var(--text-tertiary)', fontSize: '0.78rem', marginTop: '0.2rem' }}>
+                        Deleted
+                      </div>
+                    )}
+                  </td>
+                  <td>
                     <select
                       className="pod-select"
-                      value={deleteModes[u.id] || 'reuse_email'}
-                      title="Choose how this account should be deleted"
-                      onChange={(e) =>
-                        setDeleteModes((current) => ({
-                          ...current,
-                          [u.id]: e.target.value as AdminDeleteMode
-                        }))
-                      }
+                      value={u.is_admin ? 'admin' : 'user'}
+                      disabled={isDeleted}
+                      onChange={(e) => onUpdate(u.id, 'is_admin', e.target.value === 'admin')}
                     >
-                      <option value="reuse_email">Clear email + delete</option>
-                      <option value="permanent">Permanently delete</option>
+                      <option value="user">user</option>
+                      <option value="admin">admin</option>
                     </select>
+                  </td>
+                  <td>
+                    <SubscriptionToggle
+                      value={subscriptionStatusFromUser(u.payment_category, u.is_paying)}
+                      disabled={isDeleted}
+                      onChange={(status) => onSubscriptionChange(u.id, status, u.payment_category)}
+                    />
+                  </td>
+                  <td>
+                    <PayingTierSelect
+                      paymentCategory={u.payment_category}
+                      isPaying={u.is_paying}
+                      disabled={isDeleted}
+                      onChange={(tier) => onPayingTierChange(u.id, tier)}
+                    />
+                  </td>
+                  <td>
+                    <select
+                      className="pod-select"
+                      value={adminAccessTypeValue(u.access_type)}
+                      disabled={isDeleted}
+                      onChange={(e) => onUpdate(u.id, 'access_type', e.target.value)}
+                    >
+                      {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      type="checkbox"
+                      checked={!!u.download_access}
+                      title="Episode download access"
+                      disabled={isDeleted}
+                      onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
+                    />
+                  </td>
+                  <td>
                     <button
                       type="button"
-                      className="pod-btn pod-btn-danger pod-btn-sm"
-                      style={{ marginTop: '0.35rem' }}
-                      onClick={() => onDelete(u.id, deleteModes[u.id] || 'reuse_email')}
+                      className="pod-btn pod-btn-secondary pod-btn-sm"
+                      disabled={isDeleted}
+                      onClick={() => copyRss(u.rss_token)}
                     >
-                      Delete
+                      Copy URL
                     </button>
-                  </>
-                )}
-              </td>
-            </tr>
+                  </td>
+                  <td>
+                    {isDeleted ? (
+                      <>
+                        <button type="button" className="pod-btn pod-btn-sm" onClick={() => onRestore(u.id)}>
+                          Undelete
+                        </button>
+                        <button
+                          type="button"
+                          className="pod-btn pod-btn-danger pod-btn-sm"
+                          style={{ marginTop: '0.35rem' }}
+                          onClick={() => onDelete(u.id, 'permanent')}
+                        >
+                          Permanently delete
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <select
+                          className="pod-select"
+                          value={deleteModes[u.id] || 'reuse_email'}
+                          title="Choose how this account should be deleted"
+                          onChange={(e) =>
+                            setDeleteModes((current) => ({
+                              ...current,
+                              [u.id]: e.target.value as AdminDeleteMode
+                            }))
+                          }
+                        >
+                          <option value="reuse_email">Clear email + delete</option>
+                          <option value="permanent">Permanently delete</option>
+                        </select>
+                        <button
+                          type="button"
+                          className="pod-btn pod-btn-danger pod-btn-sm"
+                          style={{ marginTop: '0.35rem' }}
+                          onClick={() => onDelete(u.id, deleteModes[u.id] || 'reuse_email')}
+                        >
+                          Delete
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Mobile: stacked cards — selects are not inside a horizontal scroll container */}
+      <div className="pod-users-mobile" role="list">
+        {users.map((u) => {
+          const isDeleted = !!u.deleted_at;
+
+          return (
+            <article
+              key={u.id}
+              className={`pod-user-card${isDeleted ? ' pod-user-card-muted' : ''}`}
+              role="listitem"
+            >
+              <header className="pod-user-card-header">
+                <div className="pod-user-card-name">{u.username}</div>
+                <div className="pod-user-card-email">{u.email}</div>
+                {isDeleted && <div className="pod-user-card-badge">Deleted</div>}
+              </header>
+              <div className="pod-user-card-fields">{renderAccessControls(u, isDeleted)}</div>
+              {renderActions(u, isDeleted)}
+            </article>
           );
-          })}
-        </tbody>
-      </table>
-    </div>
+        })}
+      </div>
+    </>
   );
 };
 

@@ -408,6 +408,121 @@
   padding: 0.35rem 0.55rem;
 }
 
+/* Admin users: desktop table vs mobile cards */
+.pod-users-mobile {
+  display: none;
+}
+
+.pod-user-card {
+  border: 1px solid var(--border-primary);
+  border-radius: 0.75rem;
+  background: var(--bg-card);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.pod-user-card-muted {
+  opacity: 0.72;
+}
+
+.pod-user-card-header {
+  margin-bottom: 0.85rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.pod-user-card-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.pod-user-card-email {
+  color: var(--text-tertiary);
+  font-size: 0.85rem;
+  margin-top: 0.15rem;
+  word-break: break-word;
+}
+
+.pod-user-card-badge {
+  color: var(--text-tertiary);
+  font-size: 0.78rem;
+  margin-top: 0.35rem;
+}
+
+.pod-user-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pod-user-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.pod-user-field-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pod-user-field .pod-select {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  font-size: 1rem;
+  min-height: 2.75rem;
+  touch-action: manipulation;
+}
+
+.pod-user-field-inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.55rem;
+  font-size: 0.95rem;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.pod-user-field-inline input {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.pod-user-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-primary);
+}
+
+.pod-user-actions .pod-select,
+.pod-user-actions .pod-btn {
+  width: 100%;
+  font-size: 1rem;
+  min-height: 2.75rem;
+  touch-action: manipulation;
+}
+
+@media (max-width: 768px) {
+  .pod-users-desktop {
+    display: none !important;
+  }
+
+  .pod-users-mobile {
+    display: block;
+  }
+}
+
 .pod-admin-toolbar {
   display: flex;
   flex-wrap: wrap;
