@@ -216,14 +216,9 @@ const Users: React.FC = () => {
     <div className="podcast-page">
       <PodcastNav />
       <main className="podcast-main podcast-main-wide">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-          <h2 className="podcast-section-title" style={{ marginBottom: 0 }}>
-            Users {data ? `(${data.total})` : ''}
-          </h2>
-          <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
-            {showAdd ? 'Close' : 'Add User'}
-          </button>
-        </div>
+        <h2 className="podcast-section-title">
+          Users {data ? `(${data.total})` : ''}
+        </h2>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
         {message && <div className="pod-banner pod-banner-success">{message}</div>}
@@ -464,6 +459,12 @@ const Users: React.FC = () => {
                 <option value="deleted">Deleted</option>
                 <option value="all">All</option>
               </select>
+            </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label>&nbsp;</label>
+              <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
+                {showAdd ? 'Close' : 'Add User'}
+              </button>
             </div>
           </div>
         </div>
