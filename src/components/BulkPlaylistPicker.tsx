@@ -5,12 +5,15 @@ interface BulkPlaylistPickerProps {
   postIds: string[];
   onComplete?: () => void;
   className?: string;
+  /** dropdown = toolbar button + menu; panel = always-visible add/create controls */
+  variant?: 'dropdown' | 'panel';
 }
 
 const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
   postIds,
   onComplete,
-  className = ''
+  className = '',
+  variant = 'dropdown'
 }) => {
   const { playlists, createPlaylist, addManyToPlaylist, refreshPlaylists } = usePlayer();
   const [open, setOpen] = useState(false);
@@ -18,14 +21,16 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
+  const isPanel = variant === 'panel';
+  const showMenu = isPanel || open;
 
   useEffect(() => {
-    if (!open) return;
+    if (!showMenu) return;
     refreshPlaylists().catch(() => {});
-  }, [open, refreshPlaylists]);
+  }, [showMenu, refreshPlaylists]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || isPanel) return;
     const onPointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setOpen(false);
@@ -33,7 +38,7 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
+  }, [open, isPanel]);
 
   useEffect(() => {
     if (postIds.length === 0) {
@@ -93,47 +98,56 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     }
   };
 
-  return (
-    <div ref={rootRef} className={`playlist-picker playlist-picker-toolbar ${className}`.trim()}>
-      <button
-        type="button"
-        className="pod-btn pod-btn-sm pod-btn-secondary"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-      >
-        Add to playlist
-      </button>
-      {open && (
-        <div className="playlist-picker-menu" role="menu">
-          <p className="playlist-picker-title">Add {countLabel} to playlist</p>
-          {playlists.length > 0 && (
-            <ul className="playlist-picker-list">
-              {playlists.map((pl) => (
-                <li key={pl.id}>
-                  <button type="button" disabled={busy} onClick={() => handleAdd(pl.id, pl.name)}>
-                    {pl.name} ({pl.item_count})
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-          <form className="playlist-picker-new" onSubmit={handleCreate}>
-            <input
-              type="text"
-              className="pod-input"
-              placeholder="New playlist name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              disabled={busy}
-            />
-            <button type="submit" className="pod-btn pod-btn-sm" disabled={busy || !newName.trim()}>
-              Create & add
-            </button>
-          </form>
-          {message && <p className="playlist-picker-msg">{message}</p>}
-        </div>
+  const menu = showMenu && (
+    <div className={isPanel ? 'playlist-picker-panel' : 'playlist-picker-menu'} role="menu">
+      <p className="playlist-picker-title">Add {countLabel} to playlist</p>
+      {playlists.length > 0 ? (
+        <ul className="playlist-picker-list">
+          {playlists.map((pl) => (
+            <li key={pl.id}>
+              <button type="button" disabled={busy} onClick={() => handleAdd(pl.id, pl.name)}>
+                {pl.name} ({pl.item_count})
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="playlist-picker-empty">No playlists yet — create one below.</p>
       )}
+      <form className="playlist-picker-new" onSubmit={handleCreate}>
+        <input
+          type="text"
+          className="pod-input"
+          placeholder="New playlist name"
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          disabled={busy}
+        />
+        <button type="submit" className="pod-btn pod-btn-sm" disabled={busy || !newName.trim()}>
+          Create & add
+        </button>
+      </form>
+      {message && <p className="playlist-picker-msg">{message}</p>}
+    </div>
+  );
+
+  return (
+    <div
+      ref={rootRef}
+      className={`playlist-picker playlist-picker-toolbar${isPanel ? ' playlist-picker-panel-root' : ''} ${className}`.trim()}
+    >
+      {!isPanel && (
+        <button
+          type="button"
+          className="pod-btn pod-btn-sm pod-btn-secondary"
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+        >
+          Add to playlist
+        </button>
+      )}
+      {menu}
     </div>
   );
 };

@@ -4,6 +4,8 @@ import { AdminSortDir, AdminSortField } from '../utils/adminTableHelpers';
 
 interface MemberEpisodeToolbarProps {
   onSearch: (query: string) => void;
+  /** Applied search query from parent — keeps the input in sync when search is cleared elsewhere */
+  searchQuery?: string;
   placeholder?: string;
   resultCount?: number;
   totalCount?: number;
@@ -20,6 +22,7 @@ interface MemberEpisodeToolbarProps {
 }
 const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   onSearch,
+  searchQuery,
   placeholder = 'Search by title or description…',
   resultCount,
   totalCount,
@@ -34,8 +37,14 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   selectionActions,
   showMobileSelectionBar = false
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(searchQuery ?? '');
   const selectAllRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setQuery(searchQuery);
+    }
+  }, [searchQuery]);
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();

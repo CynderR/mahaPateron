@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import LibraryAddForm from '../../components/LibraryAddForm';
@@ -6,6 +6,7 @@ import AdminFeedPostShareButton from '../../components/admin/AdminFeedPostShareB
 import AdminPostEditButton from '../../components/admin/AdminPostEditButton';
 import AdminTableToolbar from '../../components/AdminTableToolbar';
 import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
+import LibrarySearchResultsDialog from '../../components/LibrarySearchResultsDialog';
 import SortableTableHeader from '../../components/SortableTableHeader';
 import { buildImageUrl } from '../../config';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
@@ -15,6 +16,11 @@ import {
   AdminSortField,
   nextSortState
 } from '../../utils/adminTableHelpers';
+import {
+  EPISODE_PAGE_MAX,
+  fetchAllEpisodeIds,
+  useEpisodeSelection
+} from '../../utils/episodeListHelpers';
 
 interface LibraryEntry {
   id: string;
@@ -60,14 +66,17 @@ const AdminLibrary: React.FC = () => {
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
   const [page, setPage] = useState(1);
   const [refreshKey, setRefreshKey] = useState(0);
-  const limit = 20;
+  const [selectingAll, setSelectingAll] = useState(false);
+  const { selectedIds, toggleSelect, selectAll, clearSelection } = useEpisodeSelection();
+  const limit = searchQuery ? EPISODE_PAGE_MAX : 20;
   const hasMore = entries.length < total;
 
   useEffect(() => {
     setPage(1);
     setEntries([]);
     setLoading(true);
-  }, [searchQuery, sortField, sortDir]);
+    clearSelection();
+  }, [searchQuery, sortField, sortDir, clearSelection]);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +125,42 @@ const AdminLibrary: React.FC = () => {
     setRefreshKey((key) => key + 1);
   };
 
+  const listParams = useMemo(() => {
+    const params: Record<string, string | number> = { dir: sortDir };
+    if (searchQuery) params.q = searchQuery;
+    if (sortField) params.sort = sortField;
+    return params;
+  }, [searchQuery, sortField, sortDir]);
+
+  const handleSelectAll = useCallback(
+    async (checked: boolean) => {
+      if (!checked) {
+        selectAll([], false);
+        return;
+      }
+      if (entries.length >= total) {
+        selectAll(
+          entries.map((e) => e.id),
+          true
+        );
+        return;
+      }
+      setSelectingAll(true);
+      try {
+        const allIds = await fetchAllEpisodeIds('/admin/library', listParams, total);
+        selectAll(allIds, true);
+      } catch {
+        selectAll(
+          entries.map((e) => e.id),
+          true
+        );
+      } finally {
+        setSelectingAll(false);
+      }
+    },
+    [entries, total, listParams, selectAll]
+  );
+
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
     setPage((current) => current + 1);
@@ -126,6 +171,11 @@ const AdminLibrary: React.FC = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
   };
+
+  const closeSearchDialog = useCallback(() => {
+    setSearchQuery('');
+    clearSelection();
+  }, [clearSelection]);
 
   const handleSort = (field: AdminSortField) => {
     const next = nextSortState(field, sortField, sortDir);
@@ -159,6 +209,23 @@ const AdminLibrary: React.FC = () => {
 
   return (
     <div className="podcast-page">
+      <LibrarySearchResultsDialog
+        open={Boolean(searchQuery)}
+        query={searchQuery}
+        entries={entries}
+        total={total}
+        catalogTotal={meta?.catalogTotal ?? 0}
+        loading={loading}
+        loadingMore={loadingMore}
+        hasMore={hasMore}
+        onLoadMore={loadMore}
+        onClose={closeSearchDialog}
+        selectedIds={selectedIds}
+        onSelectChange={toggleSelect}
+        onSelectAll={handleSelectAll}
+        selectAllBusy={selectingAll}
+        showPlaylists
+      />
       <PodcastNav />
       <main className="podcast-main">
         <h2 className="podcast-section-title">
@@ -177,6 +244,7 @@ const AdminLibrary: React.FC = () => {
 
         <AdminTableToolbar
           onSearch={handleSearch}
+          searchQuery={searchQuery}
           placeholder="Search by title, description, artist, album, year, or genre…"
           totalCount={meta?.catalogTotal ?? 0}
           resultCount={total}

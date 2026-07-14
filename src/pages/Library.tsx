@@ -10,6 +10,7 @@ import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
+import LibrarySearchResultsDialog from '../components/LibrarySearchResultsDialog';
 import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
@@ -154,6 +155,11 @@ const Library: React.FC = () => {
     setSearchQuery(query);
   };
 
+  const closeSearchDialog = useCallback(() => {
+    setSearchQuery('');
+    clearSelection();
+  }, [clearSelection]);
+
   const handleSort = (field: AdminSortField) => {
     const next = nextSortState(field, sortField, sortDir);
     setSortField(next.field);
@@ -186,6 +192,7 @@ const Library: React.FC = () => {
     (meta?.catalogTotal ?? 0) > 0 && (
       <MemberEpisodeToolbar
         onSearch={handleSearch}
+        searchQuery={searchQuery}
         placeholder="Search by title, description, artist, album, year, or genre…"
         resultCount={total}
         totalCount={meta?.catalogTotal ?? 0}
@@ -215,8 +222,30 @@ const Library: React.FC = () => {
     />
   );
 
+  const searchResultsDialog = (
+    <LibrarySearchResultsDialog
+      open={Boolean(searchQuery)}
+      query={searchQuery}
+      entries={entries}
+      total={total}
+      catalogTotal={meta?.catalogTotal ?? 0}
+      loading={loading}
+      loadingMore={loadingMore}
+      hasMore={hasMore}
+      onLoadMore={loadMore}
+      onClose={closeSearchDialog}
+      selectedIds={selectedIds}
+      onSelectChange={toggleSelect}
+      onSelectAll={handleSelectAll}
+      selectAllBusy={selectingAll}
+      showPlaylists
+    />
+  );
+
   return (
     <div className="podcast-page library-page">
+      {searchResultsDialog}
+
       <div className="library-sticky-stack feed-ht-desktop-only">
         <PodcastNav />
         <div className="library-sticky-head-inner">

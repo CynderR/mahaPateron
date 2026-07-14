@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface AdminTableToolbarProps {
   onSearch: (query: string) => void;
+  /** Applied search query from parent — keeps the input in sync when search is cleared elsewhere */
+  searchQuery?: string;
   placeholder?: string;
   resultCount?: number;
   totalCount?: number;
@@ -9,11 +11,18 @@ interface AdminTableToolbarProps {
 
 const AdminTableToolbar: React.FC<AdminTableToolbarProps> = ({
   onSearch,
+  searchQuery,
   placeholder = 'Search by title or description…',
   resultCount,
   totalCount
 }) => {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(searchQuery ?? '');
+
+  useEffect(() => {
+    if (searchQuery !== undefined) {
+      setQuery(searchQuery);
+    }
+  }, [searchQuery]);
 
   const submit = (e?: React.FormEvent) => {
     e?.preventDefault();

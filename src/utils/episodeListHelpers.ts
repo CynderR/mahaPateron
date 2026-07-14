@@ -27,13 +27,13 @@ type EpisodeListResponse = {
 
 /** Fetch every episode id for the current list filters (search, sort, etc.). */
 export async function fetchAllEpisodeIds(
-  url: '/account/library' | '/account/feed',
+  url: '/account/library' | '/account/feed' | '/admin/library',
   params: Record<string, string | number>,
   total: number
 ): Promise<string[]> {
   if (total <= 0) return [];
 
-  const itemKey = url.includes('library') ? 'entries' : 'posts';
+  const itemKey = url.includes('feed') ? 'posts' : 'entries';
   const pageSize = Math.min(EPISODE_PAGE_MAX, total);
   const ids: string[] = [];
   let page = 1;
