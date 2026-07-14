@@ -4,6 +4,7 @@ import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminDeleteMode, AdminUser } from '../../components/UserTable';
 import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
+import PasswordInput from '../../components/PasswordInput';
 import { buildRssBaseUrl } from '../../config';
 import {
   fieldsFromPayingTier,
@@ -73,6 +74,8 @@ const Users: React.FC = () => {
   const [message, setMessage] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newUser, setNewUser] = useState<NewUserForm>({ ...emptyNewUser });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const rssBaseUrl = buildRssBaseUrl();
   const limit = 20;
@@ -163,15 +166,21 @@ const Users: React.FC = () => {
     e.preventDefault();
     setError('');
     setMessage('');
-    if (newUser.password || newUser.confirmPassword) {
-      if (newUser.password.length < 8) {
-        setError('Password must be at least 8 characters long.');
-        return;
-      }
-      if (newUser.password !== newUser.confirmPassword) {
-        setError('Password and confirmation do not match.');
-        return;
-      }
+    if (!newUser.email.trim()) {
+      setError('Email is required.');
+      return;
+    }
+    if (!newUser.password) {
+      setError('Password is required.');
+      return;
+    }
+    if (newUser.password.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (newUser.password !== newUser.confirmPassword) {
+      setError('Password and confirmation do not match.');
+      return;
     }
     try {
       const { subscription_status, paying_tier, confirmPassword, password, ...rest } = newUser;
@@ -186,10 +195,14 @@ const Users: React.FC = () => {
       await axios.post('/admin/users', {
         ...rest,
         ...payingFields,
-        ...(password ? { password } : {})
+        password
       });
-      setMessage(`User ${newUser.username} created.`);
+      setMessage(
+        `User ${newUser.username} created. They can sign in with ${newUser.email.trim()} and the password you set.`
+      );
       setNewUser({ ...emptyNewUser });
+      setShowPassword(false);
+      setShowConfirmPassword(false);
       setShowAdd(false);
       load();
     } catch (e: any) {
@@ -218,37 +231,60 @@ const Users: React.FC = () => {
         {showAdd && (
           <form className="pod-card" onSubmit={handleCreate}>
             <h3 style={{ marginTop: 0 }}>Add User</h3>
+            <p style={{ marginTop: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+              Create a login with email and password. Share those credentials with the member so they can sign in.
+            </p>
             <div className="pod-form-group">
-              <label>Username</label>
-              <input className="pod-input" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} required />
-            </div>
-            <div className="pod-form-group">
-              <label>Email</label>
-              <input className="pod-input" type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} required />
-            </div>
-            <div className="pod-form-group">
-              <label>Password</label>
+              <label htmlFor="admin-new-username">Username</label>
               <input
+                id="admin-new-username"
                 className="pod-input"
-                type="password"
+                value={newUser.username}
+                onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div className="pod-form-group">
+              <label htmlFor="admin-new-email">Email</label>
+              <input
+                id="admin-new-email"
+                className="pod-input"
+                type="email"
+                value={newUser.email}
+                onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                required
+                autoComplete="off"
+              />
+            </div>
+            <div className="pod-form-group">
+              <label htmlFor="admin-new-password">Password</label>
+              <PasswordInput
+                id="admin-new-password"
+                className="pod-input"
                 value={newUser.password}
                 onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-                placeholder="Optional — 8+ characters"
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
                 autoComplete="new-password"
+                show={showPassword}
+                onToggle={() => setShowPassword((v) => !v)}
               />
-              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                Leave blank to generate a random password (user can reset via forgot password).
-              </p>
             </div>
             <div className="pod-form-group">
-              <label>Confirm password</label>
-              <input
+              <label htmlFor="admin-new-confirm-password">Confirm password</label>
+              <PasswordInput
+                id="admin-new-confirm-password"
                 className="pod-input"
-                type="password"
                 value={newUser.confirmPassword}
                 onChange={(e) => setNewUser({ ...newUser, confirmPassword: e.target.value })}
                 placeholder="Re-enter password"
+                required
+                minLength={8}
                 autoComplete="new-password"
+                show={showConfirmPassword}
+                onToggle={() => setShowConfirmPassword((v) => !v)}
               />
             </div>
             <div className="pod-form-group">

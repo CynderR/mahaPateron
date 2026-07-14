@@ -127,6 +127,9 @@ router.post('/', async (req, res) => {
     if (!username || !email) {
       return res.status(400).json({ error: 'Username and email are required' });
     }
+    if (!password) {
+      return res.status(400).json({ error: 'Password is required' });
+    }
     if (payment_category && !PAYMENT_CATEGORIES.includes(payment_category)) {
       return res.status(400).json({ error: 'Invalid payment_category' });
     }
@@ -145,17 +148,12 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Username already taken' });
     }
 
-    if (password) {
-      const passwordError = validatePassword(password);
-      if (passwordError) {
-        return res.status(400).json({ error: passwordError });
-      }
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      return res.status(400).json({ error: passwordError });
     }
 
-    // Admin-created accounts get a random password they can reset via the
-    // forgot-password flow if none is provided.
-    const rawPassword = password || require('crypto').randomBytes(16).toString('hex');
-    const hashedPassword = await bcrypt.hash(rawPassword, 10);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const freeFields = applySubscribedCategoryRules({
       payment_category: payment_category || 'full',

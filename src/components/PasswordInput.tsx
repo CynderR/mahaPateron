@@ -10,6 +10,7 @@ interface PasswordInputProps {
   minLength?: number;
   disabled?: boolean;
   autoComplete?: string;
+  className?: string;
   show: boolean;
   onToggle: () => void;
 }
@@ -24,6 +25,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
   minLength,
   disabled,
   autoComplete,
+  className,
   show,
   onToggle
 }) => (
@@ -32,6 +34,7 @@ const PasswordInput: React.FC<PasswordInputProps> = ({
       type={show ? 'text' : 'password'}
       id={id}
       name={name}
+      className={className}
       value={value}
       onChange={onChange}
       required={required}
