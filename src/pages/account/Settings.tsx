@@ -4,10 +4,12 @@ import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import PodcastNav from '../../components/PodcastNav';
 import PodcastMobileNav, { PodcastMobileHeader } from '../../components/mobile/PodcastMobileNav';
+import { memberCanRss } from '../../utils/accessPermissions';
 
 const Settings: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const hasRssAccess = memberCanRss(user?.access_type);
 
   const [profile, setProfile] = useState({ username: '', email: '' });
   const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
@@ -76,7 +78,10 @@ const Settings: React.FC = () => {
       </div>
 
       <div className="pod-feed-mobile-only">
-        <PodcastMobileHeader title="Settings" subtitle="Account & RSS" />
+        <PodcastMobileHeader
+          title="Settings"
+          subtitle={hasRssAccess ? 'Account & RSS' : 'Account'}
+        />
       </div>
 
       <main className="podcast-main">
@@ -85,16 +90,18 @@ const Settings: React.FC = () => {
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
         {message && <div className="pod-banner pod-banner-success">{message}</div>}
 
-        <div className="pod-card settings-rss-card">
-          <h3 style={{ marginTop: 0 }}>Private RSS feed</h3>
-          <p style={{ marginTop: 0 }}>
-            Copy your personal RSS URL and add it in podcast apps such as Pocket Casts, Overcast, or Apple
-            Podcasts.
-          </p>
-          <Link to="/account/rss" className="pod-btn settings-rss-btn">
-            Open RSS feed
-          </Link>
-        </div>
+        {hasRssAccess && (
+          <div className="pod-card settings-rss-card">
+            <h3 style={{ marginTop: 0 }}>Private RSS feed</h3>
+            <p style={{ marginTop: 0 }}>
+              Copy your personal RSS URL and add it in podcast apps such as Pocket Casts, Overcast, or Apple
+              Podcasts.
+            </p>
+            <Link to="/account/rss" className="pod-btn settings-rss-btn">
+              Open RSS feed
+            </Link>
+          </div>
+        )}
 
         <form className="pod-card" onSubmit={saveProfile}>
           <h3 style={{ marginTop: 0 }}>Profile</h3>

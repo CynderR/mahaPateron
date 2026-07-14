@@ -2,12 +2,14 @@ import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { PODCAST_AUTHOR } from '../podcastMeta';
+import { memberCanRss } from '../utils/accessPermissions';
 import ThemeToggle from './ThemeToggle';
 
 // Shared top navigation for the member and admin areas.
 const PodcastNav: React.FC = () => {
-  const { isAdmin, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
+  const hasRssAccess = memberCanRss(user?.access_type);
 
   const handleLogout = () => {
     logout();
@@ -28,7 +30,7 @@ const PodcastNav: React.FC = () => {
           </NavLink>
           <NavLink to="/library">Library</NavLink>
           <NavLink to="/playlists">Playlists</NavLink>
-          <NavLink to="/account/rss">RSS</NavLink>
+          {hasRssAccess && <NavLink to="/account/rss">RSS</NavLink>}
           <NavLink to="/account/billing">Billing</NavLink>
           <NavLink to="/account/settings">Settings</NavLink>
           {isAdmin && <NavLink to="/admin">Admin</NavLink>}

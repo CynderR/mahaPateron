@@ -37,6 +37,7 @@ import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
+import { memberCanRss } from '../utils/accessPermissions';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -78,6 +79,8 @@ const Feed: React.FC = () => {
   const streamReturnFrom = currentPathWithSearch(location.pathname, location.search);
 
   const { user, isAdmin } = useAuth();
+
+  const hasRssAccess = memberCanRss(user?.access_type);
 
   const [meta, setMeta] = useState<FeedAccessMeta | null>(null);
 
@@ -574,11 +577,13 @@ const Feed: React.FC = () => {
 
                 </Link>
 
-                <Link to="/account/rss" className="ht-tab">
+                {hasRssAccess && (
+                  <Link to="/account/rss" className="ht-tab">
 
-                  RSS
+                    RSS
 
-                </Link>
+                  </Link>
+                )}
 
               </div>
 
