@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import BulkPlaylistPicker from './BulkPlaylistPicker';
+import AdminSelectedPostEdit from './admin/AdminSelectedPostEdit';
 import { buildImageUrl } from '../config';
 import { normalizePostId } from '../utils/episodeListHelpers';
 
@@ -29,6 +30,8 @@ interface LibrarySearchResultsDialogProps {
   onSelectAll: (checked: boolean) => void;
   selectAllBusy?: boolean;
   showPlaylists?: boolean;
+  showAdminEdit?: boolean;
+  onEpisodeEdited?: () => void;
 }
 
 const formatDuration = (secs?: number | null): string => {
@@ -53,11 +56,20 @@ const LibrarySearchResultsDialog: React.FC<LibrarySearchResultsDialogProps> = ({
   onSelectChange,
   onSelectAll,
   selectAllBusy = false,
-  showPlaylists = true
+  showPlaylists = true,
+  showAdminEdit = false,
+  onEpisodeEdited
 }) => {
   const listRef = useRef<HTMLDivElement>(null);
   const selectAllRef = useRef<HTMLInputElement>(null);
   const selectedPostIds = useMemo(() => Array.from(selectedIds), [selectedIds]);
+  const titlesById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const entry of entries) {
+      map[normalizePostId(entry.id)] = entry.title;
+    }
+    return map;
+  }, [entries]);
   const allSelected = total > 0 && selectedIds.size === total;
   const someSelected = selectedIds.size > 0 && selectedIds.size < total;
 
@@ -199,18 +211,31 @@ const LibrarySearchResultsDialog: React.FC<LibrarySearchResultsDialogProps> = ({
           {loadingMore && <div className="pod-infinite-loading">Loading more…</div>}
         </div>
 
-        {showPlaylists && (
+        {(showPlaylists || showAdminEdit) && (
           <footer className="library-search-dialog-footer">
             {selectedIds.size === 0 ? (
               <p className="library-search-dialog-hint">
-                Select episodes above to add them to a playlist or create a new one.
+                {showPlaylists
+                  ? 'Select episodes above to add them to a playlist or create a new one.'
+                  : 'Select an episode above to edit its metadata.'}
               </p>
             ) : (
-              <BulkPlaylistPicker
-                postIds={selectedPostIds}
-                variant="panel"
-                onComplete={() => onSelectAll(false)}
-              />
+              <div className="library-search-dialog-footer-actions">
+                {showAdminEdit && (
+                  <AdminSelectedPostEdit
+                    postIds={selectedPostIds}
+                    titlesById={titlesById}
+                    onSaved={onEpisodeEdited}
+                  />
+                )}
+                {showPlaylists && (
+                  <BulkPlaylistPicker
+                    postIds={selectedPostIds}
+                    variant="panel"
+                    onComplete={() => onSelectAll(false)}
+                  />
+                )}
+              </div>
             )}
           </footer>
         )}

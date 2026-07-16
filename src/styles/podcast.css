@@ -3382,6 +3382,12 @@ body.global-now-playing-active .podcast-main {
   line-height: 1.4;
 }
 
+.library-search-dialog-footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
 .visually-hidden {
   position: absolute;
   width: 1px;

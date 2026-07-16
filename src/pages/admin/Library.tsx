@@ -225,6 +225,8 @@ const AdminLibrary: React.FC = () => {
         onSelectAll={handleSelectAll}
         selectAllBusy={selectingAll}
         showPlaylists
+        showAdminEdit
+        onEpisodeEdited={reload}
       />
       <PodcastNav />
       <main className="podcast-main">

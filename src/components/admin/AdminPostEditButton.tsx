@@ -180,7 +180,7 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
         onClick={handleOpen}
         aria-haspopup="dialog"
       >
-        Edit
+        Edit metadata
       </button>
       {open && (
         <div className="admin-post-edit-overlay" onClick={handleClose}>

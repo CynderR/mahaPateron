@@ -9,6 +9,7 @@ import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
+import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 import LibrarySearchResultsDialog from '../components/LibrarySearchResultsDialog';
 import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
@@ -178,11 +179,32 @@ const Library: React.FC = () => {
     setListEpoch((epoch) => epoch + 1);
   }, [clearSelection]);
 
+  const handleEpisodeEdited = useCallback(() => {
+    setPage(1);
+    setEntries([]);
+    setListEpoch((epoch) => epoch + 1);
+  }, []);
+
+  const titlesById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const entry of entries) {
+      map[normalizePostId(entry.id)] = entry.title;
+    }
+    return map;
+  }, [entries]);
+
   const selectionActions = (
     <div className="member-episode-selection-actions">
       <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
       {isAdmin && (
-        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+        <>
+          <AdminSelectedPostEdit
+            postIds={selectedPostIds}
+            titlesById={titlesById}
+            onSaved={handleEpisodeEdited}
+          />
+          <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+        </>
       )}
     </div>
   );
@@ -239,6 +261,8 @@ const Library: React.FC = () => {
       onSelectAll={handleSelectAll}
       selectAllBusy={selectingAll}
       showPlaylists
+      showAdminEdit={isAdmin}
+      onEpisodeEdited={handleEpisodeEdited}
     />
   );
 

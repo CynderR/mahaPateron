@@ -24,6 +24,8 @@ import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 
+import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
+
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 
 import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
@@ -308,11 +310,32 @@ const Feed: React.FC = () => {
     setListEpoch((epoch) => epoch + 1);
   }, [clearSelection]);
 
+  const handleEpisodeEdited = useCallback(() => {
+    setPage(1);
+    setPosts([]);
+    setListEpoch((epoch) => epoch + 1);
+  }, []);
+
+  const titlesById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const post of posts) {
+      map[normalizePostId(post.id)] = post.title;
+    }
+    return map;
+  }, [posts]);
+
   const selectionActions = (
     <div className="member-episode-selection-actions">
       <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
       {isAdmin && (
-        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+        <>
+          <AdminSelectedPostEdit
+            postIds={selectedPostIds}
+            titlesById={titlesById}
+            onSaved={handleEpisodeEdited}
+          />
+          <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+        </>
       )}
     </div>
   );
