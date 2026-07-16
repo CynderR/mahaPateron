@@ -276,6 +276,7 @@ const Library: React.FC = () => {
         <PodcastNav />
         <div className="library-sticky-head-inner">
           <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
+          {renderToolbar()}
         </div>
       </div>
 
@@ -285,6 +286,7 @@ const Library: React.FC = () => {
             title="Library"
             subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
           />
+          {renderToolbar(true)}
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
@@ -307,7 +309,6 @@ const Library: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
-            {renderToolbar(true)}
             <div className="pod-feed-list">
               {entries.map((entry) => (
                 <PodcastEpisodeCard
@@ -323,10 +324,7 @@ const Library: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <>
-            {renderToolbar(true)}
-            <div className="pod-empty">{emptyMessage}</div>
-          </>
+          <div className="pod-empty">{emptyMessage}</div>
         )}
 
         <PodcastMobileNav />
@@ -354,7 +352,6 @@ const Library: React.FC = () => {
           <div className="pod-empty">Loading library…</div>
         ) : entries.length > 0 ? (
           <>
-            {renderToolbar()}
             <div className="pod-feed-grid">
               {entries.map((entry) => (
                 <PostCard
@@ -372,10 +369,7 @@ const Library: React.FC = () => {
             {infiniteFooter}
           </>
         ) : (
-          <>
-            {renderToolbar()}
-            <div className="pod-empty">{emptyMessage}</div>
-          </>
+          <div className="pod-empty">{emptyMessage}</div>
         )}
       </main>
     </div>

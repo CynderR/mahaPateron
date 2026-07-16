@@ -589,6 +589,10 @@
   margin-bottom: 0;
 }
 
+.library-sticky-head-inner .member-episode-search {
+  margin-bottom: 0.5rem;
+}
+
 .library-main {
   padding-top: 1.25rem;
 }

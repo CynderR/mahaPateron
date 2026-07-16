@@ -159,14 +159,34 @@
     background: var(--bg-primary);
   }
 
-  .feed-page .library-sticky-head .pod-mobile-header,
-  .library-page .library-sticky-head .pod-mobile-header {
+  .feed-page .library-sticky-head .pod-mobile-header {
     position: sticky;
     top: 0;
     z-index: 25;
     background: var(--bg-primary);
     box-shadow: var(--shadow-sm);
     border-bottom: none;
+  }
+
+  /* Library: keep title + search toolbar sticky while scrolling episodes */
+  .library-page .library-sticky-head {
+    position: sticky;
+    top: 0;
+    z-index: 25;
+    background: var(--bg-primary);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .library-page .library-sticky-head .pod-mobile-header {
+    position: static;
+    box-shadow: none;
+    border-bottom: none;
+  }
+
+  .library-page .library-sticky-head .member-episode-toolbar {
+    padding: 0 1rem 0.75rem;
+    margin-bottom: 0;
+    background: var(--bg-primary);
   }
 
   .feed-page .pod-feed-mobile-only .member-episode-toolbar,
