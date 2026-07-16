@@ -13,6 +13,10 @@ export interface FeedPost {
   duration_secs?: number | null;
   published_at?: string;
   image_filename?: string | null;
+  artist?: string | null;
+  album?: string | null;
+  year?: string | null;
+  genre?: string | null;
 }
 
 interface PostCardProps {

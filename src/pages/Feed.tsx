@@ -28,6 +28,8 @@ import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
 
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
 
+import LibrarySearchResultsDialog from '../components/LibrarySearchResultsDialog';
+
 import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
 
 import { FeedPost } from '../components/PostCard';
@@ -293,7 +295,14 @@ const Feed: React.FC = () => {
 
   const listPosts = !searchQuery && posts.length > 0 ? posts.slice(1) : posts;
 
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
+  };
 
+  const closeSearchDialog = useCallback(() => {
+    setSearchQuery('');
+    clearSelection();
+  }, [clearSelection]);
 
   const selectionProps = {
 
@@ -345,7 +354,9 @@ const Feed: React.FC = () => {
     !loading &&
     (catalogTotal || total) > 0 && (
       <MemberEpisodeToolbar
-        onSearch={setSearchQuery}
+        onSearch={handleSearch}
+        searchQuery={searchQuery}
+        placeholder="Search by title, description, artist, album, year, or genre…"
         resultCount={total}
         totalCount={catalogTotal || total}
         selectedCount={selectedIds.size}
@@ -357,6 +368,28 @@ const Feed: React.FC = () => {
         showMobileSelectionBar={showMobileSelectionBar}
       />
     );
+
+  const searchResultsDialog = (
+    <LibrarySearchResultsDialog
+      open={Boolean(searchQuery)}
+      query={searchQuery}
+      entries={posts}
+      total={total}
+      catalogTotal={catalogTotal || total}
+      loading={loading}
+      loadingMore={loadingMore}
+      hasMore={hasMore}
+      onLoadMore={loadMore}
+      onClose={closeSearchDialog}
+      selectedIds={selectedIds}
+      onSelectChange={toggleSelect}
+      onSelectAll={handleSelectAll}
+      selectAllBusy={selectingAll}
+      showPlaylists
+      showAdminEdit={isAdmin}
+      onEpisodeEdited={handleEpisodeEdited}
+    />
+  );
 
 
 
@@ -453,6 +486,8 @@ const Feed: React.FC = () => {
   return (
 
     <div className="podcast-page feed-page">
+
+      {searchResultsDialog}
 
       <div className="library-sticky-stack feed-ht-desktop-only">
 

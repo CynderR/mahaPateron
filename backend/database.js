@@ -680,9 +680,13 @@ const getPostsPaginated = (options = {}) => {
     where.push(`(
       LOWER(title) LIKE ?
       OR LOWER(COALESCE(description, '')) LIKE ?
+      OR LOWER(COALESCE(artist, '')) LIKE ?
+      OR LOWER(COALESCE(album, '')) LIKE ?
+      OR LOWER(COALESCE(year, '')) LIKE ?
+      OR LOWER(COALESCE(genre, '')) LIKE ?
     )`);
     const like = `%${search.toLowerCase()}%`;
-    params.push(like, like);
+    params.push(like, like, like, like, like, like);
   }
   const whereSql = `WHERE ${where.join(' AND ')}`;
 
