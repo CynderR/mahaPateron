@@ -20,8 +20,6 @@ import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 
-import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
-
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 
 import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
@@ -333,14 +331,11 @@ const Feed: React.FC = () => {
     return map;
   }, [posts]);
 
-  const selectionActions = (
+  const selectionActions = isAdmin ? (
     <div className="member-episode-selection-actions">
-      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
-      {isAdmin && (
-        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
-      )}
+      <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
     </div>
-  );
+  ) : null;
 
   const mainBarActions = isAdmin ? (
     <AdminSelectedPostEdit
@@ -511,6 +506,8 @@ const Feed: React.FC = () => {
 
           />
 
+          {renderToolbar(true)}
+
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
@@ -561,21 +558,13 @@ const Feed: React.FC = () => {
 
             )}
 
-            {renderToolbar(true)}
-
             {episodeList}
 
           </>
 
         ) : (
 
-          <>
-
-            {renderToolbar(true)}
-
-            <div className="pod-empty">{emptyMessage}</div>
-
-          </>
+          <div className="pod-empty">{emptyMessage}</div>
 
         )}
 
@@ -649,6 +638,8 @@ const Feed: React.FC = () => {
 
             </div>
 
+            {renderToolbar()}
+
           </div>
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
@@ -699,21 +690,13 @@ const Feed: React.FC = () => {
 
               )}
 
-              {renderToolbar()}
-
               {episodeList}
 
             </>
 
           ) : (
 
-            <>
-
-              {renderToolbar()}
-
-              <div className="ht-empty">{emptyMessage}</div>
-
-            </>
+            <div className="ht-empty">{emptyMessage}</div>
 
           )}
 

@@ -615,6 +615,11 @@
 
 .feed-page .feed-sticky-subhead .member-episode-toolbar {
   margin-bottom: 0;
+  margin-top: 0.65rem;
+}
+
+.feed-page .feed-sticky-subhead .member-episode-search {
+  margin-bottom: 0.5rem;
 }
 
 .feed-page .library-sticky-head,
