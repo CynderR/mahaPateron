@@ -114,18 +114,21 @@ const ShareLibrary: React.FC = () => {
     setSortDir(next.dir);
   };
 
-  const toolbar = !loading && (meta?.catalogTotal ?? 0) > 0 && (
-    <MemberEpisodeToolbar
-      onSearch={handleSearch}
-      placeholder="Search by title, description, artist, album, year, or genre…"
-      resultCount={total}
-      totalCount={meta?.catalogTotal ?? 0}
-      showSort
-      sortField={sortField}
-      sortDir={sortDir}
-      onSort={handleSort}
-    />
-  );
+  const renderToolbar = () =>
+    !loading &&
+    (meta?.catalogTotal ?? 0) > 0 && (
+      <MemberEpisodeToolbar
+        onSearch={handleSearch}
+        searchQuery={searchQuery}
+        placeholder="Search by title, description, artist, album, year, or genre…"
+        resultCount={total}
+        totalCount={meta?.catalogTotal ?? 0}
+        showSort
+        sortField={sortField}
+        sortDir={sortDir}
+        onSort={handleSort}
+      />
+    );
 
   const emptyMessage =
     (meta?.catalogTotal ?? 0) > 0 && entries.length === 0 && !loading
@@ -156,7 +159,7 @@ const ShareLibrary: React.FC = () => {
             </div>
           </div>
           <h2 className="podcast-section-title library-sticky-title">Episode Library</h2>
-          {toolbar}
+          {renderToolbar()}
         </div>
       </div>
 
@@ -166,7 +169,7 @@ const ShareLibrary: React.FC = () => {
             title="Library"
             subtitle={meta ? `${meta.accessible} of ${meta.catalogTotal} episodes available` : undefined}
           />
-          {toolbar}
+          {renderToolbar()}
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}

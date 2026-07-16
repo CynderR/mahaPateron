@@ -593,6 +593,10 @@
   margin-bottom: 0.5rem;
 }
 
+.feed-page .library-sticky-head-inner {
+  border-top: 1px solid var(--border-primary);
+}
+
 .library-main {
   padding-top: 1.25rem;
 }

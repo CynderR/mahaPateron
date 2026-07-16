@@ -381,7 +381,7 @@ const Feed: React.FC = () => {
       onSelectAll={handleSelectAll}
       selectAllBusy={selectingAll}
       showPlaylists
-      showAdminEdit={isAdmin}
+      showAdminEdit={!!isAdmin}
       onEpisodeEdited={handleEpisodeEdited}
     />
   );
@@ -487,6 +487,40 @@ const Feed: React.FC = () => {
       <div className="library-sticky-stack feed-ht-desktop-only">
 
         <PodcastNav />
+
+        <div className="library-sticky-head-inner">
+
+          <div className="ht-tabs-bar library-sticky-tabs">
+
+            <div className="ht-tabs">
+
+              <span className="ht-tab ht-tab-active">
+
+                {catalogTotal || total} {(catalogTotal || total) === 1 ? 'Recent upload' : 'Recent uploads'}
+
+              </span>
+
+              <Link to="/library" className="ht-tab">
+
+                Library
+
+              </Link>
+
+              {hasRssAccess && (
+                <Link to="/account/rss" className="ht-tab">
+
+                  RSS
+
+                </Link>
+              )}
+
+            </div>
+
+          </div>
+
+          {renderToolbar()}
+
+        </div>
 
       </div>
 
@@ -607,40 +641,6 @@ const Feed: React.FC = () => {
       <div className="ht-layout feed-ht-desktop-only">
 
         <main className="ht-main">
-
-          <div className="feed-sticky-subhead">
-
-            <div className="ht-tabs-bar library-sticky-tabs">
-
-              <div className="ht-tabs">
-
-                <span className="ht-tab ht-tab-active">
-
-                  {catalogTotal || total} {(catalogTotal || total) === 1 ? 'Recent upload' : 'Recent uploads'}
-
-                </span>
-
-                <Link to="/library" className="ht-tab">
-
-                  Library
-
-                </Link>
-
-                {hasRssAccess && (
-                  <Link to="/account/rss" className="ht-tab">
-
-                    RSS
-
-                  </Link>
-                )}
-
-              </div>
-
-            </div>
-
-            {renderToolbar()}
-
-          </div>
 
           {error && <div className="ht-banner ht-banner-error">{error}</div>}
 

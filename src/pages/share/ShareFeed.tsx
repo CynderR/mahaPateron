@@ -150,19 +150,17 @@ const ShareFeed: React.FC = () => {
 
 
 
-  const toolbar = !loading && posts.length > 0 && (
-
-    <MemberEpisodeToolbar
-
-      onSearch={setSearchQuery}
-
-      resultCount={visiblePosts.length}
-
-      totalCount={posts.length}
-
-    />
-
-  );
+  const renderToolbar = () =>
+    !loading &&
+    posts.length > 0 && (
+      <MemberEpisodeToolbar
+        onSearch={setSearchQuery}
+        searchQuery={searchQuery}
+        placeholder="Search by title, description, artist, album, year, or genre…"
+        resultCount={visiblePosts.length}
+        totalCount={posts.length}
+      />
+    );
 
 
 
@@ -184,6 +182,32 @@ const ShareFeed: React.FC = () => {
 
         <ShareNav />
 
+        <div className="library-sticky-head-inner">
+
+          <div className="ht-tabs-bar library-sticky-tabs">
+
+            <div className="ht-tabs">
+
+              <span className="ht-tab ht-tab-active">
+
+                {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
+
+              </span>
+
+              <Link to={`${basePath}/library`} className="ht-tab">
+
+                Library
+
+              </Link>
+
+            </div>
+
+          </div>
+
+          {renderToolbar()}
+
+        </div>
+
       </div>
 
 
@@ -199,6 +223,8 @@ const ShareFeed: React.FC = () => {
             subtitle={`${soundCount} ${soundCount === 1 ? 'episode' : 'episodes'}`}
 
           />
+
+          {renderToolbar()}
 
         </div>
 
@@ -228,8 +254,6 @@ const ShareFeed: React.FC = () => {
 
             {featured && <PodcastFeaturedEpisode post={featured} canStream={canStream} />}
 
-            {toolbar}
-
             {listPosts.length > 0 && (
 
               <>
@@ -254,13 +278,7 @@ const ShareFeed: React.FC = () => {
 
         ) : (
 
-          <>
-
-            {toolbar}
-
-            <div className="pod-empty">{emptyMessage}</div>
-
-          </>
+          <div className="pod-empty">{emptyMessage}</div>
 
         )}
 
@@ -304,30 +322,6 @@ const ShareFeed: React.FC = () => {
 
         <main className="ht-main">
 
-          <div className="feed-sticky-subhead">
-
-            <div className="ht-tabs-bar library-sticky-tabs">
-
-              <div className="ht-tabs">
-
-                <span className="ht-tab ht-tab-active">
-
-                  {soundCount} {soundCount === 1 ? 'Recent upload' : 'Recent uploads'}
-
-                </span>
-
-                <Link to={`${basePath}/library`} className="ht-tab">
-
-                  Library
-
-                </Link>
-
-              </div>
-
-            </div>
-
-          </div>
-
           <ShareAccessNotice
 
             memberAccess={memberAccess}
@@ -351,8 +345,6 @@ const ShareFeed: React.FC = () => {
             <>
 
               {featured && <ProfileFeaturedTrack post={featured} canStream={canStream} />}
-
-              {toolbar}
 
               <div className="ht-track-list">
 
@@ -378,13 +370,7 @@ const ShareFeed: React.FC = () => {
 
           ) : (
 
-            <>
-
-              {toolbar}
-
-              <div className="ht-empty">{emptyMessage}</div>
-
-            </>
+            <div className="ht-empty">{emptyMessage}</div>
 
           )}
 

@@ -259,7 +259,7 @@ const Library: React.FC = () => {
       onSelectAll={handleSelectAll}
       selectAllBusy={selectingAll}
       showPlaylists
-      showAdminEdit={isAdmin}
+      showAdminEdit={!!isAdmin}
       onEpisodeEdited={handleEpisodeEdited}
     />
   );
