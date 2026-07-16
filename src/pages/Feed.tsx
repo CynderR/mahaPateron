@@ -310,7 +310,7 @@ const Feed: React.FC = () => {
 
   const selectionActions = (
     <div className="member-episode-selection-actions">
-      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} />
+      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
       {isAdmin && (
         <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
       )}

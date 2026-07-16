@@ -3154,6 +3154,86 @@ body.global-now-playing-active .podcast-main {
   max-height: 140px;
 }
 
+.playlist-picker-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.playlist-picker-dialog {
+  width: min(22rem, 100%);
+  max-height: min(80vh, 28rem);
+  overflow: auto;
+  padding: 0;
+  border-radius: 0.85rem;
+  background: var(--surface-elevated, var(--bg-card, #1a202c));
+  border: 1px solid var(--border-primary);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.playlist-picker-dialog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.95rem 1rem 0.7rem;
+  border-bottom: 1px solid var(--border-primary);
+}
+
+.playlist-picker-dialog-title {
+  margin: 0;
+  font-size: 1.05rem;
+  color: var(--text-primary);
+}
+
+.playlist-picker-dialog-close {
+  flex-shrink: 0;
+  width: 2.15rem;
+  height: 2.15rem;
+  border: none;
+  border-radius: 0.375rem;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 1.45rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.playlist-picker-dialog-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.playlist-picker-dialog-body {
+  padding: 0.9rem 1rem 1.1rem;
+}
+
+.playlist-picker-dialog-body .playlist-picker-title {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.playlist-picker-dialog-body .playlist-picker-list {
+  max-height: min(36vh, 220px);
+}
+
+.playlist-picker-dialog-body .playlist-picker-list button {
+  font-size: 0.95rem;
+  padding: 0.45rem 0.15rem;
+  color: var(--text-primary);
+}
+
+.playlist-picker-dialog-body .playlist-picker-new .pod-input,
+.playlist-picker-dialog-body .playlist-picker-new .pod-btn {
+  font-size: 1rem;
+  min-height: 2.5rem;
+}
+
 .library-search-overlay {
   position: fixed;
   inset: 0;

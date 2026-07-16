@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { usePlayer } from '../contexts/PlayerContext';
 
 interface BulkPlaylistPickerProps {
   postIds: string[];
   onComplete?: () => void;
   className?: string;
-  /** dropdown = toolbar button + menu; panel = always-visible add/create controls */
-  variant?: 'dropdown' | 'panel';
+  /** dropdown = toolbar button + menu; panel = always-visible; popup = auto-open modal on selection */
+  variant?: 'dropdown' | 'panel' | 'popup';
 }
 
 const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
@@ -22,7 +23,14 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
   const [message, setMessage] = useState('');
   const rootRef = useRef<HTMLDivElement>(null);
   const isPanel = variant === 'panel';
+  const isPopup = variant === 'popup';
   const showMenu = isPanel || open;
+
+  useEffect(() => {
+    if (postIds.length > 0 && (isPopup || variant === 'dropdown')) {
+      setOpen(true);
+    }
+  }, [postIds.length, isPopup, variant]);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -30,7 +38,7 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
   }, [showMenu, refreshPlaylists]);
 
   useEffect(() => {
-    if (!open || isPanel) return;
+    if (!open || isPanel || isPopup) return;
     const onPointerDown = (event: PointerEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
         setOpen(false);
@@ -38,14 +46,29 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     };
     document.addEventListener('pointerdown', onPointerDown);
     return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open, isPanel]);
+  }, [open, isPanel, isPopup]);
 
   useEffect(() => {
     if (postIds.length === 0) {
       setOpen(false);
       setMessage('');
+      setNewName('');
     }
   }, [postIds.length]);
+
+  useEffect(() => {
+    if (!isPopup || !open) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isPopup, open]);
 
   if (postIds.length === 0) return null;
 
@@ -98,8 +121,8 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     }
   };
 
-  const menu = showMenu && (
-    <div className={isPanel ? 'playlist-picker-panel' : 'playlist-picker-menu'} role="menu">
+  const menuBody = (
+    <>
       <p className="playlist-picker-title">Add {countLabel} to playlist</p>
       {playlists.length > 0 ? (
         <ul className="playlist-picker-list">
@@ -128,6 +151,63 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
         </button>
       </form>
       {message && <p className="playlist-picker-msg">{message}</p>}
+    </>
+  );
+
+  if (isPopup) {
+    return (
+      <>
+        <div className={`playlist-picker playlist-picker-toolbar ${className}`.trim()}>
+          <button
+            type="button"
+            className="pod-btn pod-btn-sm pod-btn-secondary"
+            onClick={() => setOpen(true)}
+            aria-expanded={open}
+            aria-haspopup="dialog"
+          >
+            Add to playlist
+          </button>
+        </div>
+        {open &&
+          createPortal(
+            <div
+              className="playlist-picker-overlay"
+              role="presentation"
+              onClick={(event) => {
+                if (event.target === event.currentTarget) setOpen(false);
+              }}
+            >
+              <div
+                className="playlist-picker-dialog"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="playlist-picker-dialog-title"
+              >
+                <header className="playlist-picker-dialog-header">
+                  <h2 id="playlist-picker-dialog-title" className="playlist-picker-dialog-title">
+                    Add to playlist
+                  </h2>
+                  <button
+                    type="button"
+                    className="playlist-picker-dialog-close"
+                    aria-label="Close playlist picker"
+                    onClick={() => setOpen(false)}
+                  >
+                    ×
+                  </button>
+                </header>
+                <div className="playlist-picker-dialog-body">{menuBody}</div>
+              </div>
+            </div>,
+            document.body
+          )}
+      </>
+    );
+  }
+
+  const menu = showMenu && (
+    <div className={isPanel ? 'playlist-picker-panel' : 'playlist-picker-menu'} role="menu">
+      {menuBody}
     </div>
   );
 
