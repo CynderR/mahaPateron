@@ -21,7 +21,9 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
+  const [messageIsError, setMessageIsError] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const completeTimerRef = useRef<number | null>(null);
   const isPanel = variant === 'panel';
   const isPopup = variant === 'popup';
   const showMenu = isPanel || open;
@@ -52,6 +54,7 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     if (postIds.length === 0) {
       setOpen(false);
       setMessage('');
+      setMessageIsError(false);
       setNewName('');
     }
   }, [postIds.length]);
@@ -70,6 +73,15 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     };
   }, [isPopup, open]);
 
+  useEffect(
+    () => () => {
+      if (completeTimerRef.current != null) {
+        window.clearTimeout(completeTimerRef.current);
+      }
+    },
+    []
+  );
+
   if (postIds.length === 0) return null;
 
   const countLabel = postIds.length === 1 ? '1 episode' : `${postIds.length} episodes`;
@@ -78,20 +90,35 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
     if (failed === 0) {
       return `Added ${added} ${added === 1 ? 'episode' : 'episodes'} to "${playlistName}"`;
     }
+    if (added === 0) {
+      return `Could not add episodes to "${playlistName}". They may be unavailable.`;
+    }
     return `Added ${added} of ${added + failed} to "${playlistName}" (${failed} unavailable)`;
   };
 
+  const finishWithMessage = (text: string, isError: boolean, shouldComplete: boolean) => {
+    setMessage(text);
+    setMessageIsError(isError);
+    if (!shouldComplete) return;
+    if (completeTimerRef.current != null) {
+      window.clearTimeout(completeTimerRef.current);
+    }
+    // Keep the success message visible briefly before the parent clears selection.
+    completeTimerRef.current = window.setTimeout(() => {
+      onComplete?.();
+    }, 1200);
+  };
+
   const handleAdd = async (playlistId: string, playlistName: string) => {
+    if (busy) return;
     setBusy(true);
     setMessage('');
+    setMessageIsError(false);
     try {
       const { added, failed } = await addManyToPlaylist(playlistId, postIds);
-      setMessage(formatResult(playlistName, added, failed));
-      if (added > 0) {
-        onComplete?.();
-      }
+      finishWithMessage(formatResult(playlistName, added, failed), added === 0, added > 0);
     } catch {
-      setMessage('Could not add to playlist.');
+      finishWithMessage('Could not add to playlist.', true, false);
     } finally {
       setBusy(false);
     }
@@ -99,23 +126,28 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     const name = newName.trim();
-    if (!name) return;
+    if (!name) {
+      finishWithMessage('Enter a playlist name to create one.', true, false);
+      return;
+    }
+    if (busy) return;
     setBusy(true);
     setMessage('');
+    setMessageIsError(false);
     try {
       const playlist = await createPlaylist(name, postIds);
-      if (playlist) {
-        const added = playlist.item_count;
-        const failed = postIds.length - added;
-        setMessage(formatResult(name, added, failed));
-        setNewName('');
-        if (added > 0) {
-          onComplete?.();
-        }
+      if (!playlist) {
+        finishWithMessage('Could not create playlist.', true, false);
+        return;
       }
+      const added = Number(playlist.item_count) || 0;
+      const failed = Math.max(0, postIds.length - added);
+      setNewName('');
+      finishWithMessage(formatResult(name, added, failed), added === 0, added > 0);
     } catch {
-      setMessage('Could not create playlist.');
+      finishWithMessage('Could not create playlist.', true, false);
     } finally {
       setBusy(false);
     }
@@ -128,8 +160,18 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
         <ul className="playlist-picker-list">
           {playlists.map((pl) => (
             <li key={pl.id}>
-              <button type="button" disabled={busy} onClick={() => handleAdd(pl.id, pl.name)}>
-                {pl.name} ({pl.item_count})
+              <button
+                type="button"
+                className="playlist-picker-list-btn"
+                disabled={busy}
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleAdd(pl.id, pl.name);
+                }}
+              >
+                <span className="playlist-picker-list-btn-name">{pl.name}</span>
+                <span className="playlist-picker-list-btn-count">{pl.item_count}</span>
               </button>
             </li>
           ))}
@@ -145,12 +187,17 @@ const BulkPlaylistPicker: React.FC<BulkPlaylistPickerProps> = ({
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           disabled={busy}
+          aria-label="New playlist name"
         />
-        <button type="submit" className="pod-btn pod-btn-sm" disabled={busy || !newName.trim()}>
-          Create & add
+        <button type="submit" className="pod-btn pod-btn-sm" disabled={busy}>
+          {busy ? 'Working…' : 'Create & add'}
         </button>
       </form>
-      {message && <p className="playlist-picker-msg">{message}</p>}
+      {message && (
+        <p className={`playlist-picker-msg${messageIsError ? ' playlist-picker-msg-error' : ''}`}>
+          {message}
+        </p>
+      )}
     </>
   );
 

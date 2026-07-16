@@ -3114,25 +3114,55 @@ body.global-now-playing-active .podcast-main {
   overflow: auto;
 }
 
-.playlist-picker-list button {
+.playlist-picker-list button,
+.playlist-picker-list-btn {
   width: 100%;
   text-align: left;
-  border: none;
-  background: transparent;
-  color: inherit;
-  padding: 0.35rem 0;
+  border: 1px solid var(--border-primary);
+  border-radius: 0.4rem;
+  background: var(--bg-card, var(--bg-primary));
+  color: var(--text-primary);
+  padding: 0.55rem 0.7rem;
+  margin-bottom: 0.4rem;
   cursor: pointer;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  pointer-events: auto;
 }
 
-.playlist-picker-list button:hover {
-  color: #e53e3e;
+.playlist-picker-list button:hover:not(:disabled),
+.playlist-picker-list-btn:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: #e53e3e;
+  background: var(--bg-hover);
+}
+
+.playlist-picker-list button:disabled,
+.playlist-picker-list-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.playlist-picker-list-btn-name {
+  font-weight: 600;
+}
+
+.playlist-picker-list-btn-count {
+  color: var(--text-tertiary);
+  font-size: 0.8rem;
 }
 
 .playlist-picker-new {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+}
+
+.playlist-picker-new .pod-btn {
+  pointer-events: auto;
 }
 
 .playlist-picker-toolbar {
@@ -3149,6 +3179,10 @@ body.global-now-playing-active .podcast-main {
   margin: 0.5rem 0 0;
   font-size: 0.78rem;
   color: #68d391;
+}
+
+.playlist-picker-msg-error {
+  color: #fc8181;
 }
 
 .playlist-picker-empty {
@@ -3168,10 +3202,20 @@ body.global-now-playing-active .podcast-main {
   background: transparent;
   border: none;
   box-shadow: none;
+  pointer-events: auto;
 }
 
 .playlist-picker-panel .playlist-picker-list {
-  max-height: 140px;
+  max-height: 160px;
+}
+
+.library-search-dialog-footer,
+.library-search-dialog-footer-actions,
+.library-search-dialog-footer .playlist-picker,
+.library-search-dialog-footer .playlist-picker-panel {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .playlist-picker-overlay {
@@ -3242,9 +3286,10 @@ body.global-now-playing-active .podcast-main {
   max-height: min(36vh, 220px);
 }
 
-.playlist-picker-dialog-body .playlist-picker-list button {
+.playlist-picker-dialog-body .playlist-picker-list button,
+.playlist-picker-dialog-body .playlist-picker-list-btn {
   font-size: 0.95rem;
-  padding: 0.45rem 0.15rem;
+  padding: 0.55rem 0.7rem;
   color: var(--text-primary);
 }
 
