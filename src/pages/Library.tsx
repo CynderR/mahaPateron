@@ -197,17 +197,18 @@ const Library: React.FC = () => {
     <div className="member-episode-selection-actions">
       <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
       {isAdmin && (
-        <>
-          <AdminSelectedPostEdit
-            postIds={selectedPostIds}
-            titlesById={titlesById}
-            onSaved={handleEpisodeEdited}
-          />
-          <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
-        </>
+        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
       )}
     </div>
   );
+
+  const mainBarActions = isAdmin ? (
+    <AdminSelectedPostEdit
+      postIds={selectedPostIds}
+      titlesById={titlesById}
+      onSaved={handleEpisodeEdited}
+    />
+  ) : null;
 
   const renderToolbar = (showMobileSelectionBar = false) =>
     !loading &&
@@ -226,6 +227,7 @@ const Library: React.FC = () => {
         selectableCount={total}
         selectAllBusy={selectingAll}
         onSelectAll={handleSelectAll}
+        mainBarActions={mainBarActions}
         selectionActions={selectionActions}
         showMobileSelectionBar={showMobileSelectionBar}
       />

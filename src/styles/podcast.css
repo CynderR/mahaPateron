@@ -652,6 +652,13 @@
   gap: 0.5rem;
 }
 
+.member-episode-main-bar-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
 .member-episode-toolbar-actions-inline {
   display: inline-flex;
   flex-wrap: wrap;
@@ -3553,6 +3560,20 @@ body.global-now-playing-active .podcast-main {
 .admin-post-edit-cover .pod-image-preview {
   display: block;
   margin-bottom: 0.65rem;
+}
+
+.admin-post-edit-dropzone {
+  min-height: 8rem;
+}
+
+.admin-post-edit-dropzone-preview {
+  max-width: 100%;
+  max-height: 10rem;
+  width: auto;
+  height: auto;
+  border-radius: 0.35rem;
+  object-fit: contain;
+  margin: 0 0 0.35rem !important;
 }
 
 .admin-post-edit-cover-actions {

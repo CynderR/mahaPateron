@@ -17,6 +17,9 @@ interface MemberEpisodeToolbarProps {
   selectableCount?: number;
   selectAllBusy?: boolean;
   onSelectAll?: (selected: boolean) => void;
+  /** Actions shown in the top toolbar on all viewports when items are selected */
+  mainBarActions?: React.ReactNode;
+  /** Actions for desktop inline + mobile bottom selection bar */
   selectionActions?: React.ReactNode;
   showMobileSelectionBar?: boolean;
 }
@@ -34,6 +37,7 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
   selectableCount = 0,
   selectAllBusy = false,
   onSelectAll,
+  mainBarActions,
   selectionActions,
   showMobileSelectionBar = false
 }) => {
@@ -122,6 +126,10 @@ const MemberEpisodeToolbar: React.FC<MemberEpisodeToolbarProps> = ({
               <span className="member-selected-count">({selectedCount} selected)</span>
             )}
           </label>
+        )}
+
+        {selectedCount > 0 && mainBarActions && (
+          <div className="member-episode-main-bar-actions">{mainBarActions}</div>
         )}
 
         {selectedCount > 0 && selectionActions && (

@@ -28,6 +28,7 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
   const [currentImageFilename, setCurrentImageFilename] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [coverDragActive, setCoverDragActive] = useState(false);
 
   const clearLocalPreview = () => {
     if (previewUrlRef.current.startsWith('blob:')) {
@@ -134,6 +135,14 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
     }
     setError('');
     setLocalPreview(file);
+  };
+
+  const handleCoverDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    setCoverDragActive(false);
+    if (saving) return;
+    const file = event.dataTransfer.files?.[0] || null;
+    if (file) handleImageChange(file);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -277,36 +286,57 @@ const AdminPostEditButton: React.FC<AdminPostEditButtonProps> = ({ postId, postT
 
                 <div className="pod-form-group admin-post-edit-cover">
                   <label>Cover image</label>
-                  {imagePreview ? (
-                    <img className="pod-image-preview" src={imagePreview} alt="Cover preview" />
-                  ) : (
-                    <p className="pod-dropzone-hint" style={{ margin: '0 0 0.5rem' }}>
-                      No cover image yet. Choose one to add it.
-                    </p>
-                  )}
-                  <div className="admin-post-edit-cover-actions">
-                    <button
-                      type="button"
-                      className="pod-btn pod-btn-secondary"
-                      onClick={() => coverInputRef.current?.click()}
-                      disabled={saving}
-                    >
-                      {imagePreview ? 'Change cover' : 'Add cover image'}
-                    </button>
-                    {imageFile && (
-                      <button
-                        type="button"
-                        className="pod-btn pod-btn-secondary"
-                        onClick={() => {
-                          if (coverInputRef.current) coverInputRef.current.value = '';
-                          setLocalPreview(null);
-                        }}
-                        disabled={saving}
-                      >
-                        Undo new cover
-                      </button>
+                  <div
+                    className={`pod-dropzone admin-post-edit-dropzone${coverDragActive ? ' pod-dropzone-active' : ''}${
+                      imagePreview ? ' pod-dropzone-filled' : ''
+                    }`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!saving) setCoverDragActive(true);
+                    }}
+                    onDragLeave={() => setCoverDragActive(false)}
+                    onDrop={handleCoverDrop}
+                    onClick={() => {
+                      if (!saving) coverInputRef.current?.click();
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={imagePreview ? 'Change cover image' : 'Add cover image'}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        if (!saving) coverInputRef.current?.click();
+                      }
+                    }}
+                  >
+                    {imagePreview ? (
+                      <>
+                        <img className="pod-image-preview admin-post-edit-dropzone-preview" src={imagePreview} alt="Cover preview" />
+                        <span className="pod-dropzone-hint">
+                          Drop a new image to replace, or click to browse (JPEG, PNG, or WebP)
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Drop a cover image here</span>
+                        <span className="pod-dropzone-hint">Or click to browse — JPEG, PNG, or WebP</span>
+                      </>
                     )}
                   </div>
+                  {imageFile && (
+                    <button
+                      type="button"
+                      className="pod-btn pod-btn-secondary pod-btn-sm"
+                      style={{ marginTop: '0.5rem' }}
+                      onClick={() => {
+                        if (coverInputRef.current) coverInputRef.current.value = '';
+                        setLocalPreview(null);
+                      }}
+                      disabled={saving}
+                    >
+                      Undo new cover
+                    </button>
+                  )}
                   <input
                     ref={coverInputRef}
                     id={`${dialogTitleId}-cover`}
