@@ -7,7 +7,6 @@ import PostCard, { FeedPost } from '../components/PostCard';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
-import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
 import LibraryInfiniteFooter from '../components/LibraryInfiniteFooter';
@@ -193,14 +192,11 @@ const Library: React.FC = () => {
     return map;
   }, [entries]);
 
-  const selectionActions = (
+  const selectionActions = isAdmin ? (
     <div className="member-episode-selection-actions">
-      <BulkPlaylistPicker postIds={selectedPostIds} onComplete={clearSelection} variant="popup" />
-      {isAdmin && (
-        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
-      )}
+      <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
     </div>
-  );
+  ) : null;
 
   const mainBarActions = isAdmin ? (
     <AdminSelectedPostEdit
