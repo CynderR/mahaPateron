@@ -10,9 +10,6 @@ const isVisible = (el: HTMLElement): boolean => {
 };
 
 const pickVisibleSentinel = (nodes: Set<HTMLDivElement>): HTMLDivElement | null => {
-  // #region agent log
-  fetch('http://127.0.0.1:7243/ingest/6e2f4ce6-d23e-49c6-a2a1-a23bf82f5433',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'817be1'},body:JSON.stringify({sessionId:'817be1',runId:'post-fix',hypothesisId:'A',location:'useInfiniteScroll.ts:pickVisibleSentinel',message:'pickVisibleSentinel called',data:{size:nodes.size},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
   for (const node of Array.from(nodes)) {
     if (isVisible(node)) return node;
   }
@@ -35,10 +32,16 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
 
   const nodesRef = useRef<Set<HTMLDivElement>>(new Set());
   const bindRef = useRef<(() => void) | null>(null);
+  const loadLockRef = useRef(false);
 
   const sentinelRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       nodesRef.current.add(node);
+    } else {
+      // Drop detached nodes so stale sentinels cannot keep firing.
+      for (const existing of Array.from(nodesRef.current)) {
+        if (!existing.isConnected) nodesRef.current.delete(existing);
+      }
     }
     bindRef.current?.();
   }, []);
@@ -46,16 +49,27 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
   useEffect(() => {
     if (!enabled) {
       bindRef.current = null;
+      loadLockRef.current = false;
       return;
     }
 
     let observer: IntersectionObserver | null = null;
     let scrollRaf = 0;
 
+    const requestLoadMore = () => {
+      if (loadLockRef.current) return;
+      loadLockRef.current = true;
+      onLoadMoreRef.current();
+      // Unlock on next frame so React can flip loadingMore before another trigger.
+      window.requestAnimationFrame(() => {
+        loadLockRef.current = false;
+      });
+    };
+
     const maybeLoadMore = () => {
       const target = pickVisibleSentinel(nodesRef.current);
       if (!target || !isNearViewport(target)) return;
-      onLoadMoreRef.current();
+      requestLoadMore();
     };
 
     const bind = () => {
@@ -68,7 +82,7 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
       observer = new IntersectionObserver(
         (entries) => {
           if (entries.some((entry) => entry.isIntersecting)) {
-            onLoadMoreRef.current();
+            requestLoadMore();
           }
         },
         { root: null, rootMargin: `${ROOT_MARGIN_PX}px 0px`, threshold: 0 }

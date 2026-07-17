@@ -336,15 +336,20 @@
 /* Tables */
 .pod-table-wrap {
   overflow-x: auto;
+  overflow-y: clip;
   border: 1px solid var(--border-primary);
   border-radius: 0.75rem;
   background: var(--bg-card);
   max-width: 100%;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .pod-table-wrap-users {
   width: 100%;
+  /* Keep vertical wheel/trackpad scrolling on the page, not trapped in the table wrap */
+  overflow-x: auto;
+  overflow-y: clip;
 }
 
 .pod-table-wrap-users .pod-table {

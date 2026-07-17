@@ -68,8 +68,9 @@ const Users: React.FC = () => {
     is_admin: '',
     account_status: 'active'
   });
+  const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [listEpoch, setListEpoch] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
@@ -83,22 +84,30 @@ const Users: React.FC = () => {
   const limit = 20;
   const hasMore = users.length < total;
 
+  // Debounce search so typing does not reset/jitter the list on every keypress.
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setFilters((prev) => (prev.q === searchInput ? prev : { ...prev, q: searchInput }));
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [searchInput]);
+
+  // Reset pagination when filters change without blanking the current list mid-scroll.
   useEffect(() => {
     setPage(1);
-    setUsers([]);
-    setLoading(true);
   }, [filters]);
 
   useEffect(() => {
     let cancelled = false;
+    const requestedPage = page;
 
     const load = async () => {
       setError('');
-      if (page === 1) setLoading(true);
+      if (requestedPage === 1) setLoading(true);
       else setLoadingMore(true);
 
       try {
-        const params: Record<string, string | number> = { page, limit };
+        const params: Record<string, string | number> = { page: requestedPage, limit };
         if (filters.q.trim()) params.q = filters.q.trim();
         if (filters.payment_category) params.payment_category = filters.payment_category;
         if (filters.subscription_status) params.subscription_status = filters.subscription_status;
@@ -109,13 +118,9 @@ const Users: React.FC = () => {
         const res = await axios.get<UsersResponse>('/admin/users', { params });
         if (cancelled) return;
 
-        const { users: pageUsers, page: responsePage, total: responseTotal } = res.data;
+        const { users: pageUsers, total: responseTotal } = res.data;
         setTotal(responseTotal);
-        setUsers((prev) => (page === 1 ? pageUsers : [...prev, ...pageUsers]));
-
-        if (pageUsers.length === 0 && responsePage > 1 && responseTotal > 0) {
-          setPage(responsePage - 1);
-        }
+        setUsers((prev) => (requestedPage === 1 ? pageUsers : [...prev, ...pageUsers]));
       } catch (e) {
         if (!cancelled) setError('Could not load users.');
       } finally {
@@ -130,12 +135,20 @@ const Users: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, filters, refreshKey]);
+  }, [page, filters, listEpoch]);
 
   const reload = useCallback(() => {
-    setUsers([]);
     setPage(1);
-    setRefreshKey((key) => key + 1);
+    setListEpoch((epoch) => epoch + 1);
+  }, []);
+
+  const patchUser = useCallback((id: number, patch: Partial<AdminUser>) => {
+    setUsers((prev) => prev.map((user) => (user.id === id ? { ...user, ...patch } : user)));
+  }, []);
+
+  const removeUser = useCallback((id: number) => {
+    setUsers((prev) => prev.filter((user) => user.id !== id));
+    setTotal((prev) => Math.max(0, prev - 1));
   }, []);
 
   const loadMore = useCallback(() => {
@@ -147,10 +160,12 @@ const Users: React.FC = () => {
 
   const handleUpdate = async (id: number, field: string, value: unknown) => {
     setError('');
+    const previous = users.find((user) => user.id === id);
+    patchUser(id, { [field]: value } as Partial<AdminUser>);
     try {
       await axios.put(`/admin/users/${id}`, { [field]: value });
-      reload();
     } catch (e: any) {
+      if (previous) patchUser(id, previous);
       setError(e.response?.data?.error || 'Update failed.');
     }
   };
@@ -161,20 +176,26 @@ const Users: React.FC = () => {
     currentCategory: string
   ) => {
     setError('');
+    const previous = users.find((user) => user.id === id);
+    const fields = subscriptionFieldsFromStatus(status, currentCategory);
+    patchUser(id, fields as Partial<AdminUser>);
     try {
-      await axios.put(`/admin/users/${id}`, subscriptionFieldsFromStatus(status, currentCategory));
-      reload();
+      await axios.put(`/admin/users/${id}`, fields);
     } catch (e: any) {
+      if (previous) patchUser(id, previous);
       setError(e.response?.data?.error || 'Update failed.');
     }
   };
 
   const handlePayingTierChange = async (id: number, tier: PayingTier) => {
     setError('');
+    const previous = users.find((user) => user.id === id);
+    const fields = fieldsFromPayingTier(tier);
+    patchUser(id, fields as Partial<AdminUser>);
     try {
-      await axios.put(`/admin/users/${id}`, fieldsFromPayingTier(tier));
-      reload();
+      await axios.put(`/admin/users/${id}`, fields);
     } catch (e: any) {
+      if (previous) patchUser(id, previous);
       setError(e.response?.data?.error || 'Update failed.');
     }
   };
@@ -187,7 +208,7 @@ const Users: React.FC = () => {
     if (!window.confirm(confirmation)) return;
     try {
       await axios.delete(`/admin/users/${id}`, { data: { mode } });
-      reload();
+      removeUser(id);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Delete failed.');
     }
@@ -200,7 +221,7 @@ const Users: React.FC = () => {
     try {
       await axios.post(`/admin/users/${id}/restore`);
       setMessage('User restored.');
-      reload();
+      removeUser(id);
     } catch (e: any) {
       setError(e.response?.data?.error || 'Restore failed.');
     }
@@ -427,9 +448,9 @@ const Users: React.FC = () => {
               <input
                 className="pod-input"
                 type="search"
-                value={filters.q}
+                value={searchInput}
                 placeholder="Username or email"
-                onChange={(e) => updateFilter({ q: e.target.value })}
+                onChange={(e) => setSearchInput(e.target.value)}
               />
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
@@ -513,23 +534,22 @@ const Users: React.FC = () => {
         {loading && users.length === 0 ? (
           <div className="pod-empty">Loading users…</div>
         ) : (
-          <UserTable
-            users={users}
-            rssBaseUrl={rssBaseUrl}
-            onUpdate={handleUpdate}
-            onSubscriptionChange={handleSubscriptionChange}
-            onPayingTierChange={handlePayingTierChange}
-            onDelete={handleDelete}
-            onRestore={handleRestore}
-          />
-        )}
-
-        {!loading && (
-          <LibraryInfiniteFooter
-            sentinelRef={sentinelRef}
-            loadingMore={loadingMore}
-            hasMore={hasMore}
-          />
+          <>
+            <UserTable
+              users={users}
+              rssBaseUrl={rssBaseUrl}
+              onUpdate={handleUpdate}
+              onSubscriptionChange={handleSubscriptionChange}
+              onPayingTierChange={handlePayingTierChange}
+              onDelete={handleDelete}
+              onRestore={handleRestore}
+            />
+            <LibraryInfiniteFooter
+              sentinelRef={sentinelRef}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+            />
+          </>
         )}
       </main>
     </div>
