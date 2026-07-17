@@ -2,10 +2,12 @@ import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import PodcastNav from '../../components/PodcastNav';
 import UserTable, { AdminDeleteMode, AdminUser } from '../../components/UserTable';
+import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import PasswordInput from '../../components/PasswordInput';
 import { buildRssBaseUrl } from '../../config';
+import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
   fieldsFromPayingTier,
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
@@ -56,7 +58,8 @@ const emptyNewUser: NewUserForm = {
 };
 
 const Users: React.FC = () => {
-  const [data, setData] = useState<UsersResponse | null>(null);
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [total, setTotal] = useState(0);
   const [filters, setFilters] = useState({
     q: '',
     payment_category: '',
@@ -66,6 +69,9 @@ const Users: React.FC = () => {
     account_status: 'active'
   });
   const [page, setPage] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [showAdd, setShowAdd] = useState(false);
@@ -75,33 +81,75 @@ const Users: React.FC = () => {
 
   const rssBaseUrl = buildRssBaseUrl();
   const limit = 20;
-
-  const load = useCallback(async () => {
-    setError('');
-    try {
-      const params: Record<string, string | number> = { page, limit };
-      if (filters.q.trim()) params.q = filters.q.trim();
-      if (filters.payment_category) params.payment_category = filters.payment_category;
-      if (filters.subscription_status) params.subscription_status = filters.subscription_status;
-      if (filters.access_type) params.access_type = filters.access_type;
-      if (filters.is_admin) params.is_admin = filters.is_admin;
-      if (filters.account_status) params.account_status = filters.account_status;
-      const res = await axios.get<UsersResponse>('/admin/users', { params });
-      setData(res.data);
-    } catch (e) {
-      setError('Could not load users.');
-    }
-  }, [page, filters]);
+  const hasMore = users.length < total;
 
   useEffect(() => {
+    setPage(1);
+    setUsers([]);
+    setLoading(true);
+  }, [filters]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      setError('');
+      if (page === 1) setLoading(true);
+      else setLoadingMore(true);
+
+      try {
+        const params: Record<string, string | number> = { page, limit };
+        if (filters.q.trim()) params.q = filters.q.trim();
+        if (filters.payment_category) params.payment_category = filters.payment_category;
+        if (filters.subscription_status) params.subscription_status = filters.subscription_status;
+        if (filters.access_type) params.access_type = filters.access_type;
+        if (filters.is_admin) params.is_admin = filters.is_admin;
+        if (filters.account_status) params.account_status = filters.account_status;
+
+        const res = await axios.get<UsersResponse>('/admin/users', { params });
+        if (cancelled) return;
+
+        const { users: pageUsers, page: responsePage, total: responseTotal } = res.data;
+        setTotal(responseTotal);
+        setUsers((prev) => (page === 1 ? pageUsers : [...prev, ...pageUsers]));
+
+        if (pageUsers.length === 0 && responsePage > 1 && responseTotal > 0) {
+          setPage(responsePage - 1);
+        }
+      } catch (e) {
+        if (!cancelled) setError('Could not load users.');
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+        }
+      }
+    };
+
     load();
-  }, [load]);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, filters, refreshKey]);
+
+  const reload = useCallback(() => {
+    setUsers([]);
+    setPage(1);
+    setRefreshKey((key) => key + 1);
+  }, []);
+
+  const loadMore = useCallback(() => {
+    if (loading || loadingMore || !hasMore) return;
+    setPage((current) => current + 1);
+  }, [loading, loadingMore, hasMore]);
+
+  const sentinelRef = useInfiniteScroll(loadMore, hasMore && !loading && !loadingMore);
 
   const handleUpdate = async (id: number, field: string, value: unknown) => {
     setError('');
     try {
       await axios.put(`/admin/users/${id}`, { [field]: value });
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Update failed.');
     }
@@ -115,7 +163,7 @@ const Users: React.FC = () => {
     setError('');
     try {
       await axios.put(`/admin/users/${id}`, subscriptionFieldsFromStatus(status, currentCategory));
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Update failed.');
     }
@@ -125,7 +173,7 @@ const Users: React.FC = () => {
     setError('');
     try {
       await axios.put(`/admin/users/${id}`, fieldsFromPayingTier(tier));
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Update failed.');
     }
@@ -139,7 +187,7 @@ const Users: React.FC = () => {
     if (!window.confirm(confirmation)) return;
     try {
       await axios.delete(`/admin/users/${id}`, { data: { mode } });
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Delete failed.');
     }
@@ -152,7 +200,7 @@ const Users: React.FC = () => {
     try {
       await axios.post(`/admin/users/${id}/restore`);
       setMessage('User restored.');
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Restore failed.');
     }
@@ -200,21 +248,21 @@ const Users: React.FC = () => {
       setShowPassword(false);
       setShowConfirmPassword(false);
       setShowAdd(false);
-      load();
+      reload();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Could not create user.');
     }
   };
 
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
+  const updateFilter = (patch: Partial<typeof filters>) => {
+    setFilters((prev) => ({ ...prev, ...patch }));
+  };
 
   return (
     <div className="podcast-page">
       <PodcastNav />
       <main className="podcast-main podcast-main-wide">
-        <h2 className="podcast-section-title">
-          Users {data ? `(${data.total})` : ''}
-        </h2>
+        <h2 className="podcast-section-title">Users {total ? `(${total})` : ''}</h2>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
         {message && <div className="pod-banner pod-banner-success">{message}</div>}
@@ -280,7 +328,11 @@ const Users: React.FC = () => {
             </div>
             <div className="pod-form-group">
               <label>Role</label>
-              <select className="pod-select" value={newUser.is_admin ? 'admin' : 'user'} onChange={(e) => setNewUser({ ...newUser, is_admin: e.target.value === 'admin' })}>
+              <select
+                className="pod-select"
+                value={newUser.is_admin ? 'admin' : 'user'}
+                onChange={(e) => setNewUser({ ...newUser, is_admin: e.target.value === 'admin' })}
+              >
                 <option value="user">user</option>
                 <option value="admin">admin</option>
               </select>
@@ -321,7 +373,11 @@ const Users: React.FC = () => {
             )}
             <div className="pod-form-group">
               <label>Access type</label>
-              <select className="pod-select" value={newUser.access_type} onChange={(e) => setNewUser({ ...newUser, access_type: e.target.value })}>
+              <select
+                className="pod-select"
+                value={newUser.access_type}
+                onChange={(e) => setNewUser({ ...newUser, access_type: e.target.value })}
+              >
                 {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -354,7 +410,8 @@ const Users: React.FC = () => {
               />
               <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                 Stripe checkout bills every paying subscriber with the official Dashboard Price
-                (<code>stripe_price_id</code> / <code>STRIPE_PRICE_ID</code>). This field does not change the charged amount.
+                (<code>stripe_price_id</code> / <code>STRIPE_PRICE_ID</code>). This field does not change the charged
+                amount.
               </p>
             </div>
             <button type="submit" className="pod-btn">
@@ -372,10 +429,7 @@ const Users: React.FC = () => {
                 type="search"
                 value={filters.q}
                 placeholder="Username or email"
-                onChange={(e) => {
-                  setPage(1);
-                  setFilters({ ...filters, q: e.target.value });
-                }}
+                onChange={(e) => updateFilter({ q: e.target.value })}
               />
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
@@ -383,10 +437,7 @@ const Users: React.FC = () => {
               <select
                 className="pod-select"
                 value={filters.payment_category}
-                onChange={(e) => {
-                  setPage(1);
-                  setFilters({ ...filters, payment_category: e.target.value });
-                }}
+                onChange={(e) => updateFilter({ payment_category: e.target.value })}
               >
                 <option value="">All</option>
                 {PAYING_TIER_OPTIONS.map((option) => (
@@ -398,7 +449,11 @@ const Users: React.FC = () => {
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>Role</label>
-              <select className="pod-select" value={filters.is_admin} onChange={(e) => { setPage(1); setFilters({ ...filters, is_admin: e.target.value }); }}>
+              <select
+                className="pod-select"
+                value={filters.is_admin}
+                onChange={(e) => updateFilter({ is_admin: e.target.value })}
+              >
                 <option value="">All</option>
                 <option value="true">admin</option>
                 <option value="false">user</option>
@@ -409,10 +464,7 @@ const Users: React.FC = () => {
               <select
                 className="pod-select"
                 value={filters.subscription_status}
-                onChange={(e) => {
-                  setPage(1);
-                  setFilters({ ...filters, subscription_status: e.target.value });
-                }}
+                onChange={(e) => updateFilter({ subscription_status: e.target.value })}
               >
                 <option value="">All</option>
                 {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
@@ -424,7 +476,11 @@ const Users: React.FC = () => {
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>Access</label>
-              <select className="pod-select" value={filters.access_type} onChange={(e) => { setPage(1); setFilters({ ...filters, access_type: e.target.value }); }}>
+              <select
+                className="pod-select"
+                value={filters.access_type}
+                onChange={(e) => updateFilter({ access_type: e.target.value })}
+              >
                 <option value="">All</option>
                 {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -438,10 +494,7 @@ const Users: React.FC = () => {
               <select
                 className="pod-select"
                 value={filters.account_status}
-                onChange={(e) => {
-                  setPage(1);
-                  setFilters({ ...filters, account_status: e.target.value });
-                }}
+                onChange={(e) => updateFilter({ account_status: e.target.value })}
               >
                 <option value="active">Active</option>
                 <option value="deleted">Deleted</option>
@@ -457,9 +510,11 @@ const Users: React.FC = () => {
           </div>
         </div>
 
-        {data && (
+        {loading && users.length === 0 ? (
+          <div className="pod-empty">Loading users…</div>
+        ) : (
           <UserTable
-            users={data.users}
+            users={users}
             rssBaseUrl={rssBaseUrl}
             onUpdate={handleUpdate}
             onSubscriptionChange={handleSubscriptionChange}
@@ -469,17 +524,13 @@ const Users: React.FC = () => {
           />
         )}
 
-        <div className="pod-inline-actions" style={{ marginTop: '1.5rem', justifyContent: 'center' }}>
-          <button type="button" className="pod-btn pod-btn-secondary pod-btn-sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
-            Previous
-          </button>
-          <span style={{ alignSelf: 'center', color: 'var(--text-secondary)' }}>
-            Page {page} of {totalPages}
-          </span>
-          <button type="button" className="pod-btn pod-btn-secondary pod-btn-sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
-            Next
-          </button>
-        </div>
+        {!loading && (
+          <LibraryInfiniteFooter
+            sentinelRef={sentinelRef}
+            loadingMore={loadingMore}
+            hasMore={hasMore}
+          />
+        )}
       </main>
     </div>
   );
