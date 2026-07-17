@@ -21,6 +21,12 @@ const prefersScrollFallback = (): boolean => {
   return window.matchMedia('(max-width: 768px), (pointer: coarse)').matches;
 };
 
+/** True when the sentinel is actually on-screen (not merely within rootMargin preload). */
+const isInViewport = (el: HTMLElement): boolean => {
+  const rect = el.getBoundingClientRect();
+  return rect.top < window.innerHeight && rect.bottom > 0;
+};
+
 const isNearViewport = (el: HTMLElement): boolean => {
   const rect = el.getBoundingClientRect();
   return rect.top <= window.innerHeight + ROOT_MARGIN_PX;
@@ -32,13 +38,13 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
 
   const nodesRef = useRef<Set<HTMLDivElement>>(new Set());
   const bindRef = useRef<(() => void) | null>(null);
+  /** Stays locked from a trigger until the parent disables the hook (loading finishes). */
   const loadLockRef = useRef(false);
 
   const sentinelRef = useCallback((node: HTMLDivElement | null) => {
     if (node) {
       nodesRef.current.add(node);
     } else {
-      // Drop detached nodes so stale sentinels cannot keep firing.
       for (const existing of Array.from(nodesRef.current)) {
         if (!existing.isConnected) nodesRef.current.delete(existing);
       }
@@ -49,6 +55,7 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
   useEffect(() => {
     if (!enabled) {
       bindRef.current = null;
+      // Parent flipped loading/hasMore — unlock so the next scroll can load again.
       loadLockRef.current = false;
       return;
     }
@@ -60,19 +67,16 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
       if (loadLockRef.current) return;
       loadLockRef.current = true;
       onLoadMoreRef.current();
-      // Unlock on next frame so React can flip loadingMore before another trigger.
-      window.requestAnimationFrame(() => {
-        loadLockRef.current = false;
-      });
     };
 
-    const maybeLoadMore = () => {
+    const maybeLoadMore = (requireInViewport: boolean) => {
       const target = pickVisibleSentinel(nodesRef.current);
-      if (!target || !isNearViewport(target)) return;
+      if (!target) return;
+      if (requireInViewport ? !isInViewport(target) : !isNearViewport(target)) return;
       requestLoadMore();
     };
 
-    const bind = () => {
+    const bind = (autoFill: boolean) => {
       observer?.disconnect();
       observer = null;
 
@@ -88,24 +92,26 @@ export function useInfiniteScroll(onLoadMore: () => void, enabled: boolean) {
         { root: null, rootMargin: `${ROOT_MARGIN_PX}px 0px`, threshold: 0 }
       );
       observer.observe(target);
-      maybeLoadMore();
+
+      // Only auto-fill when the first page doesn't cover the screen.
+      // Do NOT use rootMargin here — that caused rapid page cascades and scroll jitter.
+      if (autoFill) maybeLoadMore(true);
     };
 
-    bindRef.current = bind;
-    bind();
+    bindRef.current = () => bind(false);
+    bind(true);
 
     const onScroll = () => {
       if (!prefersScrollFallback()) return;
       if (scrollRaf) return;
       scrollRaf = window.requestAnimationFrame(() => {
         scrollRaf = 0;
-        maybeLoadMore();
+        maybeLoadMore(false);
       });
     };
 
     const onLayoutChange = () => {
-      bind();
-      maybeLoadMore();
+      bind(false);
     };
 
     if (prefersScrollFallback()) {

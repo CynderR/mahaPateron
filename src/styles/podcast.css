@@ -3519,12 +3519,14 @@ body.global-now-playing-active .podcast-main {
   height: 48px;
   width: 100%;
   pointer-events: none;
+  overflow-anchor: none;
 }
 
 .pod-infinite-loading {
   padding: 1rem;
   text-align: center;
   color: var(--text-secondary);
+  overflow-anchor: none;
 }
 
 .pod-infinite-end {

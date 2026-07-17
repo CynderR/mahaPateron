@@ -120,7 +120,12 @@ const Users: React.FC = () => {
 
         const { users: pageUsers, total: responseTotal } = res.data;
         setTotal(responseTotal);
-        setUsers((prev) => (requestedPage === 1 ? pageUsers : [...prev, ...pageUsers]));
+        setUsers((prev) => {
+          if (requestedPage === 1) return pageUsers;
+          const seen = new Set(prev.map((user) => user.id));
+          const appended = pageUsers.filter((user) => !seen.has(user.id));
+          return appended.length === 0 ? prev : [...prev, ...appended];
+        });
       } catch (e) {
         if (!cancelled) setError('Could not load users.');
       } finally {
@@ -153,6 +158,7 @@ const Users: React.FC = () => {
 
   const loadMore = useCallback(() => {
     if (loading || loadingMore || !hasMore) return;
+    setLoadingMore(true);
     setPage((current) => current + 1);
   }, [loading, loadingMore, hasMore]);
 
