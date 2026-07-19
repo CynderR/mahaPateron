@@ -139,8 +139,11 @@ sudo cp config/nginx-shyam-akaash.snippet /etc/nginx/snippets/shyam-akaash.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-WhatsApp caches previews aggressively; after a fix, re-share the link in a new
-chat (or append `?v=2`) to force a refresh.
+WhatsApp/Signal cache previews on the sender device; after a fix, paste the link
+in a **new** compose field (or append `?v=2`) so Signal fetches again.
+
+Signal’s HTML parser is strict: Open Graph tags must appear in `<head>` **before**
+any `<script>` tags, or the preview falls back to the generic chain-link icon.
 
 ## Stripe Price setup
 
