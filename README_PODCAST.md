@@ -145,6 +145,9 @@ in a **new** compose field (or append `?v=2`) so Signal fetches again.
 Signal’s HTML parser is strict: Open Graph tags must appear in `<head>` **before**
 any `<script>` tags, or the preview falls back to the generic chain-link icon.
 
+Signal also rejects preview images larger than **1MB**. Oversized episode covers are
+automatically compressed to `uploads/images/og-*.jpg` for `og:image`.
+
 ## Stripe Price setup
 
 Checkout uses one official recurring Price from the Stripe Product catalog for

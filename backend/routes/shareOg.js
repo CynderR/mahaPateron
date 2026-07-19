@@ -15,7 +15,7 @@ router.get('/share/:shareToken', async (req, res) => {
 
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('Cache-Control', 'public, max-age=300');
-    res.send(buildShareOgHtml(post));
+    res.send(await buildShareOgHtml(post));
   } catch (error) {
     console.error('Share OG preview error:', error);
     res.status(500).send('Internal server error');

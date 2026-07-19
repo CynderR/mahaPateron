@@ -3,6 +3,7 @@ const path = require('path');
 const { BASE_URL } = require('../config');
 const { escapeHtml } = require('./escapeHtml');
 const { getPodcastChannelImageUrl } = require('./podcastBranding');
+const { ensureShareOgImageFilename } = require('./shareOgImage');
 
 const SITE_NAME = process.env.PODCAST_TITLE || 'Shyam Akaash';
 
@@ -28,9 +29,9 @@ const buildSharePageUrl = (post) => {
   return `${BASE_URL}/share/${encodeURIComponent(slug)}/${encodeURIComponent(post.share_token)}`;
 };
 
-const buildShareImageUrl = (post) => {
-  if (post.image_filename) {
-    return `${BASE_URL}/uploads/images/${encodeURIComponent(post.image_filename)}`;
+const buildShareImageUrl = (imageFilename) => {
+  if (imageFilename) {
+    return `${BASE_URL}/uploads/images/${encodeURIComponent(imageFilename)}`;
   }
   return getPodcastChannelImageUrl() || `${BASE_URL}/podcast-cover.jpg`;
 };
@@ -44,10 +45,10 @@ const truncateDescription = (text, maxLen = 200) => {
   return `${trimmed.slice(0, maxLen - 1).trim()}…`;
 };
 
-const buildOgMetaTags = (post) => {
+const buildOgMetaTags = (post, imageFilename) => {
   const episodeTitle = String(post.title || 'Episode').trim();
   const pageUrl = buildSharePageUrl(post);
-  const imageUrl = buildShareImageUrl(post);
+  const imageUrl = buildShareImageUrl(imageFilename);
   // Signal/WhatsApp: title = episode name; description falls back to site name.
   const description = truncateDescription(post.description) || SITE_NAME;
 
@@ -111,8 +112,10 @@ const injectOgIntoSpaHtml = (html, tags) => {
 
 // Prefer the built SPA shell so browsers still get the app while crawlers
 // (Signal, WhatsApp, iMessage) see Open Graph tags without User-Agent sniffing.
-const buildShareOgHtml = (post) => {
-  const og = buildOgMetaTags(post);
+const buildShareOgHtml = async (post) => {
+  const ogImageFilename =
+    (await ensureShareOgImageFilename(post.image_filename)) || null;
+  const og = buildOgMetaTags(post, ogImageFilename);
 
   try {
     if (fs.existsSync(FRONTEND_INDEX)) {
