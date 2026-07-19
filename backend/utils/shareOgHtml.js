@@ -113,8 +113,16 @@ const injectOgIntoSpaHtml = (html, tags) => {
 // Prefer the built SPA shell so browsers still get the app while crawlers
 // (Signal, WhatsApp, iMessage) see Open Graph tags without User-Agent sniffing.
 const buildShareOgHtml = async (post) => {
-  const ogImageFilename =
-    (await ensureShareOgImageFilename(post.image_filename)) || null;
+  // Always prefer this post's cover. Compression may substitute og-*.jpg for
+  // Signal's 1MB limit; never fall back to channel artwork when a cover exists.
+  let ogImageFilename = post.image_filename || null;
+  try {
+    const ensured = await ensureShareOgImageFilename(post.image_filename);
+    if (ensured) ogImageFilename = ensured;
+  } catch (error) {
+    console.warn('Share OG: cover resolve failed, using post image_filename:', error.message);
+  }
+
   const og = buildOgMetaTags(post, ogImageFilename);
 
   try {
