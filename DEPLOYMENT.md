@@ -240,10 +240,13 @@ sudo ufw enable
 ## Step 8: Database Setup
 
 ### Create admin user
+Set a strong password in the environment first (never commit it):
 ```bash
 cd /var/www/user-management-app/backend
+# ADMIN_PASSWORD=...  (optional: ADMIN_USERNAME, ADMIN_EMAIL)
 node create-admin.js
 ```
+If an older default admin password was ever used in production, rotate it immediately.
 
 ## Step 9: Monitoring and Logs
 

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import axios from 'axios';
 
 import {
   ADMIN_ACCESS_TYPE_OPTIONS,
@@ -22,7 +23,6 @@ export interface AdminUser {
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
   subscription_price: number | null;
-  rss_token: string;
   deleted_at?: string | null;
 }
 
@@ -30,7 +30,6 @@ export type AdminDeleteMode = 'reuse_email' | 'permanent';
 
 interface UserTableProps {
   users: AdminUser[];
-  rssBaseUrl: string;
   onUpdate: (id: number, field: string, value: unknown) => void;
   onSubscriptionChange: (id: number, status: SubscriptionStatus, currentCategory: string) => void;
   onPayingTierChange: (id: number, tier: PayingTier) => void;
@@ -56,7 +55,6 @@ const useIsMobileUsersLayout = (): boolean => {
 
 const UserTable: React.FC<UserTableProps> = ({
   users,
-  rssBaseUrl,
   onUpdate,
   onSubscriptionChange,
   onPayingTierChange,
@@ -64,10 +62,34 @@ const UserTable: React.FC<UserTableProps> = ({
   onRestore
 }) => {
   const [deleteModes, setDeleteModes] = useState<Record<number, AdminDeleteMode>>({});
+  const [rssBusyId, setRssBusyId] = useState<number | null>(null);
   const isMobile = useIsMobileUsersLayout();
 
-  const copyRss = (token: string) => {
-    navigator.clipboard.writeText(`${rssBaseUrl}/rss/${token}`).catch(() => {});
+  const copyRss = async (userId: number) => {
+    setRssBusyId(userId);
+    try {
+      const res = await axios.get<{ rssUrl: string }>(`/admin/users/${userId}/rss`);
+      await navigator.clipboard.writeText(res.data.rssUrl);
+    } catch {
+      // Clipboard / network failure — ignore for admin UX.
+    } finally {
+      setRssBusyId(null);
+    }
+  };
+
+  const rotateRss = async (userId: number) => {
+    if (!window.confirm('Rotate this member’s RSS URL? Their old podcast feed link will stop working.')) {
+      return;
+    }
+    setRssBusyId(userId);
+    try {
+      const res = await axios.post<{ rssUrl: string }>(`/admin/users/${userId}/rotate-rss-token`);
+      await navigator.clipboard.writeText(res.data.rssUrl);
+    } catch {
+      // ignore
+    } finally {
+      setRssBusyId(null);
+    }
   };
 
   const renderAccessControls = (u: AdminUser, isDeleted: boolean) => (
@@ -140,10 +162,19 @@ const UserTable: React.FC<UserTableProps> = ({
       <button
         type="button"
         className="pod-btn pod-btn-secondary pod-btn-sm"
-        disabled={isDeleted}
-        onClick={() => copyRss(u.rss_token)}
+        disabled={isDeleted || rssBusyId === u.id}
+        onClick={() => copyRss(u.id)}
       >
         Copy RSS URL
+      </button>
+      <button
+        type="button"
+        className="pod-btn pod-btn-secondary pod-btn-sm"
+        disabled={isDeleted || rssBusyId === u.id}
+        onClick={() => rotateRss(u.id)}
+        title="Invalidate the old feed URL and copy the new one"
+      >
+        Rotate RSS
       </button>
 
       {isDeleted ? (
@@ -296,10 +327,20 @@ const UserTable: React.FC<UserTableProps> = ({
                   <button
                     type="button"
                     className="pod-btn pod-btn-secondary pod-btn-sm"
-                    disabled={isDeleted}
-                    onClick={() => copyRss(u.rss_token)}
+                    disabled={isDeleted || rssBusyId === u.id}
+                    onClick={() => copyRss(u.id)}
                   >
                     Copy URL
+                  </button>
+                  <button
+                    type="button"
+                    className="pod-btn pod-btn-secondary pod-btn-sm"
+                    style={{ marginTop: '0.35rem' }}
+                    disabled={isDeleted || rssBusyId === u.id}
+                    onClick={() => rotateRss(u.id)}
+                    title="Invalidate the old feed URL and copy the new one"
+                  >
+                    Rotate
                   </button>
                 </td>
                 <td>

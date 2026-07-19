@@ -1,4 +1,6 @@
 const jwt = require('jsonwebtoken');
+const { getUserById } = require('../database');
+const { tokenVersionMatches } = require('../utils/secureTokens');
 
 const KNOWN_WEAK_SECRETS = new Set([
   'your-secret-key-change-in-production',
@@ -32,8 +34,9 @@ const resolveJwtSecret = () => {
 
 const JWT_SECRET = resolveJwtSecret();
 
-// Verifies the JWT Bearer token and attaches the decoded payload to req.user.
-const authenticateToken = (req, res, next) => {
+// Verifies the JWT Bearer token, checks token_version (invalidated on password change),
+// and attaches the decoded payload to req.user.
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -41,16 +44,27 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: 'Access token required' });
   }
 
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await getUserById(decoded.id);
+    if (!user || user.deleted_at || !tokenVersionMatches(user, decoded)) {
       return res.status(403).json({ error: 'Invalid or expired token' });
     }
+
     res.set('Cache-Control', 'no-store, private');
     res.set('Pragma', 'no-cache');
     res.set('Vary', 'Authorization');
-    req.user = user;
+    req.user = {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      is_admin: !!user.is_admin,
+      tv: user.token_version || 0
+    };
     next();
-  });
+  } catch (err) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
 };
 
 module.exports = authenticateToken;

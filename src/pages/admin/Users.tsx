@@ -6,7 +6,6 @@ import LibraryInfiniteFooter from '../../components/LibraryInfiniteFooter';
 import PayingTierSelect from '../../components/admin/PayingTierSelect';
 import SubscriptionToggle from '../../components/admin/SubscriptionToggle';
 import PasswordInput from '../../components/PasswordInput';
-import { buildRssBaseUrl } from '../../config';
 import { useInfiniteScroll } from '../../hooks/useInfiniteScroll';
 import {
   fieldsFromPayingTier,
@@ -80,7 +79,6 @@ const Users: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const rssBaseUrl = buildRssBaseUrl();
   const limit = 20;
   const hasMore = users.length < total;
 
@@ -543,7 +541,6 @@ const Users: React.FC = () => {
           <>
             <UserTable
               users={users}
-              rssBaseUrl={rssBaseUrl}
               onUpdate={handleUpdate}
               onSubscriptionChange={handleSubscriptionChange}
               onPayingTierChange={handlePayingTierChange}

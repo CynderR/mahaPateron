@@ -18,7 +18,10 @@ const { resolvePostTags, resolvePostDescription } = require('../utils/audioMetad
 const {
   IMAGE_MIME,
   isAllowedAudioMime,
-  validateUploadedAudio
+  extensionForImageMime,
+  validateUploadedAudio,
+  finalizeUploadedImage,
+  safeEmbeddedImageExt
 } = require('../utils/audioUpload');
 
 const router = express.Router();
@@ -32,8 +35,13 @@ const storage = multer.diskStorage({
     cb(null, file.fieldname === 'audio' ? AUDIO_DIR : IMAGE_DIR);
   },
   filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname) || (file.fieldname === 'audio' ? '.mp3' : '');
-    cb(null, `${uuidv4()}${ext}`);
+    if (file.fieldname === 'image') {
+      const ext = extensionForImageMime(file.mimetype);
+      if (!ext) return cb(new Error('Unsupported image type'));
+      return cb(null, `${uuidv4()}${ext}`);
+    }
+    // Ignore client-supplied audio extensions; only MP3 is accepted downstream.
+    cb(null, `${uuidv4()}.mp3`);
   }
 });
 
@@ -43,7 +51,7 @@ const fileFilter = (req, file, cb) => {
     return cb(null, isAllowedAudioMime(file.mimetype, file.originalname));
   }
   if (file.fieldname === 'image') {
-    return cb(null, IMAGE_MIME.includes(file.mimetype));
+    return cb(null, IMAGE_MIME.includes(file.mimetype) && !!extensionForImageMime(file.mimetype));
   }
   cb(null, false);
 };
@@ -76,21 +84,21 @@ const removeFiles = (files) => {
   });
 };
 
-const normalizeImageExt = (format) => {
-  if (!format) return 'jpg';
-  const normalized = String(format).replace(/^image\//i, '').toLowerCase();
-  if (normalized === 'jpeg') return 'jpg';
-  return normalized;
-};
-
 const saveEmbeddedCover = (metadata) => {
   const picture = metadata?.common?.picture?.[0];
-  if (!picture) return null;
+  if (!picture?.data) return null;
 
-  const ext = normalizeImageExt(picture.format);
+  const ext = safeEmbeddedImageExt(picture.format);
+  if (!ext) return null;
+
   const filename = `${uuidv4()}.${ext}`;
   fs.writeFileSync(path.join(IMAGE_DIR, filename), picture.data);
   return filename;
+};
+
+const acceptUploadedImage = (imageFile) => {
+  if (!imageFile) return null;
+  return finalizeUploadedImage(imageFile);
 };
 
 const parsePublishedAt = (value) => {
@@ -178,8 +186,12 @@ router.post('/', handleUpload, async (req, res) => {
     }
 
     let metadata;
+    let imageFilename = null;
     try {
       metadata = await validateUploadedAudio(audioFile.path);
+      imageFilename = imageFile
+        ? acceptUploadedImage(imageFile)
+        : saveEmbeddedCover(metadata);
     } catch (validationError) {
       removeFiles(req.files);
       return res.status(400).json({ error: validationError.message });
@@ -188,9 +200,6 @@ router.post('/', handleUpload, async (req, res) => {
     const duration = metadata?.format?.duration
       ? Math.round(metadata.format.duration)
       : null;
-    const imageFilename = imageFile
-      ? imageFile.filename
-      : saveEmbeddedCover(metadata);
     const tags = resolvePostTags({ metadata, description, body: { artist, album, year, genre } });
     const resolvedDescription = resolvePostDescription({ description, tags, notes });
 
@@ -285,7 +294,12 @@ router.put('/:id', handleUpload, async (req, res) => {
         removeFiles(req.files);
         return res.status(400).json({ error: 'Image exceeds the 10 MB limit' });
       }
-      data.image_filename = imageFile.filename;
+      try {
+        data.image_filename = acceptUploadedImage(imageFile);
+      } catch (validationError) {
+        removeFiles(req.files);
+        return res.status(400).json({ error: validationError.message });
+      }
       if (existing.image_filename) {
         fs.unlink(path.join(IMAGE_DIR, existing.image_filename), () => {});
       }

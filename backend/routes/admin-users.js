@@ -12,8 +12,10 @@ const {
   softDeleteUser,
   restoreUser,
   purgeDeletedUserByEmail,
-  permanentlyDeleteUser
+  permanentlyDeleteUser,
+  rotateUserRssToken
 } = require('../database');
+const { BASE_URL } = require('../config');
 const { ACCESS_TYPES } = require('../utils/accessPermissions');
 const { validatePassword } = require('../utils/passwordPolicy');
 const {
@@ -33,9 +35,17 @@ const router = express.Router();
 
 const PAYMENT_CATEGORIES = ['full', 'free', 'paying_subscriber', 'non_card'];
 
+// Never include password hashes or rss_token in list/create/update responses.
+// RSS URLs are fetched on demand via GET /:id/rss or after rotate.
 const sanitizeUser = (user) => {
   if (!user) return user;
-  const { password, password_reset_token, password_reset_expires, ...rest } = user;
+  const {
+    password,
+    password_reset_token,
+    password_reset_expires,
+    rss_token,
+    ...rest
+  } = user;
   return rest;
 };
 
@@ -108,9 +118,46 @@ router.get('/', async (req, res) => {
       q,
       account_status
     });
-    res.json(result);
+    res.json({
+      ...result,
+      users: (result.users || []).map((u) => sanitizeUser(u))
+    });
   } catch (error) {
     console.error('Admin list users error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /:id/rss — return this member's private RSS URL (on-demand, not in list).
+router.get('/:id/rss', async (req, res) => {
+  try {
+    const user = await getUserById(req.params.id);
+    if (!user || user.deleted_at) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.set('Cache-Control', 'no-store, private');
+    res.json({ rssUrl: `${BASE_URL}/rss/${user.rss_token}` });
+  } catch (error) {
+    console.error('Admin get user RSS error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /:id/rotate-rss-token — invalidate the old feed URL and issue a new token.
+router.post('/:id/rotate-rss-token', async (req, res) => {
+  try {
+    const user = await getUserById(req.params.id);
+    if (!user || user.deleted_at) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    const rotated = await rotateUserRssToken(user.id);
+    res.set('Cache-Control', 'no-store, private');
+    res.json({
+      message: 'RSS token rotated',
+      rssUrl: `${BASE_URL}/rss/${rotated.rss_token}`
+    });
+  } catch (error) {
+    console.error('Admin rotate RSS token error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -2,7 +2,6 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '.env') });
@@ -32,6 +31,8 @@ const { JWT_SECRET } = authenticateToken;
 const { validatePassword } = require('./utils/passwordPolicy');
 const { ensureDirs, IMAGE_DIR } = require('./config');
 const { getPodcastCoverPath } = require('./utils/podcastBranding');
+const { SAFE_IMAGE_EXTS } = require('./utils/audioUpload');
+const { hashToken, signUserToken } = require('./utils/secureTokens');
 
 const adminUsersRouter = require('./routes/admin-users');
 const adminPostsRouter = require('./routes/admin-posts');
@@ -63,7 +64,8 @@ const corsOrigins = CORS_ORIGIN.includes(',')
 
 app.use(cors({ origin: corsOrigins, credentials: true }));
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  referrerPolicy: { policy: 'no-referrer' }
 }));
 
 // The Stripe webhook must receive the unparsed body so its signature can be
@@ -74,12 +76,34 @@ app.use(helmet({
 
 app.use(express.json());
 
+const IMAGE_CONTENT_TYPES = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp'
+};
+
 // Cover art is public so podcast apps can fetch it without auth. Audio is
 // never served statically; it only flows through the authenticated /stream
 // route which enforces the paying check and supports range requests.
-['/uploads/images', '/shyam_akaash/uploads/images'].forEach((p) =>
-  app.use(p, express.static(IMAGE_DIR))
-);
+// Only whitelist image extensions and force Content-Type + nosniff to block
+// stored XSS via attacker-chosen extensions.
+['/uploads/images', '/shyam_akaash/uploads/images'].forEach((mountPath) => {
+  app.use(mountPath, (req, res, next) => {
+    const ext = path.extname(req.path).toLowerCase();
+    if (!SAFE_IMAGE_EXTS.has(ext)) {
+      return res.status(404).end();
+    }
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    next();
+  }, express.static(IMAGE_DIR, {
+    setHeaders: (res, filePath) => {
+      const ext = path.extname(filePath).toLowerCase();
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('Content-Type', IMAGE_CONTENT_TYPES[ext] || 'application/octet-stream');
+    }
+  }));
+});
 
 // Podcast channel cover — plain static URL for RSS readers (e.g. MediaMonkey).
 const sendPodcastCover = (req, res) => {
@@ -195,11 +219,7 @@ core.post('/register', authRateLimiter, async (req, res) => {
     });
 
     const created = await getUserById(newUser.id);
-    const token = jwt.sign(
-      { id: created.id, username: created.username, email: created.email, is_admin: created.is_admin },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
+    const token = signUserToken(created, JWT_SECRET, '24h');
 
     res.status(201).json({ message: 'User created successfully', user: sanitizeUser(created), token });
   } catch (error) {
@@ -227,11 +247,7 @@ core.post('/login', authRateLimiter, async (req, res) => {
     }
 
     const keepSignedIn = rememberMe !== false && rememberMe !== 'false';
-    const token = jwt.sign(
-      { id: user.id, username: user.username, email: user.email, is_admin: user.is_admin },
-      JWT_SECRET,
-      { expiresIn: keepSignedIn ? '30d' : '24h' }
-    );
+    const token = signUserToken(user, JWT_SECRET, keepSignedIn ? '30d' : '24h');
 
     res.json({ message: 'Login successful', user: sanitizeUser(user), token });
   } catch (error) {
@@ -337,7 +353,8 @@ core.post('/auth/forgot-password', authRateLimiter, async (req, res) => {
       const resetToken = crypto.randomBytes(32).toString('hex');
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 1);
-      await setPasswordResetToken(user.email, resetToken, expiresAt.toISOString());
+      // Store only a hash so a DB leak cannot be used to reset passwords.
+      await setPasswordResetToken(user.email, hashToken(resetToken), expiresAt.toISOString());
 
       const emailResult = await sendPasswordResetEmail(user.email, resetToken);
       if (!emailResult.success) {
@@ -367,7 +384,7 @@ core.post('/auth/reset-password', authRateLimiter, async (req, res) => {
       return res.status(400).json({ error: passwordError });
     }
 
-    const user = await getUserByResetToken(token);
+    const user = await getUserByResetToken(hashToken(token));
     if (!user) {
       return res.status(400).json({ error: 'Invalid or expired reset token' });
     }

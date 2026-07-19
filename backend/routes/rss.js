@@ -121,6 +121,7 @@ ${items}
 // GET /:token — personal RSS feed. Always returns a valid feed at a stable URL.
 router.get('/:token', async (req, res) => {
   try {
+    res.set('Referrer-Policy', 'no-referrer');
     // Post share tokens must not work as RSS feed URLs.
     const sharedPost = await getPostByShareToken(req.params.token);
     if (sharedPost) {

@@ -10,11 +10,12 @@ const {
   getUserById,
   updateUserFields
 } = require('./database');
+const { validatePassword } = require('./utils/passwordPolicy');
 
 // Comped member: full RSS + streaming access without Stripe billing.
-const TEST_USERNAME = 'testmember';
-const TEST_EMAIL = 'test@4thstate.ca';
-const TEST_PASSWORD = 'testpassword1';
+const TEST_USERNAME = process.env.TEST_USERNAME || 'testmember';
+const TEST_EMAIL = process.env.TEST_EMAIL || 'test@4thstate.ca';
+const TEST_PASSWORD = process.env.TEST_PASSWORD;
 
 const SUBSCRIBER_FIELDS = {
   is_paying: 1,
@@ -28,6 +29,20 @@ const SUBSCRIBER_FIELDS = {
 
 async function createTestSubscriber() {
   try {
+    if (!TEST_PASSWORD) {
+      console.error(
+        'Set TEST_PASSWORD in backend/.env (or the environment) before running create-test-subscriber.js.\n' +
+          'Optional: TEST_USERNAME, TEST_EMAIL.'
+      );
+      process.exit(1);
+    }
+
+    const passwordError = validatePassword(TEST_PASSWORD);
+    if (passwordError) {
+      console.error(passwordError);
+      process.exit(1);
+    }
+
     await initDatabase();
 
     const existing = await getUserByUsername(TEST_USERNAME);
@@ -66,7 +81,7 @@ function printDetails(user) {
   console.log('');
   console.log('Login:');
   console.log(`  Email:    ${TEST_EMAIL}`);
-  console.log(`  Password: ${TEST_PASSWORD}`);
+  console.log('  Password: (from TEST_PASSWORD env — not printed)');
   console.log('');
   console.log('Access:');
   console.log(`  is_paying:         ${!!user.is_paying} (subscribed)`);

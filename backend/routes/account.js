@@ -13,7 +13,8 @@ const {
   getPostById,
   userCanAccessPost,
   updateUserFields,
-  softDeleteUser
+  softDeleteUser,
+  rotateUserRssToken
 } = require('../database');
 const { cancelStripeSubscriptionForUser } = require('../utils/stripeBilling');
 
@@ -166,6 +167,7 @@ router.get('/rss', async (req, res) => {
     const user = await getUserById(req.user.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
     const { canRss } = accessFlags(user);
+    res.set('Cache-Control', 'no-store, private');
     res.json({
       rssUrl: `${BASE_URL}/rss/${user.rss_token}`,
       canRss,
@@ -173,6 +175,29 @@ router.get('/rss', async (req, res) => {
     });
   } catch (error) {
     console.error('Account rss error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /rss/rotate — invalidate the old private feed URL and issue a new token.
+router.post('/rss/rotate', async (req, res) => {
+  try {
+    const user = await getUserById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const rotated = await rotateUserRssToken(user.id);
+    const refreshed = await getUserById(user.id);
+    const { canRss } = accessFlags(refreshed);
+    res.set('Cache-Control', 'no-store, private');
+    res.json({
+      message: 'RSS feed URL rotated. Update your podcast app with the new URL.',
+      rssUrl: `${BASE_URL}/rss/${rotated.rss_token}`,
+      rss_token: rotated.rss_token,
+      canRss,
+      is_paying: !!refreshed.is_paying
+    });
+  } catch (error) {
+    console.error('Account rotate RSS error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

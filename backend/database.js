@@ -9,6 +9,7 @@ const { runUserDownloadAccessMigration } = require('./migrations/20260624120000_
 const { runPayingSubscriberCategoryMigration } = require('./migrations/20260708120000_rename_paying_subscriber_category');
 const { runNonCardSubscribedMigration } = require('./migrations/20260708140000_non_card_subscribed');
 const { runUserUnsubscribedAtMigration } = require('./migrations/20260709100000_user_unsubscribed_at');
+const { runUserTokenVersionMigration } = require('./migrations/20260719120000_user_token_version');
 const { userHasFullCatalogAccess, userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
@@ -97,6 +98,7 @@ const initDatabase = () => {
     .then(() => runPayingSubscriberCategoryMigration(db))
     .then(() => runNonCardSubscribedMigration(db))
     .then(() => runUserUnsubscribedAtMigration(db))
+    .then(() => runUserTokenVersionMigration(db))
     .then(() => ensureEmailVerificationTable())
     .then(() => {
       libraryMetadataReady = true;
@@ -178,7 +180,12 @@ const getUserById = (id) => {
 
 const updatePassword = (id, hashedPassword) => {
   return new Promise((resolve, reject) => {
-    const sql = `UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+    // Bump token_version so existing JWTs stop working after a password change.
+    const sql = `UPDATE users
+                 SET password = ?,
+                     token_version = COALESCE(token_version, 0) + 1,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = ?`;
     db.run(sql, [hashedPassword, id], function(err) {
       if (err) {
         reject(err);
@@ -187,6 +194,14 @@ const updatePassword = (id, hashedPassword) => {
       }
     });
   });
+};
+
+const rotateUserRssToken = (id) => {
+  const rss_token = uuidv4();
+  return updateUserFields(id, { rss_token }).then((result) => ({
+    ...result,
+    rss_token
+  }));
 };
 
 const setPasswordResetToken = (email, token, expiresAt) => {
@@ -406,9 +421,10 @@ const permanentlyDeleteUser = async (id) => {
   return { deleted: result.changes > 0 };
 };
 
+// Omit rss_token from list queries — fetch on demand / rotate endpoints only.
 const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
-  stripe_customer_id, stripe_sub_id, subscription_price, rss_token,
+  stripe_customer_id, stripe_sub_id, subscription_price,
   subscribed_at, back_catalog_access, monthly_payments, download_access,
   deleted_at, created_at, updated_at`;
 
@@ -1233,6 +1249,7 @@ module.exports = {
   getUserByUsername,
   getUserById,
   updatePassword,
+  rotateUserRssToken,
   setPasswordResetToken,
   getUserByResetToken,
   clearPasswordResetToken,

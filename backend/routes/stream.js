@@ -7,6 +7,7 @@ const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
 const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive, userNeedsFrozenRssStreamPolicy } = require('../utils/accessPermissions');
+const { tokenVersionMatches } = require('../utils/secureTokens');
 
 const router = express.Router();
 
@@ -65,12 +66,13 @@ const resolveUser = async (req) => {
   }
 
   const authHeader = req.headers['authorization'];
+  // Prefer Authorization header; query jwt is legacy and should be avoided (logs/history).
   const jwtToken = (authHeader && authHeader.split(' ')[1]) || req.query.jwt;
   if (jwtToken) {
     try {
       const decoded = jwt.verify(jwtToken, JWT_SECRET);
       const user = await getUserById(decoded.id);
-      if (user && !user.deleted_at) return user;
+      if (user && !user.deleted_at && tokenVersionMatches(user, decoded)) return user;
     } catch (e) {
       // fall through to unauthorized
     }
@@ -81,6 +83,7 @@ const resolveUser = async (req) => {
 // GET /:postId — stream audio with HTTP range support.
 router.get('/:postId', async (req, res) => {
   try {
+    res.set('Referrer-Policy', 'no-referrer');
     const cacheKey = streamAccessCacheKey(req);
     const cached = readStreamAccessCache(cacheKey);
 

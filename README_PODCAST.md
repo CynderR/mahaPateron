@@ -63,11 +63,14 @@ background image `/signal-...jpeg`) resolve at the domain root; serve them there
 or reference them via `process.env.PUBLIC_URL` if they must live under the
 subpath.
 
-Create the first admin:
+Create the first admin (passwords must come from the environment — never hardcoded):
 
 ```bash
-cd backend && node create-admin.js          # admin / p1assword2 — change immediately
-cd backend && node create-test-subscriber.js # comped member / testpassword1
+# In backend/.env (or export in the shell):
+# ADMIN_PASSWORD=...   optional: ADMIN_USERNAME, ADMIN_EMAIL
+# TEST_PASSWORD=...    optional: TEST_USERNAME, TEST_EMAIL
+cd backend && node create-admin.js
+cd backend && node create-test-subscriber.js
 ```
 
 ## nginx configuration
