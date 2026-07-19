@@ -130,15 +130,17 @@ It refreshes the `shyam_akaash` → `build` symlink and verifies JS is served as
 
 Shared episode URLs (`/shyam_akaash/share/...`) include Open Graph tags so messengers
 show the **episode title**, **cover art**, and **Shyam Akaash** as the site name.
-Crawlers are routed to `backend/routes/shareOg.js` via the nginx snippet in
-`config/nginx-shyam-akaash.snippet`. After updating that file on the server:
+nginx always proxies the share landing URL to `backend/routes/shareOg.js`, which
+injects `og:*` tags into the SPA `index.html` (so browsers still get the app, and
+crawlers do not depend on User-Agent matching). After updating the snippet:
 
 ```bash
 sudo cp config/nginx-shyam-akaash.snippet /etc/nginx/snippets/shyam-akaash.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-WhatsApp caches previews aggressively; a new deploy may take a few minutes to show.
+WhatsApp caches previews aggressively; after a fix, re-share the link in a new
+chat (or append `?v=2`) to force a refresh.
 
 ## Stripe Price setup
 

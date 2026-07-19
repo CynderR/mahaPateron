@@ -4,8 +4,8 @@ const { buildShareOgHtml } = require('../utils/shareOgHtml');
 
 const router = express.Router();
 
-// HTML with Open Graph tags for social crawlers (WhatsApp, iMessage, etc.).
-// nginx proxies /shyam_akaash/share/... requests from crawlers here.
+// HTML with Open Graph tags for messengers (WhatsApp, iMessage, etc.).
+// nginx proxies /shyam_akaash/share/... landings here for every client.
 router.get('/share/:shareToken', async (req, res) => {
   try {
     const post = await getPostByShareToken(req.params.shareToken);
