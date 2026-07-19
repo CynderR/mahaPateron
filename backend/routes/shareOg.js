@@ -4,8 +4,8 @@ const { buildShareOgHtml } = require('../utils/shareOgHtml');
 
 const router = express.Router();
 
-// HTML with Open Graph tags for social crawlers (WhatsApp, iMessage, etc.).
-// nginx proxies /shyam_akaash/share/... requests from crawlers here.
+// HTML with Open Graph tags for messengers (WhatsApp, iMessage, etc.).
+// nginx proxies /shyam_akaash/share/... landings here for every client.
 router.get('/share/:shareToken', async (req, res) => {
   try {
     const post = await getPostByShareToken(req.params.shareToken);
@@ -15,7 +15,7 @@ router.get('/share/:shareToken', async (req, res) => {
 
     res.set('Content-Type', 'text/html; charset=utf-8');
     res.set('Cache-Control', 'public, max-age=300');
-    res.send(buildShareOgHtml(post));
+    res.send(await buildShareOgHtml(post));
   } catch (error) {
     console.error('Share OG preview error:', error);
     res.status(500).send('Internal server error');

@@ -63,6 +63,55 @@ const corsOrigins = CORS_ORIGIN.includes(',')
   : CORS_ORIGIN;
 
 app.use(cors({ origin: corsOrigins, credentials: true }));
+
+// Cover art is public (messengers fetch og:image through privacy proxies).
+// Serve it before helmet so previews are not blocked by CSP/CORP header soup.
+// Whitelist safe image extensions and force Content-Type + nosniff to block
+// stored XSS via attacker-chosen extensions (e.g. .html).
+const IMAGE_CONTENT_TYPES = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp'
+};
+
+const sendPublicImageHeaders = (res, filePath) => {
+  const ext = path.extname(filePath || '').toLowerCase();
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.set('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.set('X-Content-Type-Options', 'nosniff');
+  res.set('Content-Type', IMAGE_CONTENT_TYPES[ext] || 'application/octet-stream');
+};
+
+['/uploads/images', '/shyam_akaash/uploads/images'].forEach((mountPath) => {
+  app.use(
+    mountPath,
+    (req, res, next) => {
+      const ext = path.extname(req.path).toLowerCase();
+      if (!SAFE_IMAGE_EXTS.has(ext)) {
+        return res.status(404).end();
+      }
+      res.set('X-Content-Type-Options', 'nosniff');
+      next();
+    },
+    express.static(IMAGE_DIR, {
+      setHeaders: sendPublicImageHeaders
+    })
+  );
+});
+
+const sendPodcastCover = (req, res) => {
+  const coverPath = getPodcastCoverPath();
+  if (!coverPath) {
+    return res.status(404).end();
+  }
+  sendPublicImageHeaders(res, coverPath);
+  return res.sendFile(coverPath);
+};
+['/podcast-cover.jpg', '/shyam_akaash/podcast-cover.jpg'].forEach((p) => {
+  app.get(p, sendPodcastCover);
+});
+
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   referrerPolicy: { policy: 'no-referrer' }
@@ -75,48 +124,6 @@ app.use(helmet({
 );
 
 app.use(express.json());
-
-const IMAGE_CONTENT_TYPES = {
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.png': 'image/png',
-  '.webp': 'image/webp'
-};
-
-// Cover art is public so podcast apps can fetch it without auth. Audio is
-// never served statically; it only flows through the authenticated /stream
-// route which enforces the paying check and supports range requests.
-// Only whitelist image extensions and force Content-Type + nosniff to block
-// stored XSS via attacker-chosen extensions.
-['/uploads/images', '/shyam_akaash/uploads/images'].forEach((mountPath) => {
-  app.use(mountPath, (req, res, next) => {
-    const ext = path.extname(req.path).toLowerCase();
-    if (!SAFE_IMAGE_EXTS.has(ext)) {
-      return res.status(404).end();
-    }
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    next();
-  }, express.static(IMAGE_DIR, {
-    setHeaders: (res, filePath) => {
-      const ext = path.extname(filePath).toLowerCase();
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('Content-Type', IMAGE_CONTENT_TYPES[ext] || 'application/octet-stream');
-    }
-  }));
-});
-
-// Podcast channel cover — plain static URL for RSS readers (e.g. MediaMonkey).
-const sendPodcastCover = (req, res) => {
-  const coverPath = getPodcastCoverPath();
-  if (!coverPath) {
-    return res.status(404).end();
-  }
-  res.set('Cache-Control', 'public, max-age=86400');
-  return res.sendFile(coverPath);
-};
-['/podcast-cover.jpg', '/shyam_akaash/podcast-cover.jpg'].forEach((p) => {
-  app.get(p, sendPodcastCover);
-});
 
 // ---------------------------------------------------------------------------
 // Core auth + profile routes (reused under both the root and subpath prefixes)

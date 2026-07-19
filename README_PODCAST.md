@@ -133,15 +133,23 @@ It refreshes the `shyam_akaash` → `build` symlink and verifies JS is served as
 
 Shared episode URLs (`/shyam_akaash/share/...`) include Open Graph tags so messengers
 show the **episode title**, **cover art**, and **Shyam Akaash** as the site name.
-Crawlers are routed to `backend/routes/shareOg.js` via the nginx snippet in
-`config/nginx-shyam-akaash.snippet`. After updating that file on the server:
+nginx always proxies the share landing URL to `backend/routes/shareOg.js`, which
+injects `og:*` tags into the SPA `index.html` (so browsers still get the app, and
+crawlers do not depend on User-Agent matching). After updating the snippet:
 
 ```bash
 sudo cp config/nginx-shyam-akaash.snippet /etc/nginx/snippets/shyam-akaash.conf
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-WhatsApp caches previews aggressively; a new deploy may take a few minutes to show.
+WhatsApp/Signal cache previews on the sender device; after a fix, paste the link
+in a **new** compose field (or append `?v=2`) so Signal fetches again.
+
+Signal’s HTML parser is strict: Open Graph tags must appear in `<head>` **before**
+any `<script>` tags, or the preview falls back to the generic chain-link icon.
+
+Signal also rejects preview images larger than **1MB**. Oversized episode covers are
+automatically compressed to `uploads/images/og-*.jpg` for `og:image`.
 
 ## Stripe Price setup
 

@@ -23,17 +23,10 @@ location = /shyam_akaash/podcast-cover.jpg {
 }
 
 # Rich link previews for shared episodes (WhatsApp, iMessage, etc.).
-# Crawlers receive HTML with Open Graph tags from the Node backend.
+# Always proxy the share landing URL to Node so Open Graph tags are present for
+# every crawler (Meta now uses meta-externalagent, which UA-sniffing missed).
+# The backend injects og:* tags into the SPA index.html so browsers still load the app.
 location ~ ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ {
-    error_page 418 = @share_og_preview;
-    if ($http_user_agent ~* "(facebookexternalhit|WhatsApp|Twitterbot|LinkedInBot|Slackbot|TelegramBot|Discordbot|Applebot)") {
-        return 418;
-    }
-    root /var/www/user-management-app/build;
-    rewrite ^ /index.html break;
-}
-
-location @share_og_preview {
     rewrite ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ /shyam_akaash/og/share/$1 break;
     proxy_pass http://localhost:5000;
     proxy_http_version 1.1;
