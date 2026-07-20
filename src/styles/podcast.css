@@ -289,12 +289,15 @@
   color: #000;
   border: 1px solid var(--border-primary);
   font-weight: 500;
+  font-size: 1.15rem;
+  line-height: 1.45;
 }
 
 .pod-banner-subscribe-link {
   color: #1a4d8f;
   text-decoration: underline;
   font-weight: 600;
+  font-size: inherit;
 }
 
 .pod-banner-subscribe-link:hover {
@@ -303,6 +306,10 @@
 
 .stream-card-banner .pod-banner-subscribe {
   margin: 0;
+}
+
+.ht-banner.pod-banner-subscribe {
+  font-size: 1.15rem;
 }
 
 .share-access-notice {
