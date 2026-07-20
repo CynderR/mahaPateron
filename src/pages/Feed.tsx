@@ -20,6 +20,8 @@ import PodcastEpisodeCard from '../components/mobile/PodcastEpisodeCard';
 
 import MemberEpisodeToolbar from '../components/MemberEpisodeToolbar';
 
+import BulkPlaylistPicker from '../components/BulkPlaylistPicker';
+
 import BulkDeleteEpisodes from '../components/admin/BulkDeleteEpisodes';
 
 import AdminSelectedPostEdit from '../components/admin/AdminSelectedPostEdit';
@@ -331,11 +333,18 @@ const Feed: React.FC = () => {
     return map;
   }, [posts]);
 
-  const selectionActions = isAdmin ? (
+  const selectionActions = (
     <div className="member-episode-selection-actions">
-      <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+      <BulkPlaylistPicker
+        postIds={selectedPostIds}
+        onComplete={clearSelection}
+        variant="dropdown"
+      />
+      {isAdmin && (
+        <BulkDeleteEpisodes postIds={selectedPostIds} onComplete={handleEpisodesDeleted} />
+      )}
     </div>
-  ) : null;
+  );
 
   const mainBarActions = isAdmin ? (
     <AdminSelectedPostEdit
