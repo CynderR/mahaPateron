@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -55,7 +55,13 @@ const CheckoutForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 
   return (
     <form onSubmit={handleSubmit}>
-      <PaymentElement />
+      <PaymentElement
+        options={{
+          // Card only — do not offer Klarna or other wallets/redirect methods.
+          paymentMethodOrder: ['card'],
+          wallets: { applePay: 'never', googlePay: 'never' }
+        }}
+      />
       {error && (
         <div className="pod-banner pod-banner-error" style={{ marginTop: '1rem' }}>
           {error}
@@ -77,6 +83,7 @@ const Billing: React.FC = () => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const autoCheckoutStarted = useRef(false);
 
   const stripePromise = useMemo<Promise<Stripe | null> | null>(
     () => (config && config.publishableKey ? loadStripe(config.publishableKey) : null),
@@ -113,7 +120,7 @@ const Billing: React.FC = () => {
     loadAll();
   }, [loadAll]);
 
-  const startSubscription = async () => {
+  const startSubscription = useCallback(async () => {
     if (busy) return;
     setBusy(true);
     setError('');
@@ -138,7 +145,18 @@ const Billing: React.FC = () => {
     } finally {
       setBusy(false);
     }
-  };
+  }, [busy, loadAll]);
+
+  // New subscribers: skip the $20/month intermediate page and open payment details directly.
+  useEffect(() => {
+    if (loading || autoCheckoutStarted.current || clientSecret || busy) return;
+    if (!config?.configured || config.stripePriceConfigured === false) return;
+    if (!subscription || subscription.monthly_payments === false) return;
+    if (subscription.active || subscription.is_paying) return;
+
+    autoCheckoutStarted.current = true;
+    startSubscription();
+  }, [loading, config, subscription, clientSecret, busy, startSubscription]);
 
   const openPortal = async () => {
     setBusy(true);
@@ -159,6 +177,7 @@ const Billing: React.FC = () => {
     try {
       await axios.post('/payments/cancel');
       setMessage('Subscription cancelled.');
+      autoCheckoutStarted.current = false;
       await loadAll();
     } catch (e: any) {
       setError(e.response?.data?.error || 'Could not cancel subscription.');
@@ -174,11 +193,22 @@ const Billing: React.FC = () => {
     await loadAll();
   };
 
+  const showCheckout = Boolean(clientSecret && stripePromise);
+  const needsCheckout =
+    !loading &&
+    config?.configured &&
+    config.stripePriceConfigured !== false &&
+    subscription &&
+    subscription.monthly_payments !== false &&
+    !subscription.active &&
+    !subscription.is_paying;
+
   return (
     <div className="podcast-page">
       <PodcastNav />
       <main className="podcast-main">
-        <h2 className="podcast-section-title">Billing</h2>
+        {/* Hide the Billing title on the payment-details step. */}
+        {!showCheckout && <h2 className="podcast-section-title">Billing</h2>}
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
         {message && <div className="pod-banner pod-banner-success">{message}</div>}
@@ -206,7 +236,7 @@ const Billing: React.FC = () => {
               must set <code>STRIPE_PRICE_ID</code> or platform <code>stripe_price_id</code>.
             </p>
           </div>
-        ) : clientSecret && stripePromise ? (
+        ) : showCheckout ? (
           <div className="pod-card">
             <h3 style={{ marginTop: 0 }}>Enter payment details</h3>
             <Elements stripe={stripePromise} options={{ clientSecret }}>
@@ -239,16 +269,10 @@ const Billing: React.FC = () => {
               </button>
             </div>
           </div>
+        ) : needsCheckout ? (
+          <div className="pod-empty">{busy ? 'Opening payment…' : 'Preparing payment…'}</div>
         ) : (
-          <div className="pod-card">
-            <h3 style={{ marginTop: 0 }}>Subscribe</h3>
-            <p>
-              Get full access to every episode for <strong>${config.defaultPrice.toFixed(2)}</strong> / month.
-            </p>
-            <button type="button" className="pod-btn" onClick={startSubscription} disabled={busy}>
-              {busy ? 'Starting…' : 'Subscribe now'}
-            </button>
-          </div>
+          <div className="pod-empty">Unable to start checkout. Please try again later.</div>
         )}
       </main>
     </div>

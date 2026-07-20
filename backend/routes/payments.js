@@ -47,6 +47,11 @@ const resolveDisplayPriceDollars = async (priceId) => {
   return (settings && settings.default_price) || parseFloat(process.env.DEFAULT_SUBSCRIPTION_PRICE) || 9.99;
 };
 
+const SUBSCRIPTION_PAYMENT_SETTINGS = {
+  save_default_payment_method: 'on_subscription',
+  // Card only — do not offer Klarna or other redirect payment methods at checkout.
+  payment_method_types: ['card']
+};
 const ACTIVE_SUB_STATUSES = new Set(['active', 'trialing']);
 const AWAITING_PAYMENT_STATUSES = new Set(['incomplete', 'unpaid']);
 const TERMINAL_SUB_STATUSES = new Set(['canceled', 'incomplete_expired']);
@@ -98,20 +103,12 @@ const resolveExistingSubscription = async (user) => {
     }
 
     if (AWAITING_PAYMENT_STATUSES.has(existing.status)) {
-      const clientSecret = getSubscriptionClientSecret(existing);
-      if (clientSecret) {
-        return {
-          reused: true,
-          subscriptionId: existing.id,
-          status: existing.status,
-          clientSecret
-        };
-      }
-      // Incomplete/unpaid but no secret to confirm — cancel and recreate.
+      // Cancel incomplete checkouts and recreate so payment_method_types (card-only)
+      // from the current create path always apply — avoids leftover Klarna options.
       try {
         await stripe.subscriptions.cancel(existing.id);
       } catch (cancelError) {
-        console.warn('Could not cancel unusable incomplete subscription:', cancelError.message);
+        console.warn('Could not cancel incomplete subscription before recreate:', cancelError.message);
       }
       await updateUserFields(user.id, { stripe_sub_id: null });
       return null;
@@ -240,7 +237,7 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
         customer: customerId,
         items: [{ price: priceId }],
         payment_behavior: 'default_incomplete',
-        payment_settings: { save_default_payment_method: 'on_subscription' },
+        payment_settings: SUBSCRIPTION_PAYMENT_SETTINGS,
         expand: SUBSCRIPTION_CLIENT_SECRET_EXPAND
       });
     } catch (createError) {
@@ -264,7 +261,7 @@ router.post('/create-subscription', requireStripe, async (req, res) => {
           customer: customerId,
           items: [{ price: priceId }],
           payment_behavior: 'default_incomplete',
-          payment_settings: { save_default_payment_method: 'on_subscription' },
+          payment_settings: SUBSCRIPTION_PAYMENT_SETTINGS,
           expand: SUBSCRIPTION_CLIENT_SECRET_EXPAND
         });
       } else {
