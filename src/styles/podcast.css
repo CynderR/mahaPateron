@@ -1488,14 +1488,19 @@
   border-radius: 1px;
 }
 
-.stream-waveform-progress {
+/* SoundCloud-style: played portion of the waveform is red (clipped by progress). */
+.stream-waveform-bars-played {
   position: absolute;
   left: 0;
   top: 0;
+  right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.22);
   pointer-events: none;
-  mix-blend-mode: overlay;
+  clip-path: inset(0 calc(100% - var(--wf-progress, 0%)) 0 0);
+}
+
+.stream-waveform-bars-played .stream-waveform-bar {
+  background: #e53e3e;
 }
 
 .playback-progress-scrubber {
@@ -1663,10 +1668,6 @@ body.global-now-playing-active .podcast-main {
     var(--pod-mobile-nav-height, 4.75rem) + var(--pod-mobile-now-playing-height, calc(3.75rem + 1.15rem + 3px)) +
       env(safe-area-inset-bottom, 0px)
   );
-}
-
-[data-theme="dark"] .ht-waveform-progress {
-  background: rgba(231, 76, 60, 0.28);
 }
 
 [data-theme="dark"] .playback-progress-thin {
@@ -1949,9 +1950,8 @@ body.global-now-playing-active .podcast-main {
     background: rgba(255, 255, 255, 0.35);
   }
 
-  .stream-waveform-mobile .stream-waveform-progress {
-    background: rgba(229, 62, 62, 0.35);
-    mix-blend-mode: normal;
+  .stream-waveform-mobile .stream-waveform-bars-played .stream-waveform-bar {
+    background: #e53e3e;
   }
 
   .stream-description-block {
@@ -2544,15 +2544,6 @@ body.global-now-playing-active .podcast-main {
   cursor: pointer;
 }
 
-.ht-waveform-progress {
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  background: rgba(231, 76, 60, 0.18);
-  pointer-events: none;
-}
-
 .ht-featured-waveform {
   height: 72px;
 }
@@ -2569,6 +2560,16 @@ body.global-now-playing-active .podcast-main {
   height: 100%;
 }
 
+.ht-waveform-bars-played {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  clip-path: inset(0 calc(100% - var(--wf-progress, 0%)) 0 0);
+}
+
 .ht-waveform-bar {
   flex: 1;
   min-width: 1px;
@@ -2577,8 +2578,16 @@ body.global-now-playing-active .podcast-main {
   border-radius: 1px;
 }
 
+.ht-waveform-bars-played .ht-waveform-bar {
+  background: #e53e3e;
+}
+
 .ht-featured-waveform .ht-waveform-bar {
   background: rgba(0, 0, 0, 0.22);
+}
+
+.ht-featured-waveform .ht-waveform-bars-played .ht-waveform-bar {
+  background: #e53e3e;
 }
 
 .ht-track-list {
@@ -2796,6 +2805,11 @@ body.global-now-playing-active .podcast-main {
 
 [data-theme="dark"] .ht-track-waveform .ht-waveform-bar {
   background: rgba(255, 255, 255, 0.2);
+}
+
+[data-theme="dark"] .ht-featured-waveform .ht-waveform-bars-played .ht-waveform-bar,
+[data-theme="dark"] .ht-track-waveform .ht-waveform-bars-played .ht-waveform-bar {
+  background: #e53e3e;
 }
 
 [data-theme="dark"] .ht-tab-active {

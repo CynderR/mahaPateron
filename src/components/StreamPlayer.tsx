@@ -171,6 +171,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
   const waveform = (heights: number[], className: string) => (
     <div
       className={`stream-waveform ${className}${playable ? '' : ' stream-waveform-disabled'}`}
+      style={{ '--wf-progress': `${progress}%` } as React.CSSProperties}
       onClick={seekFromWaveform}
       role={playable ? 'slider' : undefined}
       aria-valuenow={playable ? Math.round(currentTime) : undefined}
@@ -187,7 +188,11 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           <span key={i} className="stream-waveform-bar" style={{ height: `${h}%` }} />
         ))}
       </div>
-      <div className="stream-waveform-progress" style={{ width: `${progress}%` }} />
+      <div className="stream-waveform-bars stream-waveform-bars-played" aria-hidden>
+        {heights.map((h, i) => (
+          <span key={i} className="stream-waveform-bar" style={{ height: `${h}%` }} />
+        ))}
+      </div>
     </div>
   );
 
