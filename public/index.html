@@ -5,25 +5,20 @@
     <link rel="icon" type="image/png" href="%PUBLIC_URL%/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Shyam Akaash"
-    />
+    <!--
+      WhatsApp / Open Graph: omit og:description so the preview does not repeat
+      the title as a second line. Do not rely on meta tags to hide the domain —
+      WhatsApp always shows the host (e.g. 4thstate.ca).
+    -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Shyam Akaash" />
+    <meta property="og:title" content="Shyam Akaash" />
+    <meta property="og:url" content="https://4thstate.ca/shyam_akaash" />
+    <meta property="og:image" content="https://4thstate.ca/shyam_akaash/favicon.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Shyam Akaash" />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
-
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
     <title>Shyam Akaash</title>
   </head>
   <body>
