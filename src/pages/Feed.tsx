@@ -41,7 +41,6 @@ import { PODCAST_AUTHOR, PODCAST_AVATAR_URL, PODCAST_BANNER_URL, PODCAST_PROFILE
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
-import { memberCanRss } from '../utils/accessPermissions';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 
@@ -83,8 +82,6 @@ const Feed: React.FC = () => {
   const streamReturnFrom = currentPathWithSearch(location.pathname, location.search);
 
   const { user, isAdmin } = useAuth();
-
-  const hasRssAccess = memberCanRss(user?.access_type);
 
   const [meta, setMeta] = useState<FeedAccessMeta | null>(null);
 
@@ -497,40 +494,6 @@ const Feed: React.FC = () => {
 
         <PodcastNav />
 
-        <div className="library-sticky-head-inner">
-
-          <div className="ht-tabs-bar library-sticky-tabs">
-
-            <div className="ht-tabs">
-
-              <span className="ht-tab ht-tab-active">
-
-                {catalogTotal || total} {(catalogTotal || total) === 1 ? 'Recent upload' : 'Recent uploads'}
-
-              </span>
-
-              <Link to="/library" className="ht-tab">
-
-                Library
-
-              </Link>
-
-              {hasRssAccess && (
-                <Link to="/account/rss" className="ht-tab">
-
-                  RSS
-
-                </Link>
-              )}
-
-            </div>
-
-          </div>
-
-          {renderToolbar()}
-
-        </div>
-
       </div>
 
 
@@ -644,6 +607,18 @@ const Feed: React.FC = () => {
         </div>
 
       </section>
+
+
+
+      <div className="feed-sticky-subhead feed-ht-desktop-only">
+
+        <div className="library-sticky-head-inner">
+
+          {renderToolbar()}
+
+        </div>
+
+      </div>
 
 
 
