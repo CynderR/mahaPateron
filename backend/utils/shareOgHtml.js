@@ -51,6 +51,12 @@ const buildOgMetaTags = (post, imageFilename) => {
   const imageUrl = buildShareImageUrl(imageFilename);
   // Signal/WhatsApp: title = episode name; description falls back to site name.
   const description = truncateDescription(post.description) || SITE_NAME;
+  const lowerName = String(imageFilename || '').toLowerCase();
+  const imageType = lowerName.endsWith('.png')
+    ? 'image/png'
+    : lowerName.endsWith('.webp')
+      ? 'image/webp'
+      : 'image/jpeg';
 
   return {
     episodeTitle,
@@ -67,7 +73,7 @@ const buildOgMetaTags = (post, imageFilename) => {
   <meta property="og:url" content="${escapeHtml(pageUrl)}">
   <meta property="og:image" content="${escapeHtml(imageUrl)}">
   <meta property="og:image:secure_url" content="${escapeHtml(imageUrl)}">
-  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:type" content="${imageType}">
   <meta property="og:image:alt" content="${escapeHtml(episodeTitle)}">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(episodeTitle)}">
@@ -91,8 +97,16 @@ const buildStandaloneOgHtml = ({ episodeTitle, pageUrl, description, tags }) => 
 
 const injectOgIntoSpaHtml = (html, tags) => {
   let next = html;
-  next = next.replace(/<title>[^<]*<\/title>/i, '');
-  next = next.replace(/<meta\s+name=["']description["'][^>]*>/i, '');
+  next = next.replace(/<title>[^<]*<\/title>/gi, '');
+  next = next.replace(/<meta\s+name=["']description["'][^>]*>/gi, '');
+  // Homepage index.html may include site-level og:* / twitter:* tags (favicon,
+  // site title). WhatsApp often prefers the last duplicate — strip them so only
+  // the episode share tags remain.
+  next = next.replace(/<meta\s+property=["']og:[^"']+["'][^>]*>/gi, '');
+  next = next.replace(/<meta\s+name=["']twitter:[^"']+["'][^>]*>/gi, '');
+  next = next.replace(/<link\s+rel=["']canonical["'][^>]*>/gi, '');
+  // Collapse leftover blank lines in <head> from removals.
+  next = next.replace(/(<head[^>]*>)\s+/i, '$1\n  ');
 
   // Prefer: right after charset (still before any <script>).
   if (/<meta\s+charset=["'][^"']+["']\s*\/?>/i.test(next)) {
