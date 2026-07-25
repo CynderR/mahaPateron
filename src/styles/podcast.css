@@ -535,6 +535,23 @@
   }
 }
 
+/* Manage Users: keep search/filters visible while scrolling the user list */
+.pod-users-filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  margin-bottom: 1.5rem;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-md, var(--shadow-sm));
+}
+
+.pod-users-filter-bar-inner {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
 .pod-admin-toolbar {
   display: flex;
   flex-wrap: wrap;

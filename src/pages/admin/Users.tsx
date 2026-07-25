@@ -445,8 +445,8 @@ const Users: React.FC = () => {
           </form>
         )}
 
-        <div className="pod-card" style={{ marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div className="pod-card pod-users-filter-bar">
+          <div className="pod-users-filter-bar-inner">
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>Search users</label>
               <input
