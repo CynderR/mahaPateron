@@ -491,11 +491,13 @@ const getUsersFiltered = (filters = {}) => {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
 
-    // Default: username. Optional: subscribed_at newest/oldest (nulls last).
+    // Default: username A–Z. Optional: username Z–A, or subscribed_at newest/oldest.
     let orderSql = 'LOWER(username) ASC, id ASC';
+    const sortDir = String(dir || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
     if (sort === 'subscribed_at') {
-      const sortDir = String(dir || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
       orderSql = `subscribed_at IS NULL, subscribed_at ${sortDir}, LOWER(username) ASC, id ASC`;
+    } else if (sort === 'username') {
+      orderSql = `LOWER(username) ${sortDir}, id ASC`;
     }
 
     db.all(

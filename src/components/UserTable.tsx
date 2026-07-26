@@ -294,7 +294,17 @@ const UserTable: React.FC<UserTableProps> = ({
       <table className="pod-table">
         <thead>
           <tr>
-            <th>User</th>
+            {onSort ? (
+              <SortableTableHeader
+                label="User"
+                field="username"
+                activeField={sortField}
+                activeDir={sortDir}
+                onSort={onSort}
+              />
+            ) : (
+              <th>User</th>
+            )}
             <th>Role</th>
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>

@@ -80,8 +80,8 @@ const Users: React.FC = () => {
   const [newUser, setNewUser] = useState<NewUserForm>({ ...emptyNewUser });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [sortField, setSortField] = useState<AdminSortField | null>(null);
-  const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
+  const [sortField, setSortField] = useState<AdminSortField | null>('username');
+  const [sortDir, setSortDir] = useState<AdminSortDir>('asc');
 
   const limit = 20;
   const hasMore = users.length < total;
@@ -121,6 +121,9 @@ const Users: React.FC = () => {
         }
         if (sortField === 'subscribed_at') {
           params.sort = 'subscribed_at';
+          params.dir = sortDir;
+        } else if (sortField === 'username') {
+          params.sort = 'username';
           params.dir = sortDir;
         }
 
@@ -415,7 +418,9 @@ const Users: React.FC = () => {
                     ? sortDir === 'asc'
                       ? 'subscribed_at_asc'
                       : 'subscribed_at_desc'
-                    : 'name'
+                    : sortField === 'username' && sortDir === 'desc'
+                      ? 'username_desc'
+                      : 'username_asc'
                 }
                 onChange={(e) => {
                   const value = e.target.value;
@@ -425,13 +430,17 @@ const Users: React.FC = () => {
                   } else if (value === 'subscribed_at_asc') {
                     setSortField('subscribed_at');
                     setSortDir('asc');
-                  } else {
-                    setSortField(null);
+                  } else if (value === 'username_desc') {
+                    setSortField('username');
                     setSortDir('desc');
+                  } else {
+                    setSortField('username');
+                    setSortDir('asc');
                   }
                 }}
               >
-                <option value="name">Name (A–Z)</option>
+                <option value="username_asc">User (A–Z)</option>
+                <option value="username_desc">User (Z–A)</option>
                 <option value="subscribed_at_desc">Date subscribed (newest)</option>
                 <option value="subscribed_at_asc">Date subscribed (oldest)</option>
               </select>

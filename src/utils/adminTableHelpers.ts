@@ -1,4 +1,4 @@
-export type AdminSortField = 'duration' | 'date' | 'subscribed_at';
+export type AdminSortField = 'duration' | 'date' | 'subscribed_at' | 'username';
 export type AdminSortDir = 'asc' | 'desc';
 
 export interface AdminTableItem {
@@ -23,7 +23,8 @@ export const sortAdminItems = <T extends AdminTableItem>(
   field: AdminSortField | null,
   dir: AdminSortDir
 ): T[] => {
-  if (!field || field === 'subscribed_at') return items;
+  // username / subscribed_at are sorted server-side for the users list.
+  if (!field || field === 'subscribed_at' || field === 'username') return items;
   return [...items].sort((a, b) => {
     let cmp = 0;
     if (field === 'duration') {
@@ -45,6 +46,6 @@ export const nextSortState = (
   if (currentField === field) {
     return { field, dir: currentDir === 'asc' ? 'desc' : 'asc' };
   }
-  // Date fields: newest / latest first on first click.
-  return { field, dir: field === 'duration' ? 'asc' : 'desc' };
+  // Alphabetical / duration: A–Z or short→long first. Date fields: newest first.
+  return { field, dir: field === 'duration' || field === 'username' ? 'asc' : 'desc' };
 };
