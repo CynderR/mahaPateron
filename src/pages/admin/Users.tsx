@@ -286,8 +286,113 @@ const Users: React.FC = () => {
   };
 
   return (
-    <div className="podcast-page">
-      <PodcastNav />
+    <div className="podcast-page admin-users-page">
+      <div className="admin-users-sticky-stack">
+        <PodcastNav />
+        <div className="admin-users-sticky-toolbar">
+          <div className="pod-card pod-users-filter-bar">
+            <div className="pod-users-filter-bar-inner">
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Search users</label>
+                <input
+                  className="pod-input"
+                  type="search"
+                  value={searchInput}
+                  placeholder="Username or email"
+                  onChange={(e) => setSearchInput(e.target.value)}
+                />
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Paying</label>
+                <select
+                  className="pod-select"
+                  value={filters.payment_category}
+                  onChange={(e) => updateFilter({ payment_category: e.target.value })}
+                >
+                  <option value="">All</option>
+                  {PAYING_TIER_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.payment_category}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Role</label>
+                <select
+                  className="pod-select"
+                  value={filters.is_admin}
+                  onChange={(e) => updateFilter({ is_admin: e.target.value })}
+                >
+                  <option value="">All</option>
+                  <option value="true">admin</option>
+                  <option value="false">user</option>
+                </select>
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Payment</label>
+                <select
+                  className="pod-select"
+                  value={filters.subscription_status}
+                  onChange={(e) => updateFilter({ subscription_status: e.target.value })}
+                >
+                  <option value="">All</option>
+                  {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Access</label>
+                <select
+                  className="pod-select"
+                  value={filters.access_type}
+                  onChange={(e) => updateFilter({ access_type: e.target.value })}
+                >
+                  <option value="">All</option>
+                  {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>Account status</label>
+                <select
+                  className="pod-select"
+                  value={filters.account_status}
+                  onChange={(e) => updateFilter({ account_status: e.target.value })}
+                >
+                  <option value="active">Active</option>
+                  <option value="deleted">Deleted</option>
+                  <option value="all">All</option>
+                </select>
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label htmlFor="admin-users-subscribed-at">Date subscribed</label>
+                <input
+                  id="admin-users-subscribed-at"
+                  className="pod-input"
+                  type="date"
+                  value={filters.subscribed_at}
+                  onChange={(e) => updateFilter({ subscribed_at: e.target.value })}
+                  title="Filter by subscription date"
+                />
+              </div>
+              <div className="pod-form-group" style={{ marginBottom: 0 }}>
+                <label>&nbsp;</label>
+                <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
+                  {showAdd ? 'Close' : 'Add User'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <main className="podcast-main podcast-main-wide">
         <h2 className="podcast-section-title">Users {total ? `(${total})` : ''}</h2>
 
@@ -446,107 +551,6 @@ const Users: React.FC = () => {
             </button>
           </form>
         )}
-
-        <div className="pod-card pod-users-filter-bar">
-          <div className="pod-users-filter-bar-inner">
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Search users</label>
-              <input
-                className="pod-input"
-                type="search"
-                value={searchInput}
-                placeholder="Username or email"
-                onChange={(e) => setSearchInput(e.target.value)}
-              />
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Paying</label>
-              <select
-                className="pod-select"
-                value={filters.payment_category}
-                onChange={(e) => updateFilter({ payment_category: e.target.value })}
-              >
-                <option value="">All</option>
-                {PAYING_TIER_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.payment_category}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Role</label>
-              <select
-                className="pod-select"
-                value={filters.is_admin}
-                onChange={(e) => updateFilter({ is_admin: e.target.value })}
-              >
-                <option value="">All</option>
-                <option value="true">admin</option>
-                <option value="false">user</option>
-              </select>
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Payment</label>
-              <select
-                className="pod-select"
-                value={filters.subscription_status}
-                onChange={(e) => updateFilter({ subscription_status: e.target.value })}
-              >
-                <option value="">All</option>
-                {SUBSCRIPTION_STATUS_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Access</label>
-              <select
-                className="pod-select"
-                value={filters.access_type}
-                onChange={(e) => updateFilter({ access_type: e.target.value })}
-              >
-                <option value="">All</option>
-                {ADMIN_ACCESS_TYPE_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>Account status</label>
-              <select
-                className="pod-select"
-                value={filters.account_status}
-                onChange={(e) => updateFilter({ account_status: e.target.value })}
-              >
-                <option value="active">Active</option>
-                <option value="deleted">Deleted</option>
-                <option value="all">All</option>
-              </select>
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label htmlFor="admin-users-subscribed-at">Date subscribed</label>
-              <input
-                id="admin-users-subscribed-at"
-                className="pod-input"
-                type="date"
-                value={filters.subscribed_at}
-                onChange={(e) => updateFilter({ subscribed_at: e.target.value })}
-                title="Filter by subscription date"
-              />
-            </div>
-            <div className="pod-form-group" style={{ marginBottom: 0 }}>
-              <label>&nbsp;</label>
-              <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
-                {showAdd ? 'Close' : 'Add User'}
-              </button>
-            </div>
-          </div>
-        </div>
 
         {loading && users.length === 0 ? (
           <div className="pod-empty">Loading users…</div>

@@ -342,6 +342,7 @@
 
 /* Tables */
 .pod-table-wrap {
+  /* overflow: auto clip — horizontal scroll only; clip keeps vertical sticky working */
   overflow-x: auto;
   overflow-y: clip;
   border: 1px solid var(--border-primary);
@@ -354,7 +355,6 @@
 
 .pod-table-wrap-users {
   width: 100%;
-  /* Keep vertical wheel/trackpad scrolling on the page, not trapped in the table wrap */
   overflow-x: auto;
   overflow-y: clip;
 }
@@ -535,14 +535,30 @@
   }
 }
 
-/* Manage Users: keep search/filters visible while scrolling the user list */
-.pod-users-filter-bar {
+/* Manage Users: stick nav + search/filters (same pattern as feed sticky stack). */
+.admin-users-sticky-stack {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
-  z-index: 30;
-  margin-bottom: 1.5rem;
+  z-index: 40;
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-users-sticky-toolbar {
+  max-width: min(100%, 1680px);
+  margin: 0 auto;
+  padding: 0.75rem 1.5rem 0.85rem;
+  background: var(--bg-primary);
+}
+
+.admin-users-page .podcast-main {
+  padding-top: 1.25rem;
+}
+
+.pod-users-filter-bar {
+  margin-bottom: 0;
   background: var(--bg-card);
-  box-shadow: var(--shadow-md, var(--shadow-sm));
 }
 
 .pod-users-filter-bar-inner {
@@ -550,6 +566,13 @@
   gap: 1rem;
   flex-wrap: wrap;
   align-items: flex-end;
+}
+
+@media (max-width: 768px) {
+  .admin-users-sticky-toolbar {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }
 
 .pod-admin-toolbar {
