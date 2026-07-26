@@ -7,11 +7,13 @@ import {
 } from '../utils/accessPermissions';
 import PayingTierSelect from './admin/PayingTierSelect';
 import SubscriptionToggle from './admin/SubscriptionToggle';
+import SortableTableHeader from './SortableTableHeader';
 import {
   PayingTier,
   SubscriptionStatus,
   subscriptionStatusFromUser
 } from '../utils/paymentCategories';
+import { AdminSortDir, AdminSortField } from '../utils/adminTableHelpers';
 
 export interface AdminUser {
   id: number;
@@ -46,6 +48,9 @@ interface UserTableProps {
   onPayingTierChange: (id: number, tier: PayingTier) => void;
   onDelete: (id: number, mode: AdminDeleteMode) => void;
   onRestore: (id: number) => void;
+  sortField?: AdminSortField | null;
+  sortDir?: AdminSortDir;
+  onSort?: (field: AdminSortField) => void;
 }
 
 const useIsMobileUsersLayout = (): boolean => {
@@ -70,7 +75,10 @@ const UserTable: React.FC<UserTableProps> = ({
   onSubscriptionChange,
   onPayingTierChange,
   onDelete,
-  onRestore
+  onRestore,
+  sortField = null,
+  sortDir = 'desc',
+  onSort
 }) => {
   const [deleteModes, setDeleteModes] = useState<Record<number, AdminDeleteMode>>({});
   const [rssBusyId, setRssBusyId] = useState<number | null>(null);
@@ -290,7 +298,17 @@ const UserTable: React.FC<UserTableProps> = ({
             <th>Role</th>
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
-            <th title="Subscription start date (yyyy-mm-dd)">Date subscribed</th>
+            {onSort ? (
+              <SortableTableHeader
+                label="Date subscribed"
+                field="subscribed_at"
+                activeField={sortField}
+                activeDir={sortDir}
+                onSort={onSort}
+              />
+            ) : (
+              <th title="Subscription start date (yyyy-mm-dd)">Date subscribed</th>
+            )}
             <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
             <th title="Allow episode downloads for this user">Download</th>
             <th>RSS</th>

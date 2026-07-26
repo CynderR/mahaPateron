@@ -18,6 +18,7 @@ import {
   subscriptionFieldsFromStatus
 } from '../../utils/paymentCategories';
 import { ADMIN_ACCESS_TYPE_OPTIONS } from '../../utils/accessPermissions';
+import { AdminSortDir, AdminSortField, nextSortState } from '../../utils/adminTableHelpers';
 
 interface NewUserForm {
   username: string;
@@ -79,6 +80,8 @@ const Users: React.FC = () => {
   const [newUser, setNewUser] = useState<NewUserForm>({ ...emptyNewUser });
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [sortField, setSortField] = useState<AdminSortField | null>(null);
+  const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
 
   const limit = 20;
   const hasMore = users.length < total;
@@ -91,10 +94,10 @@ const Users: React.FC = () => {
     return () => window.clearTimeout(handle);
   }, [searchInput]);
 
-  // Reset pagination when filters change without blanking the current list mid-scroll.
+  // Reset pagination when filters or sort change without blanking the current list mid-scroll.
   useEffect(() => {
     setPage(1);
-  }, [filters]);
+  }, [filters, sortField, sortDir]);
 
   useEffect(() => {
     let cancelled = false;
@@ -115,6 +118,10 @@ const Users: React.FC = () => {
         if (filters.account_status) params.account_status = filters.account_status;
         if (/^\d{4}-\d{2}-\d{2}$/.test(filters.subscribed_at)) {
           params.subscribed_at = filters.subscribed_at;
+        }
+        if (sortField === 'subscribed_at') {
+          params.sort = 'subscribed_at';
+          params.dir = sortDir;
         }
 
         const res = await axios.get<UsersResponse>('/admin/users', { params });
@@ -142,7 +149,7 @@ const Users: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, filters, listEpoch]);
+  }, [page, filters, sortField, sortDir, listEpoch]);
 
   const reload = useCallback(() => {
     setPage(1);
@@ -287,6 +294,12 @@ const Users: React.FC = () => {
     setFilters((prev) => ({ ...prev, ...patch }));
   };
 
+  const handleSort = (field: AdminSortField) => {
+    const next = nextSortState(field, sortField, sortDir);
+    setSortField(next.field);
+    setSortDir(next.dir);
+  };
+
   return (
     <div className="podcast-page admin-users-page">
       <div className="admin-users-sticky-stack">
@@ -392,12 +405,43 @@ const Users: React.FC = () => {
                   autoComplete="off"
                 />
               </div>
-              <div className="pod-form-group" style={{ marginBottom: 0 }}>
-                <label>&nbsp;</label>
-                <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
-                  {showAdd ? 'Close' : 'Add User'}
-                </button>
-              </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="admin-users-sort">Sort</label>
+              <select
+                id="admin-users-sort"
+                className="pod-select"
+                value={
+                  sortField === 'subscribed_at'
+                    ? sortDir === 'asc'
+                      ? 'subscribed_at_asc'
+                      : 'subscribed_at_desc'
+                    : 'name'
+                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === 'subscribed_at_desc') {
+                    setSortField('subscribed_at');
+                    setSortDir('desc');
+                  } else if (value === 'subscribed_at_asc') {
+                    setSortField('subscribed_at');
+                    setSortDir('asc');
+                  } else {
+                    setSortField(null);
+                    setSortDir('desc');
+                  }
+                }}
+              >
+                <option value="name">Name (A–Z)</option>
+                <option value="subscribed_at_desc">Date subscribed (newest)</option>
+                <option value="subscribed_at_asc">Date subscribed (oldest)</option>
+              </select>
+            </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label>&nbsp;</label>
+              <button type="button" className="pod-btn" onClick={() => setShowAdd((s) => !s)}>
+                {showAdd ? 'Close' : 'Add User'}
+              </button>
+            </div>
             </div>
           </div>
         </div>
@@ -573,6 +617,9 @@ const Users: React.FC = () => {
               onPayingTierChange={handlePayingTierChange}
               onDelete={handleDelete}
               onRestore={handleRestore}
+              sortField={sortField}
+              sortDir={sortDir}
+              onSort={handleSort}
             />
             <LibraryInfiniteFooter
               sentinelRef={sentinelRef}

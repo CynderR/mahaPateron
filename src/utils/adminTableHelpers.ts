@@ -1,4 +1,4 @@
-export type AdminSortField = 'duration' | 'date';
+export type AdminSortField = 'duration' | 'date' | 'subscribed_at';
 export type AdminSortDir = 'asc' | 'desc';
 
 export interface AdminTableItem {
@@ -23,7 +23,7 @@ export const sortAdminItems = <T extends AdminTableItem>(
   field: AdminSortField | null,
   dir: AdminSortDir
 ): T[] => {
-  if (!field) return items;
+  if (!field || field === 'subscribed_at') return items;
   return [...items].sort((a, b) => {
     let cmp = 0;
     if (field === 'duration') {
@@ -45,5 +45,6 @@ export const nextSortState = (
   if (currentField === field) {
     return { field, dir: currentDir === 'asc' ? 'desc' : 'asc' };
   }
-  return { field, dir: field === 'date' ? 'desc' : 'asc' };
+  // Date fields: newest / latest first on first click.
+  return { field, dir: field === 'duration' ? 'asc' : 'desc' };
 };

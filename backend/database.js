@@ -438,7 +438,9 @@ const getUsersFiltered = (filters = {}) => {
       is_admin,
       q,
       account_status = 'active',
-      subscribed_at
+      subscribed_at,
+      sort,
+      dir
     } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 20));
@@ -479,7 +481,7 @@ const getUsersFiltered = (filters = {}) => {
       const search = `%${String(q).trim().toLowerCase()}%`;
       params.push(search, search);
     }
-    // Filter by calendar day of subscribed_at (YYYY-MM-DD from <input type="date">).
+    // Filter by calendar day of subscribed_at (yyyy-mm-dd).
     const subscribedDay = String(subscribed_at || '').trim();
     if (/^\d{4}-\d{2}-\d{2}$/.test(subscribedDay)) {
       where.push('subscribed_at IS NOT NULL AND date(subscribed_at) = date(?)');
@@ -489,8 +491,15 @@ const getUsersFiltered = (filters = {}) => {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
     const offset = (page - 1) * limit;
 
+    // Default: username. Optional: subscribed_at newest/oldest (nulls last).
+    let orderSql = 'LOWER(username) ASC, id ASC';
+    if (sort === 'subscribed_at') {
+      const sortDir = String(dir || '').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+      orderSql = `subscribed_at IS NULL, subscribed_at ${sortDir}, LOWER(username) ASC, id ASC`;
+    }
+
     db.all(
-      `SELECT ${USER_PUBLIC_COLUMNS} FROM users ${whereSql} ORDER BY LOWER(username) ASC, id ASC LIMIT ? OFFSET ?`,
+      `SELECT ${USER_PUBLIC_COLUMNS} FROM users ${whereSql} ORDER BY ${orderSql} LIMIT ? OFFSET ?`,
       [...params, limit, offset],
       (err, rows) => {
         if (err) return reject(err);
