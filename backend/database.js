@@ -437,7 +437,8 @@ const getUsersFiltered = (filters = {}) => {
       access_type,
       is_admin,
       q,
-      account_status = 'active'
+      account_status = 'active',
+      subscribed_at
     } = filters;
     const page = Math.max(1, parseInt(filters.page) || 1);
     const limit = Math.min(100, Math.max(1, parseInt(filters.limit) || 20));
@@ -477,6 +478,12 @@ const getUsersFiltered = (filters = {}) => {
       where.push('(LOWER(username) LIKE ? OR LOWER(email) LIKE ?)');
       const search = `%${String(q).trim().toLowerCase()}%`;
       params.push(search, search);
+    }
+    // Filter by calendar day of subscribed_at (YYYY-MM-DD from <input type="date">).
+    const subscribedDay = String(subscribed_at || '').trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(subscribedDay)) {
+      where.push('subscribed_at IS NOT NULL AND date(subscribed_at) = date(?)');
+      params.push(subscribedDay);
     }
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';

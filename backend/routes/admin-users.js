@@ -105,7 +105,8 @@ router.get('/', async (req, res) => {
       access_type,
       is_admin,
       q,
-      account_status
+      account_status,
+      subscribed_at
     } = req.query;
     const result = await getUsersFiltered({
       page,
@@ -116,7 +117,8 @@ router.get('/', async (req, res) => {
       access_type,
       is_admin,
       q,
-      account_status
+      account_status,
+      subscribed_at
     });
     res.json({
       ...result,

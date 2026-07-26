@@ -65,7 +65,8 @@ const Users: React.FC = () => {
     subscription_status: '',
     access_type: '',
     is_admin: '',
-    account_status: 'active'
+    account_status: 'active',
+    subscribed_at: ''
   });
   const [searchInput, setSearchInput] = useState('');
   const [page, setPage] = useState(1);
@@ -112,6 +113,7 @@ const Users: React.FC = () => {
         if (filters.access_type) params.access_type = filters.access_type;
         if (filters.is_admin) params.is_admin = filters.is_admin;
         if (filters.account_status) params.account_status = filters.account_status;
+        if (filters.subscribed_at) params.subscribed_at = filters.subscribed_at;
 
         const res = await axios.get<UsersResponse>('/admin/users', { params });
         if (cancelled) return;
@@ -525,6 +527,17 @@ const Users: React.FC = () => {
                 <option value="deleted">Deleted</option>
                 <option value="all">All</option>
               </select>
+            </div>
+            <div className="pod-form-group" style={{ marginBottom: 0 }}>
+              <label htmlFor="admin-users-subscribed-at">Date subscribed</label>
+              <input
+                id="admin-users-subscribed-at"
+                className="pod-input"
+                type="date"
+                value={filters.subscribed_at}
+                onChange={(e) => updateFilter({ subscribed_at: e.target.value })}
+                title="Filter by subscription date"
+              />
             </div>
             <div className="pod-form-group" style={{ marginBottom: 0 }}>
               <label>&nbsp;</label>
