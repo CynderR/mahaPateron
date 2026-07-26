@@ -23,10 +23,18 @@ export interface AdminUser {
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
   subscription_price: number | null;
+  subscribed_at?: string | null;
   deleted_at?: string | null;
 }
 
 export type AdminDeleteMode = 'reuse_email' | 'permanent';
+
+/** Format subscribed_at for admin display as yyyy-mm-dd. */
+const formatSubscribedDate = (value?: string | null): string => {
+  if (!value) return '—';
+  const day = String(value).trim().slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '—';
+};
 
 interface UserTableProps {
   users: AdminUser[];
@@ -125,6 +133,11 @@ const UserTable: React.FC<UserTableProps> = ({
           onChange={(tier) => onPayingTierChange(u.id, tier)}
         />
       </label>
+
+      <div className="pod-user-field">
+        <span className="pod-user-field-label">Date subscribed</span>
+        <span className="pod-user-subscribed-at">{formatSubscribedDate(u.subscribed_at)}</span>
+      </div>
 
       <label className="pod-user-field">
         <span className="pod-user-field-label" title="streaming: web player only. rss: web player plus podcast RSS feed.">
@@ -253,6 +266,7 @@ const UserTable: React.FC<UserTableProps> = ({
             <th>Role</th>
             <th title="Subscribed or Not Subscribed">Payment</th>
             <th>Paying</th>
+            <th title="Subscription start date (yyyy-mm-dd)">Date subscribed</th>
             <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
             <th title="Allow episode downloads for this user">Download</th>
             <th>RSS</th>
@@ -300,6 +314,7 @@ const UserTable: React.FC<UserTableProps> = ({
                     onChange={(tier) => onPayingTierChange(u.id, tier)}
                   />
                 </td>
+                <td className="pod-user-subscribed-at">{formatSubscribedDate(u.subscribed_at)}</td>
                 <td>
                   <select
                     className="pod-select"

@@ -360,7 +360,7 @@
 }
 
 .pod-table-wrap-users .pod-table {
-  min-width: 980px;
+  min-width: 1080px;
 }
 
 .pod-table {
@@ -566,6 +566,18 @@
   gap: 1rem;
   flex-wrap: wrap;
   align-items: flex-end;
+}
+
+.pod-user-subscribed-at {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+
+.pod-users-mobile .pod-user-subscribed-at {
+  display: inline-block;
+  min-height: 2.25rem;
+  line-height: 2.25rem;
 }
 
 @media (max-width: 768px) {

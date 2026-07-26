@@ -379,7 +379,8 @@ const Users: React.FC = () => {
                   type="date"
                   value={filters.subscribed_at}
                   onChange={(e) => updateFilter({ subscribed_at: e.target.value })}
-                  title="Filter by subscription date"
+                  title="Filter by subscription date (yyyy-mm-dd)"
+                  placeholder="yyyy-mm-dd"
                 />
               </div>
               <div className="pod-form-group" style={{ marginBottom: 0 }}>
