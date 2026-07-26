@@ -283,7 +283,18 @@ router.put('/:id', async (req, res) => {
     delete data.password;
     delete data.rss_token;
     delete data.deleted_at;
-    delete data.subscribed_at;
+
+    // Admin may set subscribed_at as yyyy-mm-dd (or clear it). Reject other shapes.
+    if (data.subscribed_at !== undefined) {
+      const raw = data.subscribed_at === null ? '' : String(data.subscribed_at).trim();
+      if (!raw) {
+        data.subscribed_at = null;
+      } else if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        data.subscribed_at = `${raw}T00:00:00.000Z`;
+      } else {
+        return res.status(400).json({ error: 'Date subscribed must be yyyy-mm-dd' });
+      }
+    }
 
     const existing = await getUserById(id);
     if (!existing) {

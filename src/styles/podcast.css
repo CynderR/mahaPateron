@@ -571,13 +571,16 @@
 .pod-user-subscribed-at {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  min-width: 7.5rem;
+  max-width: 8.5rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.02em;
 }
 
 .pod-users-mobile .pod-user-subscribed-at {
-  display: inline-block;
-  min-height: 2.25rem;
-  line-height: 2.25rem;
+  max-width: none;
+  width: 100%;
 }
 
 @media (max-width: 768px) {

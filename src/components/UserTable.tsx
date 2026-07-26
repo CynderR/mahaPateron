@@ -31,10 +31,13 @@ export type AdminDeleteMode = 'reuse_email' | 'permanent';
 
 /** Format subscribed_at for admin display as yyyy-mm-dd. */
 const formatSubscribedDate = (value?: string | null): string => {
-  if (!value) return '—';
+  if (!value) return '';
   const day = String(value).trim().slice(0, 10);
-  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '—';
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '';
 };
+
+const isValidSubscribedDate = (value: string): boolean =>
+  value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value);
 
 interface UserTableProps {
   users: AdminUser[];
@@ -134,10 +137,31 @@ const UserTable: React.FC<UserTableProps> = ({
         />
       </label>
 
-      <div className="pod-user-field">
+      <label className="pod-user-field">
         <span className="pod-user-field-label">Date subscribed</span>
-        <span className="pod-user-subscribed-at">{formatSubscribedDate(u.subscribed_at)}</span>
-      </div>
+        <input
+          className="pod-input pod-user-subscribed-at"
+          type="text"
+          inputMode="numeric"
+          placeholder="yyyy-mm-dd"
+          defaultValue={formatSubscribedDate(u.subscribed_at)}
+          key={`${u.id}-${formatSubscribedDate(u.subscribed_at)}`}
+          disabled={isDeleted}
+          maxLength={10}
+          pattern="\d{4}-\d{2}-\d{2}"
+          title="yyyy-mm-dd"
+          onBlur={(e) => {
+            const next = e.target.value.trim();
+            if (!isValidSubscribedDate(next)) {
+              e.target.value = formatSubscribedDate(u.subscribed_at);
+              return;
+            }
+            if (next !== formatSubscribedDate(u.subscribed_at)) {
+              onUpdate(u.id, 'subscribed_at', next || null);
+            }
+          }}
+        />
+      </label>
 
       <label className="pod-user-field">
         <span className="pod-user-field-label" title="streaming: web player only. rss: web player plus podcast RSS feed.">
@@ -314,7 +338,31 @@ const UserTable: React.FC<UserTableProps> = ({
                     onChange={(tier) => onPayingTierChange(u.id, tier)}
                   />
                 </td>
-                <td className="pod-user-subscribed-at">{formatSubscribedDate(u.subscribed_at)}</td>
+                <td>
+                  <input
+                    className="pod-input pod-user-subscribed-at"
+                    type="text"
+                    inputMode="numeric"
+                    placeholder="yyyy-mm-dd"
+                    defaultValue={formatSubscribedDate(u.subscribed_at)}
+                    key={`${u.id}-${formatSubscribedDate(u.subscribed_at)}`}
+                    disabled={isDeleted}
+                    maxLength={10}
+                    pattern="\d{4}-\d{2}-\d{2}"
+                    title="yyyy-mm-dd"
+                    aria-label="Date subscribed"
+                    onBlur={(e) => {
+                      const next = e.target.value.trim();
+                      if (!isValidSubscribedDate(next)) {
+                        e.target.value = formatSubscribedDate(u.subscribed_at);
+                        return;
+                      }
+                      if (next !== formatSubscribedDate(u.subscribed_at)) {
+                        onUpdate(u.id, 'subscribed_at', next || null);
+                      }
+                    }}
+                  />
+                </td>
                 <td>
                   <select
                     className="pod-select"

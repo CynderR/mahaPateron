@@ -113,7 +113,9 @@ const Users: React.FC = () => {
         if (filters.access_type) params.access_type = filters.access_type;
         if (filters.is_admin) params.is_admin = filters.is_admin;
         if (filters.account_status) params.account_status = filters.account_status;
-        if (filters.subscribed_at) params.subscribed_at = filters.subscribed_at;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(filters.subscribed_at)) {
+          params.subscribed_at = filters.subscribed_at;
+        }
 
         const res = await axios.get<UsersResponse>('/admin/users', { params });
         if (cancelled) return;
@@ -375,12 +377,19 @@ const Users: React.FC = () => {
                 <label htmlFor="admin-users-subscribed-at">Date subscribed</label>
                 <input
                   id="admin-users-subscribed-at"
-                  className="pod-input"
-                  type="date"
+                  className="pod-input pod-user-subscribed-at"
+                  type="text"
+                  inputMode="numeric"
                   value={filters.subscribed_at}
-                  onChange={(e) => updateFilter({ subscribed_at: e.target.value })}
-                  title="Filter by subscription date (yyyy-mm-dd)"
+                  onChange={(e) => {
+                    const next = e.target.value.replace(/[^\d-]/g, '').slice(0, 10);
+                    updateFilter({ subscribed_at: next });
+                  }}
                   placeholder="yyyy-mm-dd"
+                  title="Filter by subscription date (yyyy-mm-dd)"
+                  maxLength={10}
+                  pattern="\d{4}-\d{2}-\d{2}"
+                  autoComplete="off"
                 />
               </div>
               <div className="pod-form-group" style={{ marginBottom: 0 }}>
