@@ -583,8 +583,9 @@
   width: 100%;
 }
 
-@media (max-width: 768px) {
-  /* Phones: let nav + search scroll away with the page. */
+/* Phones (portrait ≤768px, and landscape where height is phone-sized). */
+@media (max-width: 768px),
+  (orientation: landscape) and (max-height: 500px) and (pointer: coarse) {
   .admin-users-sticky-stack {
     position: static;
     top: auto;
