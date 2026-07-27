@@ -584,6 +584,14 @@
 }
 
 @media (max-width: 768px) {
+  /* Phones: let nav + search scroll away with the page. */
+  .admin-users-sticky-stack {
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+
   .admin-users-sticky-toolbar {
     padding-left: 1rem;
     padding-right: 1rem;
