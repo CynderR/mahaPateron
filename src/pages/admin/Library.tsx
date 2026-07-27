@@ -208,7 +208,7 @@ const AdminLibrary: React.FC = () => {
   };
 
   return (
-    <div className="podcast-page">
+    <div className="podcast-page admin-library-page">
       <LibrarySearchResultsDialog
         open={Boolean(searchQuery)}
         query={searchQuery}
@@ -244,13 +244,15 @@ const AdminLibrary: React.FC = () => {
           }}
         />
 
-        <AdminTableToolbar
-          onSearch={handleSearch}
-          searchQuery={searchQuery}
-          placeholder="Search by title, description, artist, album, year, or genre…"
-          totalCount={meta?.catalogTotal ?? 0}
-          resultCount={total}
-        />
+        <div className="admin-library-search">
+          <AdminTableToolbar
+            onSearch={handleSearch}
+            searchQuery={searchQuery}
+            placeholder="Search by title, description, artist, album, year, or genre…"
+            totalCount={meta?.catalogTotal ?? 0}
+            resultCount={total}
+          />
+        </div>
 
         <div className="pod-table-wrap" style={{ marginTop: '0.75rem' }}>
           <table className="pod-table">

@@ -712,6 +712,27 @@
   border-bottom: 1px solid var(--border-primary);
 }
 
+/*
+ * Tablets in landscape: library search (member + share) should scroll away.
+ * Typical iPad landscape is ~768–1366 wide and ≤1024 tall; pointer:coarse ≈ touch.
+ */
+@media (orientation: landscape) and (min-width: 768px) and (max-width: 1366px) and (max-height: 1024px) and (pointer: coarse) {
+  .library-page .library-sticky-stack,
+  .library-page .library-sticky-head {
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+
+  .admin-library-page .admin-library-search {
+    position: static;
+    top: auto;
+    z-index: auto;
+    box-shadow: none;
+  }
+}
+
 /* Member feed / library list toolbar */
 .member-episode-toolbar {
   margin-bottom: 1rem;
