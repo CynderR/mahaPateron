@@ -4,6 +4,7 @@ const { BASE_URL } = require('../config');
 const { escapeHtml } = require('./escapeHtml');
 const { getPodcastChannelImageUrl } = require('./podcastBranding');
 const { ensureShareOgImageFilename } = require('./shareOgImage');
+const { parseMetadataFromDescription } = require('./audioMetadata');
 
 const SITE_NAME = process.env.PODCAST_TITLE || 'Shyam Akaash';
 
@@ -45,12 +46,24 @@ const truncateDescription = (text, maxLen = 200) => {
   return `${trimmed.slice(0, maxLen - 1).trim()}…`;
 };
 
+const buildOgDescription = (post) => {
+  // Preview subtitle: artist name only (no "Artist:" label / album / year / genre).
+  const fromColumn = String(post.artist || '').trim();
+  if (fromColumn) return fromColumn;
+
+  const parsed = parseMetadataFromDescription(post.description);
+  const fromDescription = String(parsed.artist || '').trim();
+  if (fromDescription) return fromDescription;
+
+  return SITE_NAME;
+};
+
 const buildOgMetaTags = (post, imageFilename) => {
   const episodeTitle = String(post.title || 'Episode').trim();
   const pageUrl = buildSharePageUrl(post);
   const imageUrl = buildShareImageUrl(imageFilename);
-  // Signal/WhatsApp: title = episode name; description falls back to site name.
-  const description = truncateDescription(post.description) || SITE_NAME;
+  // Signal/WhatsApp: title = episode name; subtitle = artist (or site name).
+  const description = truncateDescription(buildOgDescription(post));
   const lowerName = String(imageFilename || '').toLowerCase();
   const imageType = lowerName.endsWith('.png')
     ? 'image/png'
