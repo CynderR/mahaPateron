@@ -2356,6 +2356,9 @@ body.global-now-playing-active .podcast-main {
   font-weight: 700;
   line-height: 1.2;
   color: #000;
+  background-color: rgba(0,0,0,.2);
+  padding: 2px;
+  border-radius: 6px;
 }
 
 .ht-profile-location {
@@ -2394,6 +2397,9 @@ body.global-now-playing-active .podcast-main {
   font-size: 0.88rem;
   line-height: 1.55;
   color: #000;
+  background-color: rgba(0,0,0,.2);
+  padding: 2px;
+  border-radius: 6px;
 }
 
 .ht-layout {
