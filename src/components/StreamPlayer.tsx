@@ -317,8 +317,16 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       />
 
       <footer className="stream-mobile-bar pod-mobile-only">
-        <div className="stream-mobile-bar-progress">
-          <div className="stream-mobile-bar-progress-fill" style={{ width: `${progress}%` }} />
+        <div className="stream-mobile-bar-progress-row">
+          <span className="stream-mobile-bar-time" aria-label="Elapsed">
+            {formatTime(currentTime)}
+          </span>
+          <div className="stream-mobile-bar-progress">
+            <div className="stream-mobile-bar-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+          <span className="stream-mobile-bar-time" aria-label="Remaining">
+            -{formatTime(Math.max(0, effectiveDuration - currentTime))}
+          </span>
         </div>
         <div className="stream-mobile-bar-player-tools">
           <PlayerControls

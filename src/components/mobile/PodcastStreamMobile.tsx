@@ -69,6 +69,7 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
   const remaining = Math.max(0, duration - currentTime);
 
   const readyToPlay = canPlay ?? playable;
+  const canSkip = playable || playing || currentTime > 0;
 
   return (
     <div className="pod-stream pod-mobile-only">
@@ -88,59 +89,61 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
         {published && <p className="pod-stream-date">{published}</p>}
       </div>
 
-      <div className="pod-stream-transport">
-        <button type="button" className="pod-stream-skip" onClick={() => onSkip(-15)} disabled={!playable} aria-label="Back 15 seconds">
-          -15
-        </button>
-        <button type="button" className="pod-stream-transport-btn" onClick={onPrevious} disabled={!canPrevious} aria-label="Previous episode">
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <path fill="currentColor" d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          className="pod-stream-play"
-          onClick={onTogglePlay}
-          disabled={!readyToPlay}
-          aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
-        >
-          {playing ? (
+      <div className="pod-stream-controls-sticky">
+        <div className="pod-stream-transport">
+          <button type="button" className="pod-stream-skip" onClick={() => onSkip(-15)} disabled={!canSkip} aria-label="Back 15 seconds">
+            -15
+          </button>
+          <button type="button" className="pod-stream-transport-btn" onClick={onPrevious} disabled={!canPrevious} aria-label="Previous episode">
             <svg viewBox="0 0 24 24" aria-hidden>
-              <rect x="6" y="5" width="4" height="14" fill="currentColor" />
-              <rect x="14" y="5" width="4" height="14" fill="currentColor" />
+              <path fill="currentColor" d="M6 6h2v12H6V6zm3.5 6l8.5 6V6l-8.5 6z" />
             </svg>
-          ) : (
+          </button>
+          <button
+            type="button"
+            className="pod-stream-play"
+            onClick={onTogglePlay}
+            disabled={!readyToPlay}
+            aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
+          >
+            {playing ? (
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <rect x="6" y="5" width="4" height="14" fill="currentColor" />
+                <rect x="14" y="5" width="4" height="14" fill="currentColor" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" aria-hidden>
+                <path d="M8 5v14l11-7z" fill="currentColor" />
+              </svg>
+            )}
+          </button>
+          <button type="button" className="pod-stream-transport-btn" onClick={onNext} disabled={!canNext} aria-label="Next episode">
             <svg viewBox="0 0 24 24" aria-hidden>
-              <path d="M8 5v14l11-7z" fill="currentColor" />
+              <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
             </svg>
-          )}
-        </button>
-        <button type="button" className="pod-stream-transport-btn" onClick={onNext} disabled={!canNext} aria-label="Next episode">
-          <svg viewBox="0 0 24 24" aria-hidden>
-            <path fill="currentColor" d="M6 18l8.5-6L6 6v12zm2.5-6l0 0zm8.5 6V6h2v12h-2z" />
-          </svg>
-        </button>
-        <button type="button" className="pod-stream-skip" onClick={() => onSkip(15)} disabled={!playable} aria-label="Forward 15 seconds">
-          +15
-        </button>
-      </div>
+          </button>
+          <button type="button" className="pod-stream-skip" onClick={() => onSkip(15)} disabled={!canSkip} aria-label="Forward 15 seconds">
+            +15
+          </button>
+        </div>
 
-      <div className="pod-stream-scrubber">
-        <input
-          type="range"
-          min={0}
-          max={duration || 1}
-          step={1}
-          value={Math.min(currentTime, duration || 0)}
-          disabled={!playable}
-          onChange={(e) => onSeek(parseFloat(e.target.value))}
-          aria-label="Seek"
-          className="pod-stream-range"
-          style={{ '--pod-progress': `${progress}%` } as React.CSSProperties}
-        />
-        <div className="pod-stream-times">
-          <span>{formatTime(currentTime)}</span>
-          <span>-{formatTime(remaining)}</span>
+        <div className="pod-stream-scrubber">
+          <input
+            type="range"
+            min={0}
+            max={duration || 1}
+            step={1}
+            value={Math.min(currentTime, duration || 0)}
+            disabled={!canSkip}
+            onChange={(e) => onSeek(parseFloat(e.target.value))}
+            aria-label="Seek"
+            className="pod-stream-range"
+            style={{ '--pod-progress': `${progress}%` } as React.CSSProperties}
+          />
+          <div className="pod-stream-times">
+            <span>{formatTime(currentTime)}</span>
+            <span>-{formatTime(remaining)}</span>
+          </div>
         </div>
       </div>
 

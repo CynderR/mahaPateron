@@ -1456,16 +1456,21 @@
 }
 
 .stream-episode-transport-skip {
+  flex-shrink: 0;
   min-width: 2.4em;
   padding: 0.22em 0.4em;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
+  -webkit-appearance: none;
+  appearance: none;
+  background-color: #2d3748;
+  color: #ffffff;
+  -webkit-text-fill-color: #ffffff;
   font-size: 0.78em;
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  opacity: 1;
 }
 
 .stream-episode-transport-skip:hover:not(:disabled) {
@@ -2077,14 +2082,15 @@ body.global-now-playing-active .podcast-main {
     z-index: 5;
     background: #0a0a0a;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .stream-mobile-bar-player-tools {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    padding: 0.35rem 0.75rem;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     overflow: visible;
   }
@@ -2095,9 +2101,35 @@ body.global-now-playing-active .podcast-main {
     overflow: visible;
   }
 
+  .stream-mobile-bar-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.35rem 0.65rem 0.2rem;
+  }
+
+  .stream-mobile-bar-time {
+    flex-shrink: 0;
+    min-width: 2.4rem;
+    font-size: 0.68rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: #f7fafc;
+    -webkit-text-fill-color: #f7fafc;
+    line-height: 1;
+  }
+
+  .stream-mobile-bar-progress-row .stream-mobile-bar-time:last-child {
+    text-align: right;
+  }
+
   .stream-mobile-bar-progress {
+    flex: 1;
+    min-width: 0;
     height: 3px;
     background: rgba(255, 255, 255, 0.15);
+    border-radius: 2px;
+    overflow: hidden;
   }
 
   .stream-mobile-bar-progress-fill {
@@ -2162,21 +2194,28 @@ body.global-now-playing-active .podcast-main {
   }
 
   .stream-mobile-bar-skip {
-    min-width: 2rem;
-    padding: 0.25rem 0.35rem;
-    border: none;
+    flex-shrink: 0;
+    min-width: 2.35rem;
+    min-height: 2rem;
+    padding: 0.3rem 0.4rem;
+    border: 1px solid rgba(255, 255, 255, 0.28);
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.9);
-    font-size: 0.62rem;
+    -webkit-appearance: none;
+    appearance: none;
+    background-color: #2d3748;
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+    font-size: 0.68rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
+    line-height: 1;
     cursor: pointer;
     touch-action: manipulation;
+    opacity: 1;
   }
 
   .stream-mobile-bar-skip:disabled {
-    opacity: 0.35;
+    opacity: 0.5;
     cursor: default;
   }
 
