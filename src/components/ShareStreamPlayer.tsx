@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { buildPublicShareStreamUrl, buildStreamUrl } from '../config';
-import { useAuth } from '../contexts/AuthContext';
+import { buildPublicShareStreamUrl } from '../config';
 import { usePlayer } from '../contexts/PlayerContext';
-import { useShare } from '../contexts/ShareContext';
 import { FeedPost } from './PostCard';
 import PlayerControls from './PlayerControls';
 import EpisodeTransportBar from './EpisodeTransportBar';
@@ -69,12 +67,11 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
   streamState
 }) => {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { memberAccess } = useShare();
   const {
     playing,
     currentTime,
     duration,
+    streamPreviewSeconds,
     playbackError,
     mediaLoading,
     mediaReady,
@@ -89,13 +86,15 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
     registerTrackEndedHandler
   } = usePlayer();
 
-  const streamUrl =
-    user?.rss_token
-      ? buildStreamUrl(post.id, user.rss_token)
-      : buildPublicShareStreamUrl(post.id, shareToken);
+  // Always use the share stream URL so guests/non-members get the 2-minute backend cap.
+  // Signed-in free/paid members are redirected off share pages before this mounts.
+  const streamUrl = buildPublicShareStreamUrl(post.id, shareToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);
   const mobileBarHeights = useMemo(() => seedHeights(`${post.id}-m`, 60), [post.id]);
-  const effectiveDuration = duration || post.duration_secs || 0;
+  const effectiveDuration =
+    streamPreviewSeconds != null
+      ? streamPreviewSeconds
+      : duration || post.duration_secs || 0;
   const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
   const playable = accessible && canStream;
   const canPlay = playable && mediaReady && !mediaLoading;

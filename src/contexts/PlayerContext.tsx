@@ -10,7 +10,11 @@ import {
   resolveNextIndex,
   resolvePrevIndex
 } from '../utils/playerQueue';
-import { memberStreamPreviewSeconds } from '../utils/accessPermissions';
+import {
+  memberHasShareFullAccess,
+  memberStreamPreviewSeconds,
+  SHARE_PREVIEW_STREAM_SECONDS
+} from '../utils/accessPermissions';
 import {
   clearStreamBlob,
   getCachedStreamBlob,
@@ -163,11 +167,23 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [mediaReady, setMediaReady] = useState(false);
   const [autoplayTimeoutHours, setAutoplayTimeoutHoursState] = useState<AutoplayTimeoutHours>(readAutoplayTimeoutHours);
   const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
+  const [playingShareStream, setPlayingShareStream] = useState(false);
 
-  const streamPreviewSeconds = useMemo(
-    () => (user ? memberStreamPreviewSeconds(user.payment_category, user.is_paying) : null),
-    [user]
-  );
+  const streamPreviewSeconds = useMemo(() => {
+    // Signed-in free / paid (and active non_card) members always get full playback.
+    if (user && memberHasShareFullAccess(user.payment_category, user.is_paying)) {
+      return null;
+    }
+    // Public share links: 2-minute preview for guests and non-members.
+    if (playingShareStream) {
+      return SHARE_PREVIEW_STREAM_SECONDS;
+    }
+    // Logged-in not-subscribed users on the main app: standard preview.
+    if (user) {
+      return memberStreamPreviewSeconds(user.payment_category, user.is_paying);
+    }
+    return null;
+  }, [user, playingShareStream]);
 
   useEffect(() => {
     streamPreviewLimitRef.current = streamPreviewSeconds;
@@ -290,6 +306,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     assignedSourceRef.current = { postId, url: streamUrl };
     activePostIdRef.current = postId;
     setActivePostId(postId);
+    setPlayingShareStream(/[?&]share=/.test(streamUrl));
     setPlaybackError(null);
 
     if (changed) {

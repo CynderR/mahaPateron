@@ -2,6 +2,8 @@ const ACCESS_TYPES = ['rss', 'streaming', 'both'];
 const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 const FREE_PAYMENT_CATEGORY = 'free';
 const PREVIEW_STREAM_SECONDS = 60;
+/** Guests / non-members on a public share link. */
+const SHARE_PREVIEW_STREAM_SECONDS = 120;
 
 const memberIsPaying = (user) => {
   const value = user?.is_paying;
@@ -36,6 +38,10 @@ const userSubscriptionInactive = (user) => {
 };
 
 const streamPreviewSeconds = (user) => (userIsNotSubscribed(user) ? PREVIEW_STREAM_SECONDS : null);
+
+/** Preview length for share-link viewers who do not have full member access. */
+const shareStreamPreviewSeconds = (user) =>
+  userHasShareMemberFullAccess(user) ? null : SHARE_PREVIEW_STREAM_SECONDS;
 
 const userHasDownloadAccess = (user) =>
   !!user?.download_access &&
@@ -82,12 +88,14 @@ const accessFlags = (user) => {
   };
 };
 
-const previewMaxByte = (fileSize, durationSecs) => {
+const previewMaxByte = (fileSize, durationSecs, previewSeconds = PREVIEW_STREAM_SECONDS) => {
+  const seconds =
+    Number.isFinite(previewSeconds) && previewSeconds > 0 ? previewSeconds : PREVIEW_STREAM_SECONDS;
   if (durationSecs && durationSecs > 0) {
-    const ratio = Math.min(1, PREVIEW_STREAM_SECONDS / durationSecs);
+    const ratio = Math.min(1, seconds / durationSecs);
     return Math.max(0, Math.floor(fileSize * ratio) - 1);
   }
-  return Math.min(fileSize - 1, PREVIEW_STREAM_SECONDS * 16 * 1024);
+  return Math.min(fileSize - 1, seconds * 16 * 1024);
 };
 
 module.exports = {
@@ -95,6 +103,7 @@ module.exports = {
   NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   FREE_PAYMENT_CATEGORY,
   PREVIEW_STREAM_SECONDS,
+  SHARE_PREVIEW_STREAM_SECONDS,
   memberIsPaying,
   accessFlags,
   userIsNotSubscribed,
@@ -103,6 +112,7 @@ module.exports = {
   userHasShareMemberFullAccess,
   userSubscriptionInactive,
   streamPreviewSeconds,
+  shareStreamPreviewSeconds,
   previewMaxByte,
   userHasDownloadAccess,
   userHasRssFeedAccess,

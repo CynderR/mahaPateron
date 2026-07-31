@@ -6,7 +6,16 @@ const jwt = require('jsonwebtoken');
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
 const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
-const { accessFlags, previewMaxByte, userIsNotSubscribed, userHasShareMemberFullAccess, userSubscriptionInactive, userNeedsFrozenRssStreamPolicy } = require('../utils/accessPermissions');
+const {
+  accessFlags,
+  previewMaxByte,
+  userIsNotSubscribed,
+  userHasShareMemberFullAccess,
+  userSubscriptionInactive,
+  userNeedsFrozenRssStreamPolicy,
+  PREVIEW_STREAM_SECONDS,
+  SHARE_PREVIEW_STREAM_SECONDS
+} = require('../utils/accessPermissions');
 const { tokenVersionMatches } = require('../utils/secureTokens');
 
 const router = express.Router();
@@ -204,9 +213,14 @@ router.get('/:postId', async (req, res) => {
       }
 
       fileSize = stat.size;
+      const isShareRequest = Boolean(req.query.share);
+      // Share links: full file only for signed-in free/paid members; everyone else gets a 2-minute cap.
+      // Non-share: signed-in not-subscribed users get the standard preview cap.
       previewOnly = frozenRssEpisode
         ? false
-        : user && userIsNotSubscribed(user) && !req.query.share;
+        : isShareRequest
+          ? !(user && userHasShareMemberFullAccess(user))
+          : !!(user && userIsNotSubscribed(user));
 
       writeStreamAccessCache(cacheKey, {
         post,
@@ -219,7 +233,14 @@ router.get('/:postId', async (req, res) => {
     }
 
     const range = req.headers.range;
-    const previewMax = previewOnly ? previewMaxByte(fileSize, post.duration_secs) : fileSize - 1;
+    const previewSeconds = previewOnly
+      ? req.query.share
+        ? SHARE_PREVIEW_STREAM_SECONDS
+        : PREVIEW_STREAM_SECONDS
+      : null;
+    const previewMax = previewOnly
+      ? previewMaxByte(fileSize, post.duration_secs, previewSeconds)
+      : fileSize - 1;
 
     setStreamResponseHeaders(res, { fileSize, previewOnly });
 

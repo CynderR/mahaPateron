@@ -8,9 +8,8 @@ const {
 } = require('../database');
 const {
   accessFlags,
-  streamPreviewSeconds,
-  userHasShareMemberFullAccess,
-  userIsNotSubscribed
+  shareStreamPreviewSeconds,
+  userHasShareMemberFullAccess
 } = require('../utils/accessPermissions');
 
 const router = express.Router();
@@ -61,7 +60,7 @@ const memberShareMeta = (user) => {
     anchor_post_id: null,
     is_paying: !!user.is_paying,
     back_catalog_access: !!user.back_catalog_access,
-    streamPreviewSeconds: streamPreviewSeconds(user),
+    streamPreviewSeconds: shareStreamPreviewSeconds(user),
     ...flags
   };
 };
@@ -71,7 +70,7 @@ const anonymousShareMeta = (anchor) => ({
   anchor_post_id: anchor.id,
   is_paying: false,
   back_catalog_access: false,
-  streamPreviewSeconds: null,
+  streamPreviewSeconds: shareStreamPreviewSeconds(null),
   ...ANONYMOUS_SHARE_ACCESS
 });
 

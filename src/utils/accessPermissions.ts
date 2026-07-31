@@ -16,6 +16,8 @@ export const FREE_PAYMENT_CATEGORY = 'free';
 export const NON_CARD_PAYMENT_CATEGORY = 'non_card';
 export const PAYING_SUBSCRIBER_PAYMENT_CATEGORY = 'paying_subscriber';
 export const PREVIEW_STREAM_SECONDS = 60;
+/** Guests / non-members on a public share link. */
+export const SHARE_PREVIEW_STREAM_SECONDS = 120;
 
 export const memberIsPaying = (value?: boolean | number | string | null): boolean =>
   value === true || value === 1 || value === '1';
@@ -58,6 +60,13 @@ export const memberStreamPreviewSeconds = (
   paymentCategory?: string | null,
   isPaying?: boolean | number | null
 ): number | null => (memberIsNotSubscribed(paymentCategory, isPaying) ? PREVIEW_STREAM_SECONDS : null);
+
+/** Preview length for share-link viewers who do not have full member access. */
+export const shareStreamPreviewSeconds = (
+  paymentCategory?: string | null,
+  isPaying?: boolean | number | null
+): number | null =>
+  memberHasShareFullAccess(paymentCategory, isPaying) ? null : SHARE_PREVIEW_STREAM_SECONDS;
 
 export const memberHasStreamAccess = (
   isPaying?: boolean | number | null,
