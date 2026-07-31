@@ -67,9 +67,12 @@ const CheckoutForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           {error}
         </div>
       )}
-      <button type="submit" className="pod-btn" disabled={!stripe || submitting} style={{ marginTop: '1rem' }}>
-        {submitting ? 'Processing…' : 'Confirm subscription'}
-      </button>
+      <div className="pod-inline-actions" style={{ marginTop: '1rem' }}>
+        <button type="submit" className="pod-btn" disabled={!stripe || submitting}>
+          {submitting ? 'Processing…' : 'Confirm subscription'}
+        </button>
+        <span className="billing-confirm-price">$20 CAD/month</span>
+      </div>
     </form>
   );
 };
