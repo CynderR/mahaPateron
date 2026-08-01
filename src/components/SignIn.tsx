@@ -67,15 +67,17 @@ const SignIn: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
+        <form onSubmit={handleSubmit} className="auth-form" autoComplete="on">
           <div className="form-group">
             <label htmlFor="email">Email Address</label>
             <input
               type="email"
               id="email"
+              name="username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              autoComplete="username"
               placeholder="Enter your email"
             />
           </div>
@@ -84,6 +86,7 @@ const SignIn: React.FC = () => {
             <label htmlFor="password">Password</label>
             <PasswordInput
               id="password"
+              name="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -95,9 +98,11 @@ const SignIn: React.FC = () => {
           </div>
 
           <div className="auth-form-options">
-            <label className="auth-remember-label">
+            <label className="auth-remember-label" htmlFor="remember-me">
               <input
                 type="checkbox"
+                id="remember-me"
+                name="remember"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
               />
