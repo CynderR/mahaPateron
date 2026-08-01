@@ -1,3 +1,5 @@
+import { subscriptionStatusFromUser } from './paymentCategories';
+
 export type AccessType = 'rss' | 'streaming' | 'both';
 
 /** Admin UI — streaming only, or streaming plus RSS feed. */
@@ -16,7 +18,7 @@ export const FREE_PAYMENT_CATEGORY = 'free';
 export const NON_CARD_PAYMENT_CATEGORY = 'non_card';
 export const PAYING_SUBSCRIBER_PAYMENT_CATEGORY = 'paying_subscriber';
 export const PREVIEW_STREAM_SECONDS = 60;
-/** Guests / non-members on a public share link. */
+/** Guests / viewers with Payment = Not Subscribed on a public share link. */
 export const SHARE_PREVIEW_STREAM_SECONDS = 120;
 
 export const memberIsPaying = (value?: boolean | number | string | null): boolean =>
@@ -47,21 +49,23 @@ export const memberHasFullStreamAccess = (
   return memberIsPaying(isPaying) && !memberIsNotSubscribed(paymentCategory, isPaying);
 };
 
+/**
+ * Full access on share links when admin Payment shows Subscribed (blue tick).
+ * Matches SubscriptionToggle / subscriptionStatusFromUser — not merely payment_category.
+ */
 export const memberHasShareFullAccess = (
   paymentCategory?: string | null,
   isPaying?: boolean | number | null
-): boolean => {
-  if (memberIsNotSubscribed(paymentCategory, isPaying ?? true)) return false;
-  if (memberIsInactivePayingSubscriber(paymentCategory, isPaying)) return false;
-  return true;
-};
+): boolean =>
+  subscriptionStatusFromUser(paymentCategory || NOT_SUBSCRIBED_PAYMENT_CATEGORY, isPaying) ===
+  'subscribed';
 
 export const memberStreamPreviewSeconds = (
   paymentCategory?: string | null,
   isPaying?: boolean | number | null
 ): number | null => (memberIsNotSubscribed(paymentCategory, isPaying) ? PREVIEW_STREAM_SECONDS : null);
 
-/** Preview length for share-link viewers who do not have full member access. */
+/** Preview length for share-link viewers when Payment is Not Subscribed (or anonymous). */
 export const shareStreamPreviewSeconds = (
   paymentCategory?: string | null,
   isPaying?: boolean | number | null

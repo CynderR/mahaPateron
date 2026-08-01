@@ -77,8 +77,11 @@ export const subscriptionStatusFromUser = (
   return subscriptionStatusFromCategory(paymentCategory);
 };
 
-export const paymentCategoryHasShareFullAccess = (paymentCategory: string): boolean =>
-  paymentCategory !== NOT_SUBSCRIBED_PAYMENT_CATEGORY;
+/** Prefer subscriptionStatusFromUser + is_paying; category alone is not enough for share access. */
+export const paymentCategoryHasShareFullAccess = (
+  paymentCategory: string,
+  isPaying?: boolean | number | null
+): boolean => subscriptionStatusFromUser(paymentCategory, isPaying) === 'subscribed';
 
 export const subscriptionFieldsFromStatus = (
   status: SubscriptionStatus,

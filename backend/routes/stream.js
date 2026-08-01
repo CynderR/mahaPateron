@@ -214,7 +214,7 @@ router.get('/:postId', async (req, res) => {
 
       fileSize = stat.size;
       const isShareRequest = Boolean(req.query.share);
-      // Share links: full file only for signed-in free/paid members; everyone else gets a 2-minute cap.
+      // Share links: full file only when Payment is Subscribed (blue tick); Not Subscribed → 2-minute cap.
       // Non-share: signed-in not-subscribed users get the standard preview cap.
       previewOnly = frozenRssEpisode
         ? false

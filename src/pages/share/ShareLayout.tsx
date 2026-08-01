@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
-import { memberIsNotSubscribed, memberIsInactivePayingSubscriber } from '../../utils/accessPermissions';
+import { memberHasShareFullAccess } from '../../utils/accessPermissions';
 import { ShareAccess, ShareProvider } from '../../contexts/ShareContext';
 import ShareFeed from './ShareFeed';
 import ShareLibrary from './ShareLibrary';
@@ -74,10 +74,9 @@ const ShareLayout: React.FC = () => {
     );
   }
 
+  // Payment column Subscribed (blue tick) → full app access; Not Subscribed stays on share preview.
   const isSignedInMember =
-    !!user &&
-    !memberIsNotSubscribed(user.payment_category, user.is_paying) &&
-    !memberIsInactivePayingSubscriber(user.payment_category, user.is_paying);
+    !!user && memberHasShareFullAccess(user.payment_category, user.is_paying);
 
   if (isSignedInMember) {
     const remainder = location.pathname.replace(basePath, '').replace(/^\//, '');

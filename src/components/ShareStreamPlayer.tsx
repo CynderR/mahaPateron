@@ -86,8 +86,8 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
     registerTrackEndedHandler
   } = usePlayer();
 
-  // Always use the share stream URL so guests/non-members get the 2-minute backend cap.
-  // Signed-in free/paid members are redirected off share pages before this mounts.
+  // Always use the share stream URL so Not Subscribed viewers get the 2-minute backend cap.
+  // Users with Payment = Subscribed are redirected off share pages before this mounts.
   const streamUrl = buildPublicShareStreamUrl(post.id, shareToken);
   const barHeights = useMemo(() => seedHeights(post.id, 80), [post.id]);
   const mobileBarHeights = useMemo(() => seedHeights(`${post.id}-m`, 60), [post.id]);

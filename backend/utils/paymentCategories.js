@@ -20,6 +20,26 @@ const payingTierFromCategory = (category) => {
 const isSubscribedCategory = (category) =>
   payingTierFromCategory(category) !== '';
 
+/**
+ * Same rules as admin Payment toggle (SubscriptionToggle / subscriptionStatusFromUser):
+ * - paying_subscriber without is_paying → Not Subscribed
+ * - payment_category full → Not Subscribed
+ * - otherwise → Subscribed
+ */
+const subscriptionStatusFromUser = (paymentCategory, isPaying) => {
+  const paying = isPaying === true || isPaying === 1 || isPaying === '1';
+  const category = normalizePaymentCategory(paymentCategory);
+  if (category === PAYING_SUBSCRIBER_CATEGORY && !paying) {
+    return 'not_subscribed';
+  }
+  return category === NOT_SUBSCRIBED_CATEGORY ? 'not_subscribed' : 'subscribed';
+};
+
+const userPaymentIsSubscribed = (user) => {
+  if (!user) return false;
+  return subscriptionStatusFromUser(user.payment_category, user.is_paying) === 'subscribed';
+};
+
 module.exports = {
   NOT_SUBSCRIBED_CATEGORY,
   FREE_CATEGORY,
@@ -27,5 +47,7 @@ module.exports = {
   PAYING_SUBSCRIBER_CATEGORY,
   normalizePaymentCategory,
   payingTierFromCategory,
-  isSubscribedCategory
+  isSubscribedCategory,
+  subscriptionStatusFromUser,
+  userPaymentIsSubscribed
 };

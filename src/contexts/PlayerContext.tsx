@@ -170,15 +170,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [playingShareStream, setPlayingShareStream] = useState(false);
 
   const streamPreviewSeconds = useMemo(() => {
-    // Signed-in free / paid (and active non_card) members always get full playback.
+    // Payment = Subscribed (blue tick) → full playback everywhere.
     if (user && memberHasShareFullAccess(user.payment_category, user.is_paying)) {
       return null;
     }
-    // Public share links: 2-minute preview for guests and non-members.
+    // Share links: 2-minute preview when Payment is Not Subscribed (or anonymous).
     if (playingShareStream) {
       return SHARE_PREVIEW_STREAM_SECONDS;
     }
-    // Logged-in not-subscribed users on the main app: standard preview.
+    // Logged-in Not Subscribed users on the main app: standard preview.
     if (user) {
       return memberStreamPreviewSeconds(user.payment_category, user.is_paying);
     }

@@ -1,8 +1,10 @@
+const { userPaymentIsSubscribed } = require('./paymentCategories');
+
 const ACCESS_TYPES = ['rss', 'streaming', 'both'];
 const NOT_SUBSCRIBED_PAYMENT_CATEGORY = 'full';
 const FREE_PAYMENT_CATEGORY = 'free';
 const PREVIEW_STREAM_SECONDS = 60;
-/** Guests / non-members on a public share link. */
+/** Guests / Payment = Not Subscribed on a public share link. */
 const SHARE_PREVIEW_STREAM_SECONDS = 120;
 
 const memberIsPaying = (user) => {
@@ -21,13 +23,8 @@ const userHasFullStreamAccess = (user) => {
   return memberIsPaying(user) && !userIsNotSubscribed(user);
 };
 
-const userHasShareMemberFullAccess = (user) => {
-  if (!user) return false;
-  // Share links: only active members (free, non_card, or paid paying_subscriber).
-  if (userIsNotSubscribed(user)) return false;
-  if (user.payment_category === 'paying_subscriber' && !memberIsPaying(user)) return false;
-  return true;
-};
+/** Share links: full episode only when admin Payment is Subscribed (blue tick). */
+const userHasShareMemberFullAccess = (user) => userPaymentIsSubscribed(user);
 
 const userSubscriptionInactive = (user) => {
   if (!user) return true;
@@ -39,7 +36,7 @@ const userSubscriptionInactive = (user) => {
 
 const streamPreviewSeconds = (user) => (userIsNotSubscribed(user) ? PREVIEW_STREAM_SECONDS : null);
 
-/** Preview length for share-link viewers who do not have full member access. */
+/** Preview length when Payment is Not Subscribed (or the viewer is anonymous). */
 const shareStreamPreviewSeconds = (user) =>
   userHasShareMemberFullAccess(user) ? null : SHARE_PREVIEW_STREAM_SECONDS;
 
