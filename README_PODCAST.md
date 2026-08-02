@@ -86,6 +86,11 @@ server {
     server_name 4thstate.ca www.4thstate.ca;
     client_max_body_size 550M;            # allow 500 MB audio uploads
 
+    # Domain root has no site — send visitors to the podcast app.
+    location = / {
+        return 301 /shyam_akaash/;
+    }
+
     # Hashed JS/CSS — must not fall through to index.html (MIME text/html bug).
     location ^~ /shyam_akaash/static/ {
         alias /var/www/user-management-app/build/static/;

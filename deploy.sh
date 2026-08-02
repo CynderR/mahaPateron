@@ -132,6 +132,11 @@ server {
     # Increase body size to allow large audio uploads (500 MB max).
     client_max_body_size 550M;
 
+    # Domain root has no site — send visitors to the podcast app.
+    location = / {
+        return 301 /shyam_akaash/;
+    }
+
     # Hashed JS/CSS — must not fall through to index.html (MIME text/html bug).
     location ^~ /shyam_akaash/static/ {
         alias /var/www/user-management-app/build/static/;

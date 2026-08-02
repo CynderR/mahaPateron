@@ -4,6 +4,11 @@
 
 client_max_body_size 550M;
 
+# Domain root has no site — send visitors to the podcast app.
+location = / {
+    return 301 /shyam_akaash/;
+}
+
 # Hashed JS/CSS — must not fall through to index.html.
 location ^~ /shyam_akaash/static/ {
     alias /var/www/user-management-app/build/static/;
