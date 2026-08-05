@@ -37,7 +37,7 @@ const LandingPage: React.FC = () => {
               className="sign-in-button"
               onClick={() => navigate('/signup')}
             >
-              Become a Member
+              Create a new account
             </button>
           </div>
         </header>
