@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, ReactNode } from 'react';
 import axios from 'axios';
-import { buildStreamUrl } from '../config';
+import { buildPublicShareStreamUrl, buildStreamUrl } from '../config';
 import { useAuth } from './AuthContext';
 import {
   buildShuffleOrder,
@@ -31,6 +31,27 @@ import {
   readAutoplayTimeoutHours,
   writeAutoplayTimeoutHours
 } from '../utils/autoplayTimeout';
+
+/** Derive the next episode URL from the current stream (member token or share). */
+const resolveStreamUrlForPost = (
+  postId: string,
+  currentUrl: string | null | undefined,
+  rssToken: string | null | undefined
+): string | null => {
+  if (currentUrl) {
+    try {
+      const parsed = new URL(currentUrl, typeof window !== 'undefined' ? window.location.origin : undefined);
+      const share = parsed.searchParams.get('share');
+      if (share) return buildPublicShareStreamUrl(postId, share);
+      const token = parsed.searchParams.get('token');
+      if (token) return buildStreamUrl(postId, token);
+    } catch {
+      // Fall through to rss token.
+    }
+  }
+  if (rssToken) return buildStreamUrl(postId, rssToken);
+  return null;
+};
 
 export interface PlaylistSummary {
   id: string;
@@ -89,7 +110,8 @@ interface PlayerContextType {
   seekTo: (time: number) => void;
   skipBy: (delta: number) => void;
   playNextInQueue: () => QueuePost | null;
-  registerTrackEndedHandler: (handler: (() => void) | null) => void;
+  /** Called after autoplay has already started the next episode; UI should navigate. */
+  registerTrackEndedHandler: (handler: ((nextPost: QueuePost) => void) | null) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -142,9 +164,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const autoplayDeadlineRef = useRef<number | null>(null);
   const autoplayTimedOutRef = useRef(false);
   const playbackErrorRef = useRef<string | null>(null);
-  const onTrackEndedRef = useRef<(() => void) | null>(null);
+  const onTrackEndedRef = useRef<((nextPost: QueuePost) => void) | null>(null);
+  const autoplayAdvanceNextRef = useRef<() => void>(() => {});
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
+  const autoplayHandoffRef = useRef(false);
   const playbackGraceUntilRef = useRef(0);
   const suppressAudioErrorsRef = useRef(false);
   const preloadGenerationRef = useRef(0);
@@ -297,7 +321,13 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return () => window.clearInterval(intervalId);
   }, [autoplayTimeoutHours, armAutoplayDeadline, stopForAutoplayTimeout]);
 
-  const assignEpisode = useCallback((postId: string, streamUrl: string, durationSecs?: number | null) => {
+  const assignEpisode = useCallback((
+    postId: string,
+    streamUrl: string,
+    durationSecs?: number | null,
+    options?: { softHandoff?: boolean }
+  ) => {
+    const softHandoff = options?.softHandoff === true;
     const changed =
       !assignedSourceRef.current ||
       !postIdsMatch(assignedSourceRef.current.postId, postId) ||
@@ -330,11 +360,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setMediaReady(false);
 
       const audio = audioRef.current;
-      if (audio && previousPostId && !postIdsMatch(previousPostId, postId)) {
+      // Soft handoff (autoplay next): skip empty-src clear so play() stays in the
+      // ended-handler stack and browsers keep continuous-playback privilege.
+      if (audio && previousPostId && !postIdsMatch(previousPostId, postId) && !softHandoff) {
         suppressAudioErrorsRef.current = true;
         audio.pause();
         audio.removeAttribute('src');
         audio.load();
+        loadedPostIdRef.current = null;
+      } else if (softHandoff) {
         loadedPostIdRef.current = null;
       }
     } else if (durationSecs != null) {
@@ -380,6 +414,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       playRequestedRef.current = true;
 
       const tryPlay = () => {
+        if (!playRequestedRef.current) return;
         const attempt = audio.play();
         if (!attempt) {
           syncPlayingState();
@@ -391,19 +426,35 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             setPlaybackError(null);
           })
           .catch((err: DOMException) => {
-            if (err.name === 'AbortError') return;
+            if (err.name === 'AbortError') {
+              // Src swap / load() aborted play — retry once media can play.
+              if (playRequestedRef.current && audio.paused) {
+                const retry = () => {
+                  if (!playRequestedRef.current || !audio.paused) return;
+                  tryPlay();
+                };
+                audio.addEventListener('canplay', retry, { once: true });
+                pendingPlayCleanupRef.current = () => {
+                  audio.removeEventListener('canplay', retry);
+                };
+              }
+              return;
+            }
             playRequestedRef.current = false;
             playbackGraceUntilRef.current = 0;
-            loadedPostIdRef.current = null;
             setPlaying(false);
             if (err.name === 'NotAllowedError') {
+              // Keep primed src so one tap can resume without a full re-prime.
               setPlaybackError('Playback blocked by the browser. Tap play again.');
             } else {
+              loadedPostIdRef.current = null;
               setPlaybackError('Could not start playback. Tap play again.');
             }
           });
       };
 
+      // Call play() immediately so autoplay-from-ended stays in the user-activation
+      // / media-engagement stack (critical on iOS Safari and mobile Chromium).
       tryPlay();
 
       if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
@@ -417,7 +468,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         };
       }
     },
-    []
+    [syncPlayingState]
   );
 
   const requestPlay = useCallback(() => {
@@ -623,6 +674,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
+      autoplayHandoffRef.current = false;
       assignEpisode(postId, streamUrl, durationSecs);
       preloadEpisodeMedia(postId, streamUrl);
     },
@@ -630,8 +682,14 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   const playEpisode = useCallback(
-    (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      assignEpisode(postId, streamUrl, durationSecs);
+    (
+      postId: string,
+      streamUrl: string,
+      durationSecs?: number | null,
+      options?: { softHandoff?: boolean }
+    ) => {
+      autoplayHandoffRef.current = options?.softHandoff === true;
+      assignEpisode(postId, streamUrl, durationSecs, options);
       preloadEpisodeMedia(postId, streamUrl);
       requestPlay();
     },
@@ -640,11 +698,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const loadEpisodeForStream = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      if (postIdsMatch(autoplayAdvancePostIdRef.current, postId)) {
-        playEpisode(postId, streamUrl, durationSecs);
-        return;
-      }
-
       const audio = audioRef.current;
       const alreadyLive =
         !!audio &&
@@ -652,6 +705,28 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         postIdsMatch(assignedSourceRef.current?.postId, postId) &&
         sourceIsPrimed(postId) &&
         audioHasEpisode(audio, postId, blobUrlRef.current);
+
+      // Autoplay already started this episode in the ended handler — sync UI only.
+      if (postIdsMatch(autoplayAdvancePostIdRef.current, postId)) {
+        if (
+          alreadyLive ||
+          playRequestedRef.current ||
+          (audio && !audio.paused && postIdsMatch(assignedSourceRef.current?.postId, postId))
+        ) {
+          if (durationSecs != null) {
+            setDuration((prev) => prev || durationSecs);
+          }
+          if (alreadyLive || (audio && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA)) {
+            setMediaReady(true);
+            setMediaLoading(false);
+          }
+          setPlaybackError(null);
+          syncPlayingState();
+          return;
+        }
+        playEpisode(postId, streamUrl, durationSecs, { softHandoff: true });
+        return;
+      }
 
       if (alreadyLive) {
         // Stream page remounted while global audio is still on this episode — sync UI only.
@@ -679,7 +754,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [queue]);
 
   const playNextInQueue = useCallback((): QueuePost | null => {
-    if (queue.length === 0 || !user?.rss_token) return null;
+    if (queue.length === 0) return null;
     if (autoplayTimedOutRef.current || isAutoplayTimeoutExpired()) {
       stopForAutoplayTimeout();
       return null;
@@ -699,17 +774,59 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     replayMode,
     shuffle,
     shuffleOrder,
-    user,
     advanceToPost,
     isAutoplayTimeoutExpired,
     stopForAutoplayTimeout
   ]);
 
+  // Start next episode inside the ended stack (before navigate) for reliable autoplay.
+  const autoplayAdvanceNext = useCallback(() => {
+    if (queue.length === 0) return;
+    if (autoplayTimedOutRef.current || isAutoplayTimeoutExpired()) {
+      stopForAutoplayTimeout();
+      return;
+    }
+
+    const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+    if (nextIndex == null) return;
+
+    const nextPost = queue[nextIndex];
+    if (!nextPost) return;
+
+    const streamUrl = resolveStreamUrlForPost(
+      nextPost.id,
+      assignedSourceRef.current?.url,
+      user?.rss_token
+    );
+    if (!streamUrl) return;
+
+    advanceToPost(nextPost.id);
+    playEpisode(nextPost.id, streamUrl, nextPost.duration_secs, { softHandoff: true });
+    onTrackEndedRef.current?.(nextPost);
+  }, [
+    queue,
+    currentIndex,
+    replayMode,
+    shuffle,
+    shuffleOrder,
+    user?.rss_token,
+    advanceToPost,
+    playEpisode,
+    isAutoplayTimeoutExpired,
+    stopForAutoplayTimeout
+  ]);
+
+  useEffect(() => {
+    autoplayAdvanceNextRef.current = autoplayAdvanceNext;
+  }, [autoplayAdvanceNext]);
+
+  // Fallback only: if soft handoff primed media but play() did not stick (rare).
   useEffect(() => {
     const postId = autoplayAdvancePostIdRef.current;
     if (!postId || !postIdsMatch(postId, activePostId)) return;
+    if (!autoplayHandoffRef.current) return;
     if (mediaLoading || !mediaReady) return;
-    if (playing) return;
+    if (playing || playRequestedRef.current) return;
     requestPlay();
   }, [activePostId, mediaLoading, mediaReady, playing, requestPlay]);
 
@@ -755,7 +872,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     [clampPlaybackTime, resumeAfterSeek]
   );
 
-  const registerTrackEndedHandler = useCallback((handler: (() => void) | null) => {
+  const registerTrackEndedHandler = useCallback((handler: ((nextPost: QueuePost) => void) | null) => {
     onTrackEndedRef.current = handler;
   }, []);
 
@@ -792,6 +909,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     };
     const onPlaying = () => {
       playRequestedRef.current = false;
+      autoplayHandoffRef.current = false;
       if (postIdsMatch(autoplayAdvancePostIdRef.current, activePostIdRef.current)) {
         autoplayAdvancePostIdRef.current = null;
       }
@@ -802,10 +920,16 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       setPlaying(false);
       if (replayModeRef.current === 'one') {
         audio.currentTime = 0;
-        audio.play().catch(() => {});
+        const loop = audio.play();
+        if (loop) {
+          loop.catch(() => {
+            requestPlayRef.current();
+          });
+        }
         return;
       }
-      onTrackEndedRef.current?.();
+      // Advance + play synchronously in this event so mobile browsers keep autoplay.
+      autoplayAdvanceNextRef.current();
     };
     const onError = () => {
       if (suppressAudioErrorsRef.current) return;
@@ -983,8 +1107,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return queue[prevIndex]?.id ?? null;
   }, [currentIndex, queue, replayMode, shuffle, shuffleOrder]);
 
-  const prefetchNextInPlaylistQueue = useCallback(() => {
-    if (!queueFromPlaylistRef.current || !user?.rss_token || !activePostId) return;
+  const prefetchNextInQueue = useCallback(() => {
+    if (!activePostId) return;
 
     const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
     if (nextIndex == null) return;
@@ -993,20 +1117,26 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!nextPost || postIdsMatch(nextPost.id, activePostId)) return;
     if (prefetchedNextPostIdRef.current === nextPost.id) return;
 
+    const streamUrl = resolveStreamUrlForPost(
+      nextPost.id,
+      assignedSourceRef.current?.url,
+      user?.rss_token
+    );
+    if (!streamUrl) return;
+
     prefetchedNextPostIdRef.current = nextPost.id;
-    const streamUrl = buildStreamUrl(nextPost.id, user.rss_token);
     prefetchStreamMedia(nextPost.id, streamUrl).catch(() => {});
   }, [activePostId, currentIndex, queue, replayMode, shuffle, shuffleOrder, user?.rss_token]);
 
   useEffect(() => {
-    if (!queueFromPlaylistRef.current || !playing || !mediaReady || !activePostId) return;
-    prefetchNextInPlaylistQueue();
+    if (!playing || !mediaReady || !activePostId) return;
+    prefetchNextInQueue();
   }, [
     activePostId,
     currentIndex,
     mediaReady,
     playing,
-    prefetchNextInPlaylistQueue,
+    prefetchNextInQueue,
     queue,
     replayMode,
     shuffle

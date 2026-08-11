@@ -84,7 +84,6 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     getPrevPostId,
     loadEpisodeForStream,
     advanceToPost,
-    playNextInQueue,
     togglePlayback,
     seekTo,
     skipBy,
@@ -122,12 +121,12 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
     if (prevId) navigate(`/stream/${prevId}`, { state: buildStreamState(returnPath) });
   }, [navigate, prevId, returnPath]);
 
-  const handleEnded = useCallback(() => {
-    const nextPost = playNextInQueue();
-    if (nextPost) {
+  const handleEnded = useCallback(
+    (nextPost: FeedPost) => {
       navToStream(nextPost);
-    }
-  }, [navToStream, playNextInQueue]);
+    },
+    [navToStream]
+  );
 
   useEffect(() => {
     registerTrackEndedHandler(handleEnded);
