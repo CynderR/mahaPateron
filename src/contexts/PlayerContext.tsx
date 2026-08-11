@@ -19,9 +19,11 @@ import {
   clearStreamBlob,
   getCachedStreamBlob,
   getInflightStreamBlob,
+  isNetworkFetchError,
   loadStreamBlob,
   prefetchStreamMedia,
   prefersBlobPlayback,
+  retainStreamBlobs,
   shouldTryBlobFallback,
   warmEpisodeForAutoplay
 } from '../utils/streamLoader';
@@ -356,6 +358,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (previousPostId && !postIdsMatch(previousPostId, postId)) {
         clearStreamBlob(previousPostId);
       }
+      // Android: never keep more than the episode we're switching to (+ upcoming warm).
+      retainStreamBlobs([postId]);
 
       blobUrlRef.current = null;
       setMediaLoading(true);
@@ -440,7 +444,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setPlaybackError(message);
       };
 
-      loadStreamBlob(postId, streamUrl)
+      retainStreamBlobs([postId]);
+      loadStreamBlob(postId, streamUrl, { retainPostIds: [postId] })
         .then((blobUrl) => {
           if (generation !== preloadGenerationRef.current) return;
           if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
@@ -456,7 +461,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           }
         })
         .catch((err: Error) => {
-          finishFailure(err.message || 'Could not load this episode.');
+          if (err instanceof DOMException && err.name === 'AbortError') return;
+          const message = isNetworkFetchError(err)
+            ? 'Network error while loading audio. Tap play to try again.'
+            : err.message || 'Could not load this episode.';
+          finishFailure(message);
         });
     },
     [primeAudioSource]
@@ -563,7 +572,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         blobRecoveringRef.current = true;
         suppressAudioErrorsRef.current = true;
         const pendingBlob =
-          getInflightStreamBlob(assigned.postId) || loadStreamBlob(assigned.postId, assigned.url);
+          getInflightStreamBlob(assigned.postId) ||
+          loadStreamBlob(assigned.postId, assigned.url, {
+            retainPostIds: [assigned.postId]
+          });
         pendingBlob
           .then((blobUrl) => {
             if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
@@ -577,9 +589,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
               requestPlayRef.current();
             }
           })
-          .catch(() => {
+          .catch((err: unknown) => {
             // Keep trying the direct URL path; preload error handler may still recover.
             if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
+            if (err instanceof DOMException && err.name === 'AbortError') return;
             blobRecoveringRef.current = false;
           });
       }
@@ -690,7 +703,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         // Warm full blob before treating tokenized-URL errors as terminal.
         blobRecoveringRef.current = true;
         suppressAudioErrorsRef.current = true;
-        warmEpisodeForAutoplay(postId, streamUrl);
+        warmEpisodeForAutoplay(postId, streamUrl).catch(() => {});
       } else if (!cached) {
         prefetchStreamMedia(postId, streamUrl).catch(() => {});
       }
@@ -1226,6 +1239,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const nextPost = queue[nextIndex];
     if (!nextPost || postIdsMatch(nextPost.id, activePostId)) return;
     if (prefetchedNextPostIdRef.current === nextPost.id) return;
+    if (getCachedStreamBlob(nextPost.id) || getInflightStreamBlob(nextPost.id)) {
+      prefetchedNextPostIdRef.current = nextPost.id;
+      return;
+    }
 
     const streamUrl = resolveStreamUrlForPost(
       nextPost.id,
@@ -1235,7 +1252,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!streamUrl) return;
 
     prefetchedNextPostIdRef.current = nextPost.id;
-    warmEpisodeForAutoplay(nextPost.id, streamUrl);
+    warmEpisodeForAutoplay(nextPost.id, streamUrl, { keepPostId: activePostId }).catch(() => {
+      // Allow another warm attempt after NetworkError / OOM aborts.
+      if (prefetchedNextPostIdRef.current === nextPost.id) {
+        prefetchedNextPostIdRef.current = null;
+      }
+    });
   }, [activePostId, currentIndex, queue, replayMode, shuffle, shuffleOrder, user?.rss_token]);
 
   useEffect(() => {
