@@ -34,6 +34,12 @@ import {
   readAutoplayTimeoutHours,
   writeAutoplayTimeoutHours
 } from '../utils/autoplayTimeout';
+import {
+  bindMediaSessionHandlers,
+  updateMediaSessionMetadata,
+  updateMediaSessionPlaybackState,
+  updateMediaSessionPosition
+} from '../utils/mediaSession';
 
 /** Derive the next episode URL from the current stream (member token or share). */
 const resolveStreamUrlForPost = (
@@ -173,6 +179,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const playRequestedRef = useRef(false);
   const autoplayHandoffRef = useRef(false);
   const blobRecoveringRef = useRef(false);
+  const userPausedRef = useRef(false);
   const playbackGraceUntilRef = useRef(0);
   const suppressAudioErrorsRef = useRef(false);
   const preloadGenerationRef = useRef(0);
@@ -560,6 +567,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     clearPendingPlay();
     setPlaybackError(null);
     playRequestedRef.current = true;
+    userPausedRef.current = false;
 
     // Android autoplay: use a ready blob when available; if still downloading,
     // keep error suppressed and continue with tokenized URL for sync play(),
@@ -912,6 +920,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
     if (!streamUrl) return;
 
+    userPausedRef.current = false;
     advanceToPost(nextPost.id);
     playEpisode(nextPost.id, streamUrl, nextPost.duration_secs, { softHandoff: true });
     onTrackEndedRef.current?.(nextPost);
@@ -932,6 +941,38 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     autoplayAdvanceNextRef.current = autoplayAdvanceNext;
   }, [autoplayAdvanceNext]);
 
+  const playPreviousInQueue = useCallback((): QueuePost | null => {
+    if (queue.length === 0) return null;
+
+    const prevIndex = resolvePrevIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+    if (prevIndex == null) return null;
+
+    const prevPost = queue[prevIndex];
+    if (!prevPost) return null;
+
+    const streamUrl = resolveStreamUrlForPost(
+      prevPost.id,
+      assignedSourceRef.current?.url,
+      user?.rss_token
+    );
+    if (!streamUrl) return null;
+
+    userPausedRef.current = false;
+    advanceToPost(prevPost.id);
+    playEpisode(prevPost.id, streamUrl, prevPost.duration_secs, { softHandoff: true });
+    onTrackEndedRef.current?.(prevPost);
+    return prevPost;
+  }, [
+    queue,
+    currentIndex,
+    replayMode,
+    shuffle,
+    shuffleOrder,
+    user?.rss_token,
+    advanceToPost,
+    playEpisode
+  ]);
+
   // Fallback only: if soft handoff primed media but play() did not stick (rare).
   useEffect(() => {
     const postId = autoplayAdvancePostIdRef.current;
@@ -942,17 +983,87 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     requestPlay();
   }, [activePostId, mediaLoading, mediaReady, playing, requestPlay]);
 
+  useEffect(() => {
+    const activePost = queue.find((p) => postIdsMatch(p.id, activePostId)) ?? null;
+    updateMediaSessionMetadata(activePost);
+  }, [activePostId, queue]);
+
+  useEffect(() => {
+    updateMediaSessionPlaybackState(playing);
+  }, [playing]);
+
+  useEffect(() => {
+    if (!playing) return;
+    updateMediaSessionPosition(currentTime, duration);
+  }, [playing, currentTime, duration]);
+
+  useEffect(() => {
+    return bindMediaSessionHandlers({
+      play: () => {
+        userPausedRef.current = false;
+        requestPlay();
+      },
+      pause: () => {
+        const audio = audioRef.current;
+        userPausedRef.current = true;
+        playRequestedRef.current = false;
+        clearPendingPlay();
+        audio?.pause();
+        setPlaying(false);
+      },
+      seekBy: (delta) => {
+        skipBy(delta);
+      },
+      seekTo: (time) => {
+        seekTo(time);
+      },
+      nextTrack: () => {
+        userPausedRef.current = false;
+        autoplayAdvanceNext();
+      },
+      previousTrack: () => {
+        playPreviousInQueue();
+      }
+    });
+  }, [autoplayAdvanceNext, clearPendingPlay, playPreviousInQueue, requestPlay, seekTo, skipBy]);
+
+  // Android often pauses/suspends tabs on lock without an active media session.
+  // If we didn't intentionally pause, resume when the page becomes visible again.
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (typeof document === 'undefined' || document.hidden) return;
+      const audio = audioRef.current;
+      if (!audio || !assignedSourceRef.current) return;
+      if (userPausedRef.current) return;
+      if (!audio.paused && !audio.ended) {
+        updateMediaSessionPlaybackState(true);
+        return;
+      }
+      if (audio.ended) return;
+      requestPlay();
+    };
+
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('focus', onVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('focus', onVisibilityChange);
+    };
+  }, [requestPlay]);
+
   const togglePlayback = useCallback(() => {
     const audio = audioRef.current;
     if (!audio || !assignedSourceRef.current) return;
 
     if (audio.paused) {
+      userPausedRef.current = false;
       if (playbackErrorRef.current) {
         loadedPostIdRef.current = null;
         primeAudioSource(true);
       }
       requestPlay();
     } else {
+      userPausedRef.current = true;
       playRequestedRef.current = false;
       playbackGraceUntilRef.current = 0;
       clearPendingPlay();
@@ -1024,12 +1135,17 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       autoplayHandoffRef.current = false;
       blobRecoveringRef.current = false;
       suppressAudioErrorsRef.current = false;
+      userPausedRef.current = false;
       if (postIdsMatch(autoplayAdvancePostIdRef.current, activePostIdRef.current)) {
         autoplayAdvancePostIdRef.current = null;
       }
       setPlaying(true);
+      updateMediaSessionPlaybackState(true);
     };
-    const onPause = () => syncPlayingState();
+    const onPause = () => {
+      syncPlayingState();
+      updateMediaSessionPlaybackState(false);
+    };
     const onEnded = () => {
       setPlaying(false);
       if (replayModeRef.current === 'one') {
@@ -1096,6 +1212,13 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const intervalId = window.setInterval(() => {
       if (!audio || audio.paused) return;
+      // Lock screen / background: timers are throttled and currentTime polls lie.
+      // Do not treat that as a stall or we stop playback after ~1–2 minutes.
+      if (typeof document !== 'undefined' && document.hidden) {
+        stalledChecks = 0;
+        lastTime = audio.currentTime;
+        return;
+      }
 
       if (
         audio.seeking ||
