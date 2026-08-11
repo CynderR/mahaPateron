@@ -147,6 +147,19 @@ export const prefetchEpisodeStream = (postId: string, streamUrl: string): void =
   prefetchStreamMedia(postId, streamUrl).catch(() => {});
 };
 
+/**
+ * Prepare the next episode for autoplay handoff.
+ * Android Chromium often rejects tokenized <audio src> on src-swap, so warm a
+ * same-origin blob ahead of time. Other platforms only need a Range prefetch.
+ */
+export const warmEpisodeForAutoplay = (postId: string, streamUrl: string): void => {
+  if (shouldTryBlobFallback()) {
+    loadStreamBlob(postId, streamUrl).catch(() => {});
+    return;
+  }
+  prefetchStreamMedia(postId, streamUrl).catch(() => {});
+};
+
 export async function prefetchStreamMedia(postId: string, streamUrl: string): Promise<void> {
   if (blobCache.has(postId)) return;
 

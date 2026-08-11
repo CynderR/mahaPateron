@@ -22,7 +22,8 @@ import {
   loadStreamBlob,
   prefetchStreamMedia,
   prefersBlobPlayback,
-  shouldTryBlobFallback
+  shouldTryBlobFallback,
+  warmEpisodeForAutoplay
 } from '../utils/streamLoader';
 import { normalizePostId, postIdsMatch } from '../utils/episodeListHelpers';
 import {
@@ -169,6 +170,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
   const autoplayHandoffRef = useRef(false);
+  const blobRecoveringRef = useRef(false);
   const playbackGraceUntilRef = useRef(0);
   const suppressAudioErrorsRef = useRef(false);
   const preloadGenerationRef = useRef(0);
@@ -370,6 +372,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         loadedPostIdRef.current = null;
       } else if (softHandoff) {
         loadedPostIdRef.current = null;
+        if (shouldTryBlobFallback()) {
+          suppressAudioErrorsRef.current = true;
+          const nextBlob = getCachedStreamBlob(postId);
+          if (nextBlob) {
+            blobUrlRef.current = nextBlob;
+          } else {
+            blobRecoveringRef.current = true;
+          }
+        }
       }
     } else if (durationSecs != null) {
       setDuration((prev) => prev || durationSecs);
@@ -378,7 +389,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     return true;
   }, [clearPendingPlay]);
 
-  const primeAudioSource = useCallback((force = false) => {
+  const primeAudioSource = useCallback((force = false, options?: { keepErrorSuppressed?: boolean }) => {
     const audio = audioRef.current;
     const assigned = assignedSourceRef.current;
     if (!audio || !assigned) return false;
@@ -391,7 +402,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       postIdsMatch(loadedPostIdRef.current, assigned.postId) &&
       audioHasEpisode(audio, assigned.postId, blobUrlRef.current)
     ) {
-      suppressAudioErrorsRef.current = false;
+      if (!options?.keepErrorSuppressed && !blobRecoveringRef.current) {
+        suppressAudioErrorsRef.current = false;
+      }
       return true;
     }
 
@@ -403,10 +416,51 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     audio.muted = false;
     audio.load();
     loadedPostIdRef.current = assigned.postId;
-    suppressAudioErrorsRef.current = false;
+    if (!options?.keepErrorSuppressed && !blobRecoveringRef.current) {
+      suppressAudioErrorsRef.current = false;
+    }
     setPlaybackError(null);
     return true;
   }, [clearPendingPlay]);
+
+  const beginAndroidBlobRecovery = useCallback(
+    (postId: string, streamUrl: string, generation: number) => {
+      blobRecoveringRef.current = true;
+      suppressAudioErrorsRef.current = true;
+      setMediaLoading(true);
+      setPlaybackError(null);
+
+      const finishFailure = (message: string) => {
+        if (generation !== preloadGenerationRef.current) return;
+        if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
+        blobRecoveringRef.current = false;
+        suppressAudioErrorsRef.current = false;
+        setMediaLoading(false);
+        setMediaReady(false);
+        setPlaybackError(message);
+      };
+
+      loadStreamBlob(postId, streamUrl)
+        .then((blobUrl) => {
+          if (generation !== preloadGenerationRef.current) return;
+          if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
+          blobUrlRef.current = blobUrl;
+          primeAudioSource(true, { keepErrorSuppressed: true });
+          blobRecoveringRef.current = false;
+          suppressAudioErrorsRef.current = false;
+          setMediaReady(true);
+          setMediaLoading(false);
+          setPlaybackError(null);
+          if (playRequestedRef.current || autoplayHandoffRef.current) {
+            requestPlayRef.current();
+          }
+        })
+        .catch((err: Error) => {
+          finishFailure(err.message || 'Could not load this episode.');
+        });
+    },
+    [primeAudioSource]
+  );
 
   const beginPlayback = useCallback(
     (audio: HTMLAudioElement) => {
@@ -438,6 +492,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                   audio.removeEventListener('canplay', retry);
                 };
               }
+              return;
+            }
+            // Tokenized URL often fails mid-handoff on Android; blob recovery will retry play.
+            if (blobRecoveringRef.current || suppressAudioErrorsRef.current) {
               return;
             }
             playRequestedRef.current = false;
@@ -494,8 +552,41 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     setPlaybackError(null);
     playRequestedRef.current = true;
 
+    // Android autoplay: use a ready blob when available; if still downloading,
+    // keep error suppressed and continue with tokenized URL for sync play(),
+    // then swap to the blob when it arrives.
+    if (shouldTryBlobFallback() && !blobUrlRef.current) {
+      const cached = getCachedStreamBlob(assigned.postId);
+      if (cached) {
+        blobUrlRef.current = cached;
+      } else if (autoplayHandoffRef.current) {
+        blobRecoveringRef.current = true;
+        suppressAudioErrorsRef.current = true;
+        const pendingBlob =
+          getInflightStreamBlob(assigned.postId) || loadStreamBlob(assigned.postId, assigned.url);
+        pendingBlob
+          .then((blobUrl) => {
+            if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
+            blobUrlRef.current = blobUrl;
+            blobRecoveringRef.current = false;
+            primeAudioSource(true);
+            setMediaReady(true);
+            setMediaLoading(false);
+            setPlaybackError(null);
+            if (playRequestedRef.current || autoplayHandoffRef.current) {
+              requestPlayRef.current();
+            }
+          })
+          .catch(() => {
+            // Keep trying the direct URL path; preload error handler may still recover.
+            if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
+            blobRecoveringRef.current = false;
+          });
+      }
+    }
+
     const pendingBlob = getInflightStreamBlob(assigned.postId);
-    if (pendingBlob && !blobUrlRef.current) {
+    if (pendingBlob && !blobUrlRef.current && !autoplayHandoffRef.current) {
       setMediaLoading(true);
       pendingBlob
         .then((blobUrl) => {
@@ -515,7 +606,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
 
-    if (!primeAudioSource(false)) {
+    if (
+      !primeAudioSource(false, {
+        keepErrorSuppressed: blobRecoveringRef.current || autoplayHandoffRef.current
+      })
+    ) {
       setPlaybackError('Could not load this episode.');
       return;
     }
@@ -586,15 +681,32 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       preloadCleanupRef.current = null;
       const generation = ++preloadGenerationRef.current;
 
-      prefetchStreamMedia(postId, streamUrl).catch(() => {});
-
       const cached = getCachedStreamBlob(postId);
       if (cached) {
         blobUrlRef.current = cached;
       }
 
+      if (shouldTryBlobFallback() && !cached) {
+        // Warm full blob before treating tokenized-URL errors as terminal.
+        blobRecoveringRef.current = true;
+        suppressAudioErrorsRef.current = true;
+        warmEpisodeForAutoplay(postId, streamUrl);
+      } else if (!cached) {
+        prefetchStreamMedia(postId, streamUrl).catch(() => {});
+      }
+
+      // Android soft handoff without a ready blob: start blob recovery, but still
+      // prime + allow sync play() in the ended stack for media-engagement.
+      if (shouldTryBlobFallback() && autoplayHandoffRef.current && !blobUrlRef.current) {
+        suppressAudioErrorsRef.current = true;
+        blobRecoveringRef.current = true;
+        beginAndroidBlobRecovery(postId, streamUrl, generation);
+      }
+
       const forcePrime = !sourceIsPrimed(postId);
-      primeAudioSource(forcePrime);
+      primeAudioSource(forcePrime, {
+        keepErrorSuppressed: blobRecoveringRef.current || autoplayHandoffRef.current
+      });
 
       if (!audioRef.current) return;
       const media = audioRef.current;
@@ -612,6 +724,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
         if (!audioHasEpisode(media, postId, blobUrlRef.current)) return;
         cleanupListeners();
+        blobRecoveringRef.current = false;
+        suppressAudioErrorsRef.current = false;
         setMediaReady(true);
         setMediaLoading(false);
         setPlaybackError(null);
@@ -639,37 +753,22 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (generation !== preloadGenerationRef.current) return;
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
         if (!shouldTryBlobFallback() || blobUrlRef.current) {
+          blobRecoveringRef.current = false;
+          suppressAudioErrorsRef.current = false;
           setMediaLoading(false);
           setMediaReady(false);
           setPlaybackError('Could not load this episode.');
           return;
         }
 
-        loadStreamBlob(postId, streamUrl)
-          .then((blobUrl) => {
-            if (generation !== preloadGenerationRef.current) return;
-            if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-            blobUrlRef.current = blobUrl;
-            primeAudioSource(true);
-            markReady();
-            if (playRequestedRef.current) {
-              requestPlayRef.current();
-            }
-          })
-          .catch((err: Error) => {
-            if (generation !== preloadGenerationRef.current) return;
-            if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-            setMediaLoading(false);
-            setMediaReady(false);
-            setPlaybackError(err.message || 'Could not load this episode.');
-          });
+        beginAndroidBlobRecovery(postId, streamUrl, generation);
       };
 
       media.addEventListener('canplay', onCanPlay);
       media.addEventListener('error', onError);
       preloadCleanupRef.current = cleanupListeners;
     },
-    [primeAudioSource, sourceIsPrimed]
+    [beginAndroidBlobRecovery, primeAudioSource, sourceIsPrimed]
   );
 
   const prepareEpisode = useCallback(
@@ -910,6 +1009,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     const onPlaying = () => {
       playRequestedRef.current = false;
       autoplayHandoffRef.current = false;
+      blobRecoveringRef.current = false;
+      suppressAudioErrorsRef.current = false;
       if (postIdsMatch(autoplayAdvancePostIdRef.current, activePostIdRef.current)) {
         autoplayAdvancePostIdRef.current = null;
       }
@@ -932,11 +1033,20 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       autoplayAdvanceNextRef.current();
     };
     const onError = () => {
-      if (suppressAudioErrorsRef.current) return;
+      // Android tokenized-URL failures during autoplay handoff are recovered via blob.
+      if (suppressAudioErrorsRef.current || blobRecoveringRef.current) return;
       const assigned = assignedSourceRef.current;
       const src = audio.currentSrc || audio.src || '';
       if (!assigned || !src) return;
       if (!audioHasEpisode(audio, assigned.postId, blobUrlRef.current)) return;
+
+      // Last-chance Android recovery if preload handler already detached.
+      if (shouldTryBlobFallback() && !blobUrlRef.current && assigned.url) {
+        const generation = preloadGenerationRef.current;
+        beginAndroidBlobRecovery(assigned.postId, assigned.url, generation);
+        return;
+      }
+
       clearPendingPlay();
       setPlaying(false);
       loadedPostIdRef.current = null;
@@ -960,7 +1070,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       audio.removeEventListener('ended', onEnded);
       audio.removeEventListener('error', onError);
     };
-  }, [clearPendingPlay, syncPlayingState]);
+  }, [beginAndroidBlobRecovery, clearPendingPlay, syncPlayingState]);
 
   useEffect(() => {
     if (!playing) return undefined;
@@ -1125,7 +1235,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     if (!streamUrl) return;
 
     prefetchedNextPostIdRef.current = nextPost.id;
-    prefetchStreamMedia(nextPost.id, streamUrl).catch(() => {});
+    warmEpisodeForAutoplay(nextPost.id, streamUrl);
   }, [activePostId, currentIndex, queue, replayMode, shuffle, shuffleOrder, user?.rss_token]);
 
   useEffect(() => {
