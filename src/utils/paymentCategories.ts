@@ -20,7 +20,7 @@ export const PAYMENT_CATEGORY_LABELS: Record<PaymentCategory, string> = {
   full: 'Not Subscribed',
   free: 'Free',
   paying_subscriber: 'Paying subscriber',
-  non_card: 'Non-card'
+  non_card: 'Kullu subscriber'
 };
 
 export const SUBSCRIBED_PAYMENT_CATEGORIES = ['free', 'paying_subscriber', 'non_card'] as const;
@@ -29,7 +29,7 @@ export type PayingTier = 'free' | 'non_card' | 'paying_subscriber';
 
 export const PAYING_TIER_OPTIONS: { value: PayingTier; label: string; payment_category: PaymentCategory }[] = [
   { value: 'free', label: 'free', payment_category: 'free' },
-  { value: 'non_card', label: 'non-card', payment_category: 'non_card' },
+  { value: 'non_card', label: 'Kullu subscriber', payment_category: 'non_card' },
   { value: 'paying_subscriber', label: 'paying subscriber', payment_category: 'paying_subscriber' }
 ];
 
