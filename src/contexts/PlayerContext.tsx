@@ -16,7 +16,9 @@ import {
   SHARE_PREVIEW_STREAM_SECONDS
 } from '../utils/accessPermissions';
 import {
+  ANDROID_AUTOPLAY_WARM_REMAINING_SECS,
   clearStreamBlob,
+  ensureStreamBlob,
   getCachedStreamBlob,
   getInflightStreamBlob,
   isNetworkFetchError,
@@ -175,6 +177,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<((nextPost: QueuePost) => void) | null>(null);
   const autoplayAdvanceNextRef = useRef<() => void>(() => {});
+  const pendingAutoplayNavigateRef = useRef<QueuePost | null>(null);
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
   const autoplayHandoffRef = useRef(false);
@@ -449,10 +452,16 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         setMediaLoading(false);
         setMediaReady(false);
         setPlaybackError(message);
+        const pendingNav = pendingAutoplayNavigateRef.current;
+        if (pendingNav && postIdsMatch(pendingNav.id, postId)) {
+          pendingAutoplayNavigateRef.current = null;
+          onTrackEndedRef.current?.(pendingNav);
+        }
       };
 
       retainStreamBlobs([postId]);
-      loadStreamBlob(postId, streamUrl, { retainPostIds: [postId] })
+      // Re-validate / refresh — long-lived warmed blobs are often GC'd on Android.
+      ensureStreamBlob(postId, streamUrl, { retainPostIds: [postId] })
         .then((blobUrl) => {
           if (generation !== preloadGenerationRef.current) return;
           if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
@@ -581,7 +590,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         suppressAudioErrorsRef.current = true;
         const pendingBlob =
           getInflightStreamBlob(assigned.postId) ||
-          loadStreamBlob(assigned.postId, assigned.url, {
+          ensureStreamBlob(assigned.postId, assigned.url, {
             retainPostIds: [assigned.postId]
           });
         pendingBlob
@@ -589,7 +598,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
             blobUrlRef.current = blobUrl;
             blobRecoveringRef.current = false;
-            primeAudioSource(true);
+            primeAudioSource(true, { keepErrorSuppressed: true });
             setMediaReady(true);
             setMediaLoading(false);
             setPlaybackError(null);
@@ -773,16 +782,22 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         cleanupListeners();
         if (generation !== preloadGenerationRef.current) return;
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-        if (!shouldTryBlobFallback() || blobUrlRef.current) {
-          blobRecoveringRef.current = false;
-          suppressAudioErrorsRef.current = false;
-          setMediaLoading(false);
-          setMediaReady(false);
-          setPlaybackError('Could not load this episode.');
+
+        // Stale blob URLs (GC'd after a long warm) still set blobUrlRef — clear and recover.
+        if (shouldTryBlobFallback()) {
+          if (blobUrlRef.current) {
+            clearStreamBlob(postId);
+            blobUrlRef.current = null;
+          }
+          beginAndroidBlobRecovery(postId, streamUrl, generation);
           return;
         }
 
-        beginAndroidBlobRecovery(postId, streamUrl, generation);
+        blobRecoveringRef.current = false;
+        suppressAudioErrorsRef.current = false;
+        setMediaLoading(false);
+        setMediaReady(false);
+        setPlaybackError('Could not load this episode.');
       };
 
       media.addEventListener('canplay', onCanPlay);
@@ -923,7 +938,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     userPausedRef.current = false;
     advanceToPost(nextPost.id);
     playEpisode(nextPost.id, streamUrl, nextPost.duration_secs, { softHandoff: true });
-    onTrackEndedRef.current?.(nextPost);
+
+    // Android: defer route change until the next track is actually playing so a
+    // remount cannot abort in-flight blob recovery / invalidate preload generation.
+    if (shouldTryBlobFallback()) {
+      pendingAutoplayNavigateRef.current = nextPost;
+    } else {
+      pendingAutoplayNavigateRef.current = null;
+      onTrackEndedRef.current?.(nextPost);
+    }
   }, [
     queue,
     currentIndex,
@@ -1141,6 +1164,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
       setPlaying(true);
       updateMediaSessionPlaybackState(true);
+
+      const pendingNav = pendingAutoplayNavigateRef.current;
+      if (pendingNav && postIdsMatch(pendingNav.id, activePostIdRef.current)) {
+        pendingAutoplayNavigateRef.current = null;
+        onTrackEndedRef.current?.(pendingNav);
+      }
     };
     const onPause = () => {
       syncPlayingState();
@@ -1169,8 +1198,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (!assigned || !src) return;
       if (!audioHasEpisode(audio, assigned.postId, blobUrlRef.current)) return;
 
-      // Last-chance Android recovery if preload handler already detached.
-      if (shouldTryBlobFallback() && !blobUrlRef.current && assigned.url) {
+      // Stale blob or tokenized failure — recover instead of showing a hard error.
+      if (shouldTryBlobFallback() && assigned.url) {
+        if (blobUrlRef.current) {
+          clearStreamBlob(assigned.postId);
+          blobUrlRef.current = null;
+        }
         const generation = preloadGenerationRef.current;
         beginAndroidBlobRecovery(assigned.postId, assigned.url, generation);
         return;
@@ -1367,6 +1400,19 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
 
+    // Android: only warm near the end. Full blobs warmed early get GC'd and then
+    // fail at handoff with "Could not load this episode."
+    if (shouldTryBlobFallback()) {
+      const total = duration > 0 ? duration : nextPost.duration_secs || 0;
+      if (total > 0) {
+        const remaining = total - currentTime;
+        if (remaining > ANDROID_AUTOPLAY_WARM_REMAINING_SECS) return;
+      } else if (currentTime < 30) {
+        // Unknown duration: wait briefly so we don't hold a blob for the whole track.
+        return;
+      }
+    }
+
     const streamUrl = resolveStreamUrlForPost(
       nextPost.id,
       assignedSourceRef.current?.url,
@@ -1381,7 +1427,17 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         prefetchedNextPostIdRef.current = null;
       }
     });
-  }, [activePostId, currentIndex, queue, replayMode, shuffle, shuffleOrder, user?.rss_token]);
+  }, [
+    activePostId,
+    currentIndex,
+    currentTime,
+    duration,
+    queue,
+    replayMode,
+    shuffle,
+    shuffleOrder,
+    user?.rss_token
+  ]);
 
   useEffect(() => {
     if (!playing || !mediaReady || !activePostId) return;
@@ -1389,6 +1445,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [
     activePostId,
     currentIndex,
+    currentTime,
+    duration,
     mediaReady,
     playing,
     prefetchNextInQueue,
@@ -1396,6 +1454,23 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     replayMode,
     shuffle
   ]);
+
+  // Safety net: if Android handoff played but navigate never flushed, do it shortly after.
+  useEffect(() => {
+    if (!shouldTryBlobFallback()) return undefined;
+    const pending = pendingAutoplayNavigateRef.current;
+    if (!pending || !playing) return undefined;
+    if (!postIdsMatch(pending.id, activePostId)) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const still = pendingAutoplayNavigateRef.current;
+      if (still && postIdsMatch(still.id, activePostIdRef.current)) {
+        pendingAutoplayNavigateRef.current = null;
+        onTrackEndedRef.current?.(still);
+      }
+    }, 750);
+    return () => window.clearTimeout(timer);
+  }, [activePostId, playing]);
 
   const isFavorite = useCallback((postId: string) => favorites.has(postId), [favorites]);
 

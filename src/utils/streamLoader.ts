@@ -128,6 +128,40 @@ const trimBlobCache = (preferredKeep: string[]): void => {
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
+/** True when a cached blob URL still resolves (Android may GC long-lived blobs). */
+export const isStreamBlobUsable = async (blobUrl: string): Promise<boolean> => {
+  try {
+    const res = await fetch(blobUrl, {
+      method: 'GET',
+      headers: { Range: 'bytes=0-0' },
+      cache: 'no-store'
+    });
+    return res.ok || res.status === 206;
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * Return a usable blob URL for the episode, refreshing the cache if the prior
+ * object URL was revoked / garbage-collected.
+ */
+export async function ensureStreamBlob(
+  postId: string,
+  streamUrl: string,
+  options?: { retainPostIds?: Array<string | null | undefined> }
+): Promise<string> {
+  const cached = blobCache.get(postId);
+  if (cached) {
+    if (await isStreamBlobUsable(cached)) return cached;
+    clearStreamBlob(postId);
+  }
+  return loadStreamBlob(postId, streamUrl, options);
+}
+
+/** Seconds before track end to start warming the next Android blob. */
+export const ANDROID_AUTOPLAY_WARM_REMAINING_SECS = 180;
+
 const fetchStreamBlobOnce = async (postId: string, streamUrl: string, signal: AbortSignal): Promise<string> => {
   const token = getStoredAuthToken();
   const headers: Record<string, string> = {};
