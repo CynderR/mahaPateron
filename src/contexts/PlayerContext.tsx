@@ -174,6 +174,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<((nextPost: QueuePost) => void) | null>(null);
   const autoplayAdvanceNextRef = useRef<() => void>(() => {});
+  const pendingAutoplayNavigateRef = useRef<QueuePost | null>(null);
+  const pendingLockScreenResumeRef = useRef(false);
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
   const autoplayHandoffRef = useRef(false);
@@ -436,6 +438,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         attempt
           .then(() => {
             setPlaybackError(null);
+            pendingLockScreenResumeRef.current = false;
           })
           .catch((err: DOMException) => {
             if (err.name === 'AbortError') {
@@ -450,6 +453,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                   audio.removeEventListener('canplay', retry);
                 };
               }
+              return;
+            }
+            // Brave/Android often rejects play() while the lock screen is up; resume on unlock.
+            if (typeof document !== 'undefined' && document.hidden) {
+              pendingLockScreenResumeRef.current = true;
+              playRequestedRef.current = true;
               return;
             }
             playRequestedRef.current = false;
@@ -882,6 +891,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       const old = getActiveAudio();
       activeSlotRef.current = 1 - activeSlotRef.current;
+      // Clearing the finished element can fire a spurious error — ignore it.
+      suppressAudioErrorsRef.current = true;
       if (old) {
         old.pause();
         try {
@@ -891,6 +902,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
           // ignore cleanup errors
         }
       }
+      window.setTimeout(() => {
+        suppressAudioErrorsRef.current = false;
+      }, 0);
 
       standbyPostIdRef.current = null;
       standbyUrlRef.current = null;
@@ -898,9 +912,19 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       autoplayAdvancePostIdRef.current = nextPost.id;
       autoplayHandoffRef.current = false;
 
-      onTrackEndedRef.current?.(nextPost);
+      // Defer route change until the next track is playing — navigating while the
+      // lock screen is up remounts the stream page and breaks Brave handoff.
+      pendingAutoplayNavigateRef.current = nextPost;
+      if (typeof document !== 'undefined' && document.hidden) {
+        pendingLockScreenResumeRef.current = true;
+      }
 
       playAttempt?.catch(() => {
+        if (typeof document !== 'undefined' && document.hidden) {
+          pendingLockScreenResumeRef.current = true;
+          playRequestedRef.current = true;
+          return;
+        }
         requestPlayRef.current();
       });
       return;
@@ -908,8 +932,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     // Fallback: soft handoff on the same element (cold miss / standby not ready).
     advanceToPost(nextPost.id);
+    pendingAutoplayNavigateRef.current = nextPost;
+    if (typeof document !== 'undefined' && document.hidden) {
+      pendingLockScreenResumeRef.current = true;
+    }
     playEpisode(nextPost.id, streamUrl, nextPost.duration_secs, { softHandoff: true });
-    onTrackEndedRef.current?.(nextPost);
   }, [
     queue,
     currentIndex,
@@ -1029,14 +1056,24 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       userPausedRef.current = false;
       playRequestedRef.current = false;
       autoplayHandoffRef.current = false;
+      pendingLockScreenResumeRef.current = false;
+      setPlaybackError(null);
       if (postIdsMatch(autoplayAdvancePostIdRef.current, activePostIdRef.current)) {
         autoplayAdvancePostIdRef.current = null;
       }
       setPlaying(true);
+      updateMediaSessionPlaybackState(true);
+
+      const pendingNav = pendingAutoplayNavigateRef.current;
+      if (pendingNav && postIdsMatch(pendingNav.id, activePostIdRef.current)) {
+        pendingAutoplayNavigateRef.current = null;
+        onTrackEndedRef.current?.(pendingNav);
+      }
     };
     const onPause = (e: Event) => {
       if (e.target !== getActiveAudio()) return;
       syncPlayingState();
+      updateMediaSessionPlaybackState(false);
     };
     const onEnded = (e: Event) => {
       if (e.target !== getActiveAudio()) return;
@@ -1063,6 +1100,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       const src = audio.currentSrc || audio.src || '';
       if (!assigned || !src) return;
       if (!audioHasEpisode(audio, assigned.postId, blobUrlRef.current)) return;
+
+      // While locked, Brave often reports a transient media error on handoff.
+      // Keep the next episode primed and resume when the screen unlocks.
+      if (typeof document !== 'undefined' && document.hidden) {
+        pendingLockScreenResumeRef.current = true;
+        playRequestedRef.current = true;
+        return;
+      }
+
       clearPendingPlay();
       setPlaying(false);
       loadedPostIdRef.current = null;
@@ -1378,19 +1424,68 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   ]);
 
   useEffect(() => {
+    const flushPendingNavigate = () => {
+      const pendingNav = pendingAutoplayNavigateRef.current;
+      if (!pendingNav) return;
+      if (!postIdsMatch(pendingNav.id, activePostIdRef.current)) return;
+      pendingAutoplayNavigateRef.current = null;
+      onTrackEndedRef.current?.(pendingNav);
+    };
+
     const onVisibility = () => {
       if (document.hidden) return;
       if (userPausedRef.current) return;
       const audio = getActiveAudio();
       const assigned = assignedSourceRef.current;
       if (!audio || !assigned) return;
-      if (audio.paused) {
+
+      const needsResume =
+        pendingLockScreenResumeRef.current ||
+        audio.paused ||
+        !!audio.error ||
+        !!playbackErrorRef.current;
+
+      if (needsResume) {
+        pendingLockScreenResumeRef.current = false;
+        setPlaybackError(null);
+        if (audio.error) {
+          // Spurious lock-screen errors leave the element dead; re-prime then play.
+          loadedPostIdRef.current = null;
+          primeAudioSource(true);
+        }
+        playRequestedRef.current = true;
         requestPlay();
+      }
+
+      // If handoff already started playing under the lock screen, still navigate now.
+      if (!audio.paused) {
+        flushPendingNavigate();
       }
     };
     document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [getActiveAudio, requestPlay]);
+    window.addEventListener('focus', onVisibility);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+    };
+  }, [getActiveAudio, primeAudioSource, requestPlay]);
+
+  // Safety: if next track is playing but navigate was deferred, flush soon after.
+  useEffect(() => {
+    if (!playing || !activePostId) return undefined;
+    const pendingNav = pendingAutoplayNavigateRef.current;
+    if (!pendingNav || !postIdsMatch(pendingNav.id, activePostId)) return undefined;
+    if (typeof document !== 'undefined' && document.hidden) return undefined;
+
+    const timer = window.setTimeout(() => {
+      const still = pendingAutoplayNavigateRef.current;
+      if (still && postIdsMatch(still.id, activePostIdRef.current)) {
+        pendingAutoplayNavigateRef.current = null;
+        onTrackEndedRef.current?.(still);
+      }
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [activePostId, playing]);
 
   const isFavorite = useCallback((postId: string) => favorites.has(postId), [favorites]);
 
