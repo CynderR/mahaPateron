@@ -147,10 +147,18 @@ const audioHasEpisode = (audio: HTMLAudioElement, postId: string, blobUrl: strin
 };
 
 const playbackSourceUrl = (postId: string, streamUrl: string, blobUrl: string | null): string | null => {
-  if (prefersBlobPlayback()) {
-    return blobUrl ?? getCachedStreamBlob(postId);
-  }
+  // Prefer an in-memory blob whenever one exists. Android autoplay recovery downloads
+  // blobs specifically because tokenized <audio src> often fails on soft handoff —
+  // ignoring the blob here made every "blob fallback" a no-op.
+  const resolvedBlob = blobUrl ?? getCachedStreamBlob(postId);
+  if (resolvedBlob) return resolvedBlob;
+  if (prefersBlobPlayback()) return null;
   return streamUrl;
+};
+
+const audioSrcIsBlobUrl = (audio: HTMLAudioElement): boolean => {
+  const src = audio.currentSrc || audio.src || '';
+  return src.startsWith('blob:');
 };
 
 const describeMediaError = (audio: HTMLAudioElement): string => {
@@ -578,16 +586,16 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     playRequestedRef.current = true;
     userPausedRef.current = false;
 
-    // Android autoplay: use a ready blob when available; if still downloading,
-    // keep error suppressed and continue with tokenized URL for sync play(),
-    // then swap to the blob when it arrives.
-    if (shouldTryBlobFallback() && !blobUrlRef.current) {
-      const cached = getCachedStreamBlob(assigned.postId);
+    // Android autoplay: blob-first once a blob exists. If still warming, keep a sync
+    // play() on the tokenized URL for media-engagement, then swap to the blob.
+    if (shouldTryBlobFallback() && autoplayHandoffRef.current) {
+      const cached = blobUrlRef.current || getCachedStreamBlob(assigned.postId);
       if (cached) {
         blobUrlRef.current = cached;
-      } else if (autoplayHandoffRef.current) {
+      } else {
         blobRecoveringRef.current = true;
         suppressAudioErrorsRef.current = true;
+        setMediaLoading(true);
         const pendingBlob =
           getInflightStreamBlob(assigned.postId) ||
           ensureStreamBlob(assigned.postId, assigned.url, {
@@ -598,20 +606,46 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
             if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
             blobUrlRef.current = blobUrl;
             blobRecoveringRef.current = false;
-            primeAudioSource(true, { keepErrorSuppressed: true });
+            if (!primeAudioSource(true, { keepErrorSuppressed: true })) {
+              suppressAudioErrorsRef.current = false;
+              setMediaLoading(false);
+              setMediaReady(false);
+              setPlaybackError('Could not load this episode.');
+              return;
+            }
             setMediaReady(true);
             setMediaLoading(false);
             setPlaybackError(null);
-            if (playRequestedRef.current || autoplayHandoffRef.current) {
-              requestPlayRef.current();
-            }
+            beginPlayback(audio);
           })
           .catch((err: unknown) => {
-            // Keep trying the direct URL path; preload error handler may still recover.
             if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
             if (err instanceof DOMException && err.name === 'AbortError') return;
             blobRecoveringRef.current = false;
+            suppressAudioErrorsRef.current = false;
+            setMediaLoading(false);
+            setMediaReady(false);
+            const message =
+              err instanceof Error && isNetworkFetchError(err)
+                ? 'Network error while loading audio. Tap play to try again.'
+                : err instanceof Error
+                  ? err.message
+                  : 'Could not load this episode.';
+            setPlaybackError(message || 'Could not load this episode.');
+            const pendingNav = pendingAutoplayNavigateRef.current;
+            if (pendingNav && postIdsMatch(pendingNav.id, assigned.postId)) {
+              pendingAutoplayNavigateRef.current = null;
+              onTrackEndedRef.current?.(pendingNav);
+            }
           });
+
+        // Sync play() in the ended stack for engagement while the blob loads.
+        // Errors stay suppressed; do not treat tokenized failure as terminal.
+        if (!primeAudioSource(true, { keepErrorSuppressed: true })) {
+          return;
+        }
+        beginPlayback(audio);
+        return;
       }
     }
 
@@ -716,21 +750,21 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         blobUrlRef.current = cached;
       }
 
-      if (shouldTryBlobFallback() && !cached) {
-        // Warm full blob before treating tokenized-URL errors as terminal.
-        blobRecoveringRef.current = true;
-        suppressAudioErrorsRef.current = true;
-        warmEpisodeForAutoplay(postId, streamUrl).catch(() => {});
-      } else if (!cached) {
-        prefetchStreamMedia(postId, streamUrl).catch(() => {});
-      }
-
-      // Android soft handoff without a ready blob: start blob recovery, but still
-      // prime + allow sync play() in the ended stack for media-engagement.
+      // Android soft handoff without a ready blob: wait for blob — do NOT prime the
+      // tokenized URL (that was priming a doomed src and then deleting good warm blobs).
       if (shouldTryBlobFallback() && autoplayHandoffRef.current && !blobUrlRef.current) {
         suppressAudioErrorsRef.current = true;
         blobRecoveringRef.current = true;
+        setMediaLoading(true);
+        setMediaReady(false);
         beginAndroidBlobRecovery(postId, streamUrl, generation);
+        return;
+      }
+
+      if (shouldTryBlobFallback() && !cached && !autoplayHandoffRef.current) {
+        warmEpisodeForAutoplay(postId, streamUrl).catch(() => {});
+      } else if (!cached && !shouldTryBlobFallback()) {
+        prefetchStreamMedia(postId, streamUrl).catch(() => {});
       }
 
       const forcePrime = !sourceIsPrimed(postId);
@@ -783,9 +817,20 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (generation !== preloadGenerationRef.current) return;
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
 
-        // Stale blob URLs (GC'd after a long warm) still set blobUrlRef — clear and recover.
         if (shouldTryBlobFallback()) {
-          if (blobUrlRef.current) {
+          // If a blob exists but wasn't the src (legacy race), switch to it — don't delete it.
+          const existingBlob = blobUrlRef.current || getCachedStreamBlob(postId);
+          if (existingBlob && !audioSrcIsBlobUrl(media)) {
+            blobUrlRef.current = existingBlob;
+            primeAudioSource(true, { keepErrorSuppressed: true });
+            markReady();
+            if (playRequestedRef.current || autoplayHandoffRef.current) {
+              requestPlayRef.current();
+            }
+            return;
+          }
+          // Only clear when the blob itself was the failing src.
+          if (existingBlob && audioSrcIsBlobUrl(media)) {
             clearStreamBlob(postId);
             blobUrlRef.current = null;
           }
@@ -1198,9 +1243,21 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (!assigned || !src) return;
       if (!audioHasEpisode(audio, assigned.postId, blobUrlRef.current)) return;
 
-      // Stale blob or tokenized failure — recover instead of showing a hard error.
       if (shouldTryBlobFallback() && assigned.url) {
-        if (blobUrlRef.current) {
+        const existingBlob = blobUrlRef.current || getCachedStreamBlob(assigned.postId);
+        // Tokenized src failed but a warm blob exists — play the blob, don't delete it.
+        if (existingBlob && !audioSrcIsBlobUrl(audio)) {
+          blobUrlRef.current = existingBlob;
+          suppressAudioErrorsRef.current = true;
+          primeAudioSource(true, { keepErrorSuppressed: true });
+          suppressAudioErrorsRef.current = false;
+          if (playRequestedRef.current || autoplayHandoffRef.current) {
+            requestPlayRef.current();
+          }
+          return;
+        }
+        // Blob src itself failed — then refresh.
+        if (existingBlob && audioSrcIsBlobUrl(audio)) {
           clearStreamBlob(assigned.postId);
           blobUrlRef.current = null;
         }

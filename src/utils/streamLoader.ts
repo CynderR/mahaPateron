@@ -34,9 +34,10 @@ export const isAndroidDevice = (): boolean => {
   return /Android/i.test(navigator.userAgent);
 };
 
+/** When true, refuse to play without a blob. Currently unused — see playbackSourceUrl. */
 export const prefersBlobPlayback = (): boolean => false;
 
-/** Android may reject tokenized <audio src>; try direct URL first, blob only as fallback. */
+/** Android soft-handoff often needs an auth'd fetch → blob instead of tokenized <audio src>. */
 export const shouldTryBlobFallback = (): boolean => isAndroidDevice();
 
 export const getStoredAuthToken = (): string | null => {
@@ -128,18 +129,12 @@ const trimBlobCache = (preferredKeep: string[]): void => {
 
 const delay = (ms: number) => new Promise((resolve) => window.setTimeout(resolve, ms));
 
-/** True when a cached blob URL still resolves (Android may GC long-lived blobs). */
+/** True when we still hold this object URL in cache (revoked URLs are removed). */
 export const isStreamBlobUsable = async (blobUrl: string): Promise<boolean> => {
-  try {
-    const res = await fetch(blobUrl, {
-      method: 'GET',
-      headers: { Range: 'bytes=0-0' },
-      cache: 'no-store'
-    });
-    return res.ok || res.status === 206;
-  } catch {
-    return false;
+  for (const url of blobCache.values()) {
+    if (url === blobUrl) return true;
   }
+  return false;
 };
 
 /**
