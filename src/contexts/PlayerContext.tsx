@@ -16,32 +16,26 @@ import {
   SHARE_PREVIEW_STREAM_SECONDS
 } from '../utils/accessPermissions';
 import {
-  ANDROID_AUTOPLAY_WARM_REMAINING_SECS,
   clearStreamBlob,
-  ensureStreamBlob,
   getCachedStreamBlob,
   getInflightStreamBlob,
-  isNetworkFetchError,
   loadStreamBlob,
   prefetchStreamMedia,
-  prefersBlobPlayback,
-  retainStreamBlobs,
-  shouldTryBlobFallback,
-  warmEpisodeForAutoplay
+  shouldTryBlobFallback
 } from '../utils/streamLoader';
-import { normalizePostId, postIdsMatch } from '../utils/episodeListHelpers';
-import {
-  AutoplayTimeoutHours,
-  autoplayTimeoutMs,
-  readAutoplayTimeoutHours,
-  writeAutoplayTimeoutHours
-} from '../utils/autoplayTimeout';
 import {
   bindMediaSessionHandlers,
   updateMediaSessionMetadata,
   updateMediaSessionPlaybackState,
   updateMediaSessionPosition
 } from '../utils/mediaSession';
+import { postIdsMatch } from '../utils/episodeListHelpers';
+import {
+  AutoplayTimeoutHours,
+  autoplayTimeoutMs,
+  readAutoplayTimeoutHours,
+  writeAutoplayTimeoutHours
+} from '../utils/autoplayTimeout';
 
 /** Derive the next episode URL from the current stream (member token or share). */
 const resolveStreamUrlForPost = (
@@ -147,18 +141,9 @@ const audioHasEpisode = (audio: HTMLAudioElement, postId: string, blobUrl: strin
 };
 
 const playbackSourceUrl = (postId: string, streamUrl: string, blobUrl: string | null): string | null => {
-  // Prefer an in-memory blob whenever one exists. Android autoplay recovery downloads
-  // blobs specifically because tokenized <audio src> often fails on soft handoff —
-  // ignoring the blob here made every "blob fallback" a no-op.
-  const resolvedBlob = blobUrl ?? getCachedStreamBlob(postId);
-  if (resolvedBlob) return resolvedBlob;
-  if (prefersBlobPlayback()) return null;
+  const resolved = blobUrl ?? getCachedStreamBlob(postId);
+  if (resolved) return resolved;
   return streamUrl;
-};
-
-const audioSrcIsBlobUrl = (audio: HTMLAudioElement): boolean => {
-  const src = audio.currentSrc || audio.src || '';
-  return src.startsWith('blob:');
 };
 
 const describeMediaError = (audio: HTMLAudioElement): string => {
@@ -171,7 +156,11 @@ const describeMediaError = (audio: HTMLAudioElement): string => {
 
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioSlotsRef = useRef<[HTMLAudioElement | null, HTMLAudioElement | null]>([null, null]);
+  const activeSlotRef = useRef(0);
+  const standbyPostIdRef = useRef<string | null>(null);
+  const standbyUrlRef = useRef<string | null>(null);
+  const userPausedRef = useRef(false);
   const activePostIdRef = useRef<string | null>(null);
   const assignedSourceRef = useRef<{ postId: string; url: string } | null>(null);
   const loadedPostIdRef = useRef<string | null>(null);
@@ -185,12 +174,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const playbackErrorRef = useRef<string | null>(null);
   const onTrackEndedRef = useRef<((nextPost: QueuePost) => void) | null>(null);
   const autoplayAdvanceNextRef = useRef<() => void>(() => {});
-  const pendingAutoplayNavigateRef = useRef<QueuePost | null>(null);
   const requestPlayRef = useRef<() => void>(() => {});
   const playRequestedRef = useRef(false);
   const autoplayHandoffRef = useRef(false);
-  const blobRecoveringRef = useRef(false);
-  const userPausedRef = useRef(false);
   const playbackGraceUntilRef = useRef(0);
   const suppressAudioErrorsRef = useRef(false);
   const preloadGenerationRef = useRef(0);
@@ -214,6 +200,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const [autoplayTimeoutHours, setAutoplayTimeoutHoursState] = useState<AutoplayTimeoutHours>(readAutoplayTimeoutHours);
   const [autoplayTimeRemainingMs, setAutoplayTimeRemainingMs] = useState<number | null>(null);
   const [playingShareStream, setPlayingShareStream] = useState(false);
+
+  const getActiveAudio = useCallback(() => audioSlotsRef.current[activeSlotRef.current], []);
+  const getStandbyAudio = useCallback(() => audioSlotsRef.current[1 - activeSlotRef.current], []);
 
   const streamPreviewSeconds = useMemo(() => {
     // Payment = Subscribed (blue tick) → full playback everywhere.
@@ -262,19 +251,19 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, []);
 
   const sourceIsPrimed = useCallback((postId: string): boolean => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     if (!audio || !postIdsMatch(loadedPostIdRef.current, postId)) return false;
     return audioHasEpisode(audio, postId, blobUrlRef.current);
-  }, []);
+  }, [getActiveAudio]);
 
   const syncPlayingState = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     if (!audio) return;
     setPlaying(!audio.paused && !audio.ended);
-  }, []);
+  }, [getActiveAudio]);
 
   const stopForAutoplayTimeout = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     autoplayDeadlineRef.current = null;
     autoplayTimedOutRef.current = true;
     setAutoplayTimeRemainingMs(null);
@@ -285,7 +274,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
     setPlaying(false);
     setPlaybackError('Playback stopped — autoplay time limit reached.');
-  }, [clearPendingPlay]);
+  }, [clearPendingPlay, getActiveAudio]);
 
   const isAutoplayTimeoutExpired = useCallback(() => {
     const deadline = autoplayDeadlineRef.current;
@@ -376,14 +365,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       if (previousPostId && !postIdsMatch(previousPostId, postId)) {
         clearStreamBlob(previousPostId);
       }
-      // Android: never keep more than the episode we're switching to (+ upcoming warm).
-      retainStreamBlobs([postId]);
 
       blobUrlRef.current = null;
       setMediaLoading(true);
       setMediaReady(false);
 
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       // Soft handoff (autoplay next): skip empty-src clear so play() stays in the
       // ended-handler stack and browsers keep continuous-playback privilege.
       if (audio && previousPostId && !postIdsMatch(previousPostId, postId) && !softHandoff) {
@@ -394,25 +381,16 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         loadedPostIdRef.current = null;
       } else if (softHandoff) {
         loadedPostIdRef.current = null;
-        if (shouldTryBlobFallback()) {
-          suppressAudioErrorsRef.current = true;
-          const nextBlob = getCachedStreamBlob(postId);
-          if (nextBlob) {
-            blobUrlRef.current = nextBlob;
-          } else {
-            blobRecoveringRef.current = true;
-          }
-        }
       }
     } else if (durationSecs != null) {
       setDuration((prev) => prev || durationSecs);
     }
 
     return true;
-  }, [clearPendingPlay]);
+  }, [clearPendingPlay, getActiveAudio]);
 
-  const primeAudioSource = useCallback((force = false, options?: { keepErrorSuppressed?: boolean }) => {
-    const audio = audioRef.current;
+  const primeAudioSource = useCallback((force = false) => {
+    const audio = getActiveAudio();
     const assigned = assignedSourceRef.current;
     if (!audio || !assigned) return false;
 
@@ -424,9 +402,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       postIdsMatch(loadedPostIdRef.current, assigned.postId) &&
       audioHasEpisode(audio, assigned.postId, blobUrlRef.current)
     ) {
-      if (!options?.keepErrorSuppressed && !blobRecoveringRef.current) {
-        suppressAudioErrorsRef.current = false;
-      }
+      suppressAudioErrorsRef.current = false;
       return true;
     }
 
@@ -438,67 +414,16 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     audio.muted = false;
     audio.load();
     loadedPostIdRef.current = assigned.postId;
-    if (!options?.keepErrorSuppressed && !blobRecoveringRef.current) {
-      suppressAudioErrorsRef.current = false;
-    }
+    suppressAudioErrorsRef.current = false;
     setPlaybackError(null);
     return true;
-  }, [clearPendingPlay]);
-
-  const beginAndroidBlobRecovery = useCallback(
-    (postId: string, streamUrl: string, generation: number) => {
-      blobRecoveringRef.current = true;
-      suppressAudioErrorsRef.current = true;
-      setMediaLoading(true);
-      setPlaybackError(null);
-
-      const finishFailure = (message: string) => {
-        if (generation !== preloadGenerationRef.current) return;
-        if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-        blobRecoveringRef.current = false;
-        suppressAudioErrorsRef.current = false;
-        setMediaLoading(false);
-        setMediaReady(false);
-        setPlaybackError(message);
-        const pendingNav = pendingAutoplayNavigateRef.current;
-        if (pendingNav && postIdsMatch(pendingNav.id, postId)) {
-          pendingAutoplayNavigateRef.current = null;
-          onTrackEndedRef.current?.(pendingNav);
-        }
-      };
-
-      retainStreamBlobs([postId]);
-      // Re-validate / refresh — long-lived warmed blobs are often GC'd on Android.
-      ensureStreamBlob(postId, streamUrl, { retainPostIds: [postId] })
-        .then((blobUrl) => {
-          if (generation !== preloadGenerationRef.current) return;
-          if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-          blobUrlRef.current = blobUrl;
-          primeAudioSource(true, { keepErrorSuppressed: true });
-          blobRecoveringRef.current = false;
-          suppressAudioErrorsRef.current = false;
-          setMediaReady(true);
-          setMediaLoading(false);
-          setPlaybackError(null);
-          if (playRequestedRef.current || autoplayHandoffRef.current) {
-            requestPlayRef.current();
-          }
-        })
-        .catch((err: Error) => {
-          if (err instanceof DOMException && err.name === 'AbortError') return;
-          const message = isNetworkFetchError(err)
-            ? 'Network error while loading audio. Tap play to try again.'
-            : err.message || 'Could not load this episode.';
-          finishFailure(message);
-        });
-    },
-    [primeAudioSource]
-  );
+  }, [clearPendingPlay, getActiveAudio]);
 
   const beginPlayback = useCallback(
     (audio: HTMLAudioElement) => {
       playbackGraceUntilRef.current = Date.now() + 15000;
       playRequestedRef.current = true;
+      userPausedRef.current = false;
 
       const tryPlay = () => {
         if (!playRequestedRef.current) return;
@@ -525,10 +450,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
                   audio.removeEventListener('canplay', retry);
                 };
               }
-              return;
-            }
-            // Tokenized URL often fails mid-handoff on Android; blob recovery will retry play.
-            if (blobRecoveringRef.current || suppressAudioErrorsRef.current) {
               return;
             }
             playRequestedRef.current = false;
@@ -563,9 +484,11 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   );
 
   const requestPlay = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     const assigned = assignedSourceRef.current;
     if (!audio || !assigned) return;
+
+    userPausedRef.current = false;
 
     if (autoplayTimedOutRef.current) {
       setPlaybackError('Autoplay limit reached. Choose a new limit to continue.');
@@ -584,73 +507,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     clearPendingPlay();
     setPlaybackError(null);
     playRequestedRef.current = true;
-    userPausedRef.current = false;
-
-    // Android autoplay: blob-first once a blob exists. If still warming, keep a sync
-    // play() on the tokenized URL for media-engagement, then swap to the blob.
-    if (shouldTryBlobFallback() && autoplayHandoffRef.current) {
-      const cached = blobUrlRef.current || getCachedStreamBlob(assigned.postId);
-      if (cached) {
-        blobUrlRef.current = cached;
-      } else {
-        blobRecoveringRef.current = true;
-        suppressAudioErrorsRef.current = true;
-        setMediaLoading(true);
-        const pendingBlob =
-          getInflightStreamBlob(assigned.postId) ||
-          ensureStreamBlob(assigned.postId, assigned.url, {
-            retainPostIds: [assigned.postId]
-          });
-        pendingBlob
-          .then((blobUrl) => {
-            if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
-            blobUrlRef.current = blobUrl;
-            blobRecoveringRef.current = false;
-            if (!primeAudioSource(true, { keepErrorSuppressed: true })) {
-              suppressAudioErrorsRef.current = false;
-              setMediaLoading(false);
-              setMediaReady(false);
-              setPlaybackError('Could not load this episode.');
-              return;
-            }
-            setMediaReady(true);
-            setMediaLoading(false);
-            setPlaybackError(null);
-            beginPlayback(audio);
-          })
-          .catch((err: unknown) => {
-            if (!postIdsMatch(assignedSourceRef.current?.postId, assigned.postId)) return;
-            if (err instanceof DOMException && err.name === 'AbortError') return;
-            blobRecoveringRef.current = false;
-            suppressAudioErrorsRef.current = false;
-            setMediaLoading(false);
-            setMediaReady(false);
-            const message =
-              err instanceof Error && isNetworkFetchError(err)
-                ? 'Network error while loading audio. Tap play to try again.'
-                : err instanceof Error
-                  ? err.message
-                  : 'Could not load this episode.';
-            setPlaybackError(message || 'Could not load this episode.');
-            const pendingNav = pendingAutoplayNavigateRef.current;
-            if (pendingNav && postIdsMatch(pendingNav.id, assigned.postId)) {
-              pendingAutoplayNavigateRef.current = null;
-              onTrackEndedRef.current?.(pendingNav);
-            }
-          });
-
-        // Sync play() in the ended stack for engagement while the blob loads.
-        // Errors stay suppressed; do not treat tokenized failure as terminal.
-        if (!primeAudioSource(true, { keepErrorSuppressed: true })) {
-          return;
-        }
-        beginPlayback(audio);
-        return;
-      }
-    }
 
     const pendingBlob = getInflightStreamBlob(assigned.postId);
-    if (pendingBlob && !blobUrlRef.current && !autoplayHandoffRef.current) {
+    if (pendingBlob && !blobUrlRef.current) {
       setMediaLoading(true);
       pendingBlob
         .then((blobUrl) => {
@@ -670,11 +529,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       return;
     }
 
-    if (
-      !primeAudioSource(false, {
-        keepErrorSuppressed: blobRecoveringRef.current || autoplayHandoffRef.current
-      })
-    ) {
+    if (!primeAudioSource(false)) {
       setPlaybackError('Could not load this episode.');
       return;
     }
@@ -685,6 +540,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     autoplayTimeoutHours,
     beginPlayback,
     clearPendingPlay,
+    getActiveAudio,
     isAutoplayTimeoutExpired,
     primeAudioSource,
     stopForAutoplayTimeout
@@ -725,7 +581,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const preloadEpisodeMedia = useCallback(
     (postId: string, streamUrl: string) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       // Same episode already live (e.g. stream remount while global player continues) —
       // do not pause/reload or flip mediaReady false waiting for a canplay that may never re-fire.
       if (
@@ -745,35 +601,18 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       preloadCleanupRef.current = null;
       const generation = ++preloadGenerationRef.current;
 
+      prefetchStreamMedia(postId, streamUrl).catch(() => {});
+
       const cached = getCachedStreamBlob(postId);
       if (cached) {
         blobUrlRef.current = cached;
       }
 
-      // Android soft handoff without a ready blob: wait for blob — do NOT prime the
-      // tokenized URL (that was priming a doomed src and then deleting good warm blobs).
-      if (shouldTryBlobFallback() && autoplayHandoffRef.current && !blobUrlRef.current) {
-        suppressAudioErrorsRef.current = true;
-        blobRecoveringRef.current = true;
-        setMediaLoading(true);
-        setMediaReady(false);
-        beginAndroidBlobRecovery(postId, streamUrl, generation);
-        return;
-      }
-
-      if (shouldTryBlobFallback() && !cached && !autoplayHandoffRef.current) {
-        warmEpisodeForAutoplay(postId, streamUrl).catch(() => {});
-      } else if (!cached && !shouldTryBlobFallback()) {
-        prefetchStreamMedia(postId, streamUrl).catch(() => {});
-      }
-
       const forcePrime = !sourceIsPrimed(postId);
-      primeAudioSource(forcePrime, {
-        keepErrorSuppressed: blobRecoveringRef.current || autoplayHandoffRef.current
-      });
+      primeAudioSource(forcePrime);
 
-      if (!audioRef.current) return;
-      const media = audioRef.current;
+      const media = getActiveAudio();
+      if (!media) return;
 
       const cleanupListeners = () => {
         media.removeEventListener('canplay', onCanPlay);
@@ -788,8 +627,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
         if (!audioHasEpisode(media, postId, blobUrlRef.current)) return;
         cleanupListeners();
-        blobRecoveringRef.current = false;
-        suppressAudioErrorsRef.current = false;
         setMediaReady(true);
         setMediaLoading(false);
         setPlaybackError(null);
@@ -816,40 +653,38 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         cleanupListeners();
         if (generation !== preloadGenerationRef.current) return;
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-
-        if (shouldTryBlobFallback()) {
-          // If a blob exists but wasn't the src (legacy race), switch to it — don't delete it.
-          const existingBlob = blobUrlRef.current || getCachedStreamBlob(postId);
-          if (existingBlob && !audioSrcIsBlobUrl(media)) {
-            blobUrlRef.current = existingBlob;
-            primeAudioSource(true, { keepErrorSuppressed: true });
-            markReady();
-            if (playRequestedRef.current || autoplayHandoffRef.current) {
-              requestPlayRef.current();
-            }
-            return;
-          }
-          // Only clear when the blob itself was the failing src.
-          if (existingBlob && audioSrcIsBlobUrl(media)) {
-            clearStreamBlob(postId);
-            blobUrlRef.current = null;
-          }
-          beginAndroidBlobRecovery(postId, streamUrl, generation);
+        if (!shouldTryBlobFallback() || blobUrlRef.current) {
+          setMediaLoading(false);
+          setMediaReady(false);
+          setPlaybackError('Could not load this episode.');
           return;
         }
 
-        blobRecoveringRef.current = false;
-        suppressAudioErrorsRef.current = false;
-        setMediaLoading(false);
-        setMediaReady(false);
-        setPlaybackError('Could not load this episode.');
+        loadStreamBlob(postId, streamUrl)
+          .then((blobUrl) => {
+            if (generation !== preloadGenerationRef.current) return;
+            if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
+            blobUrlRef.current = blobUrl;
+            primeAudioSource(true);
+            markReady();
+            if (playRequestedRef.current) {
+              requestPlayRef.current();
+            }
+          })
+          .catch((err: Error) => {
+            if (generation !== preloadGenerationRef.current) return;
+            if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
+            setMediaLoading(false);
+            setMediaReady(false);
+            setPlaybackError(err.message || 'Could not load this episode.');
+          });
       };
 
       media.addEventListener('canplay', onCanPlay);
       media.addEventListener('error', onError);
       preloadCleanupRef.current = cleanupListeners;
     },
-    [beginAndroidBlobRecovery, primeAudioSource, sourceIsPrimed]
+    [getActiveAudio, primeAudioSource, sourceIsPrimed]
   );
 
   const prepareEpisode = useCallback(
@@ -878,7 +713,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const loadEpisodeForStream = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       const alreadyLive =
         !!audio &&
         postIdsMatch(activePostIdRef.current, postId) &&
@@ -922,7 +757,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       prepareEpisode(postId, streamUrl, durationSecs);
     },
-    [playEpisode, prepareEpisode, sourceIsPrimed, syncPlayingState]
+    [getActiveAudio, playEpisode, prepareEpisode, sourceIsPrimed, syncPlayingState]
   );
 
   const advanceToPost = useCallback((postId: string) => {
@@ -959,6 +794,30 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     stopForAutoplayTimeout
   ]);
 
+  const armStandbyForNext = useCallback(
+    (nextPostId: string, streamUrl: string) => {
+      const standby = getStandbyAudio();
+      if (!standby) return;
+
+      const standbySrc = standby.currentSrc || standby.src || '';
+      if (
+        standbyPostIdRef.current &&
+        postIdsMatch(standbyPostIdRef.current, nextPostId) &&
+        standbyUrlRef.current === streamUrl &&
+        (standbySrc === streamUrl || standbySrc.includes(nextPostId))
+      ) {
+        return;
+      }
+
+      standby.src = streamUrl;
+      standby.preload = 'auto';
+      standby.load();
+      standbyPostIdRef.current = nextPostId;
+      standbyUrlRef.current = streamUrl;
+    },
+    [getStandbyAudio]
+  );
+
   // Start next episode inside the ended stack (before navigate) for reliable autoplay.
   const autoplayAdvanceNext = useCallback(() => {
     if (queue.length === 0) return;
@@ -980,18 +839,77 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
     if (!streamUrl) return;
 
-    userPausedRef.current = false;
+    const standby = getStandbyAudio();
+    const standbyArmed =
+      !!standby &&
+      !!standbyPostIdRef.current &&
+      postIdsMatch(standbyPostIdRef.current, nextPost.id) &&
+      !standby.error &&
+      !!(standby.currentSrc || standby.src);
+
+    // Prefer standby even if still buffering — a fresh element + ended-stack play()
+    // is what Android needs; same-element src swap is the failure mode.
+    if (standbyArmed && standby) {
+      userPausedRef.current = false;
+      clearPendingPlay();
+      preloadCleanupRef.current?.();
+      preloadCleanupRef.current = null;
+      preloadGenerationRef.current += 1;
+
+      const previousPostId = loadedPostIdRef.current;
+      if (previousPostId && !postIdsMatch(previousPostId, nextPost.id)) {
+        clearStreamBlob(previousPostId);
+      }
+
+      advanceToPost(nextPost.id);
+      assignedSourceRef.current = { postId: nextPost.id, url: streamUrl };
+      activePostIdRef.current = nextPost.id;
+      setActivePostId(nextPost.id);
+      setPlayingShareStream(/[?&]share=/.test(streamUrl));
+      setCurrentTime(0);
+      setDuration(nextPost.duration_secs ?? 0);
+      setPlaybackError(null);
+      loadedPostIdRef.current = nextPost.id;
+      blobUrlRef.current = null;
+      setMediaReady(standby.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA);
+      setMediaLoading(standby.readyState < HTMLMediaElement.HAVE_CURRENT_DATA);
+
+      // Sync play on standby FIRST (ended stack) before swapping slots.
+      playRequestedRef.current = true;
+      standby.volume = 1;
+      standby.muted = false;
+      const playAttempt = standby.play();
+
+      const old = getActiveAudio();
+      activeSlotRef.current = 1 - activeSlotRef.current;
+      if (old) {
+        old.pause();
+        try {
+          old.removeAttribute('src');
+          old.load();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
+
+      standbyPostIdRef.current = null;
+      standbyUrlRef.current = null;
+      prefetchedNextPostIdRef.current = null;
+      autoplayAdvancePostIdRef.current = nextPost.id;
+      autoplayHandoffRef.current = false;
+
+      onTrackEndedRef.current?.(nextPost);
+
+      playAttempt?.catch(() => {
+        requestPlayRef.current();
+      });
+      return;
+    }
+
+    // Fallback: soft handoff on the same element (cold miss / standby not ready).
     advanceToPost(nextPost.id);
     playEpisode(nextPost.id, streamUrl, nextPost.duration_secs, { softHandoff: true });
-
-    // Android: defer route change until the next track is actually playing so a
-    // remount cannot abort in-flight blob recovery / invalidate preload generation.
-    if (shouldTryBlobFallback()) {
-      pendingAutoplayNavigateRef.current = nextPost;
-    } else {
-      pendingAutoplayNavigateRef.current = null;
-      onTrackEndedRef.current?.(nextPost);
-    }
+    onTrackEndedRef.current?.(nextPost);
   }, [
     queue,
     currentIndex,
@@ -1001,6 +919,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     user?.rss_token,
     advanceToPost,
     playEpisode,
+    clearPendingPlay,
+    getActiveAudio,
+    getStandbyAudio,
     isAutoplayTimeoutExpired,
     stopForAutoplayTimeout
   ]);
@@ -1008,38 +929,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   useEffect(() => {
     autoplayAdvanceNextRef.current = autoplayAdvanceNext;
   }, [autoplayAdvanceNext]);
-
-  const playPreviousInQueue = useCallback((): QueuePost | null => {
-    if (queue.length === 0) return null;
-
-    const prevIndex = resolvePrevIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
-    if (prevIndex == null) return null;
-
-    const prevPost = queue[prevIndex];
-    if (!prevPost) return null;
-
-    const streamUrl = resolveStreamUrlForPost(
-      prevPost.id,
-      assignedSourceRef.current?.url,
-      user?.rss_token
-    );
-    if (!streamUrl) return null;
-
-    userPausedRef.current = false;
-    advanceToPost(prevPost.id);
-    playEpisode(prevPost.id, streamUrl, prevPost.duration_secs, { softHandoff: true });
-    onTrackEndedRef.current?.(prevPost);
-    return prevPost;
-  }, [
-    queue,
-    currentIndex,
-    replayMode,
-    shuffle,
-    shuffleOrder,
-    user?.rss_token,
-    advanceToPost,
-    playEpisode
-  ]);
 
   // Fallback only: if soft handoff primed media but play() did not stick (rare).
   useEffect(() => {
@@ -1051,76 +940,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     requestPlay();
   }, [activePostId, mediaLoading, mediaReady, playing, requestPlay]);
 
-  useEffect(() => {
-    const activePost = queue.find((p) => postIdsMatch(p.id, activePostId)) ?? null;
-    updateMediaSessionMetadata(activePost);
-  }, [activePostId, queue]);
-
-  useEffect(() => {
-    updateMediaSessionPlaybackState(playing);
-  }, [playing]);
-
-  useEffect(() => {
-    if (!playing) return;
-    updateMediaSessionPosition(currentTime, duration);
-  }, [playing, currentTime, duration]);
-
-  useEffect(() => {
-    return bindMediaSessionHandlers({
-      play: () => {
-        userPausedRef.current = false;
-        requestPlay();
-      },
-      pause: () => {
-        const audio = audioRef.current;
-        userPausedRef.current = true;
-        playRequestedRef.current = false;
-        clearPendingPlay();
-        audio?.pause();
-        setPlaying(false);
-      },
-      seekBy: (delta) => {
-        skipBy(delta);
-      },
-      seekTo: (time) => {
-        seekTo(time);
-      },
-      nextTrack: () => {
-        userPausedRef.current = false;
-        autoplayAdvanceNext();
-      },
-      previousTrack: () => {
-        playPreviousInQueue();
-      }
-    });
-  }, [autoplayAdvanceNext, clearPendingPlay, playPreviousInQueue, requestPlay, seekTo, skipBy]);
-
-  // Android often pauses/suspends tabs on lock without an active media session.
-  // If we didn't intentionally pause, resume when the page becomes visible again.
-  useEffect(() => {
-    const onVisibilityChange = () => {
-      if (typeof document === 'undefined' || document.hidden) return;
-      const audio = audioRef.current;
-      if (!audio || !assignedSourceRef.current) return;
-      if (userPausedRef.current) return;
-      if (!audio.paused && !audio.ended) {
-        updateMediaSessionPlaybackState(true);
-        return;
-      }
-      if (audio.ended) return;
-      requestPlay();
-    };
-
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('focus', onVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('focus', onVisibilityChange);
-    };
-  }, [requestPlay]);
-
   const togglePlayback = useCallback(() => {
-    const audio = audioRef.current;
+    const audio = getActiveAudio();
     if (!audio || !assignedSourceRef.current) return;
 
     if (audio.paused) {
@@ -1138,29 +959,29 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       audio.pause();
       setPlaying(false);
     }
-  }, [clearPendingPlay, primeAudioSource, requestPlay]);
+  }, [clearPendingPlay, getActiveAudio, primeAudioSource, requestPlay]);
 
   const seekTo = useCallback(
     (time: number) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       if (!audio || !assignedSourceRef.current) return;
       const shouldResume = !audio.paused && !audio.ended;
       audio.currentTime = clampPlaybackTime(time, audio.duration);
       resumeAfterSeek(audio, shouldResume);
     },
-    [clampPlaybackTime, resumeAfterSeek]
+    [clampPlaybackTime, getActiveAudio, resumeAfterSeek]
   );
 
   const skipBy = useCallback(
     (delta: number) => {
-      const audio = audioRef.current;
+      const audio = getActiveAudio();
       if (!audio || !assignedSourceRef.current) return;
       const shouldResume = !audio.paused && !audio.ended;
 
       audio.currentTime = clampPlaybackTime(audio.currentTime + delta, audio.duration);
       resumeAfterSeek(audio, shouldResume);
     },
-    [clampPlaybackTime, resumeAfterSeek]
+    [clampPlaybackTime, getActiveAudio, resumeAfterSeek]
   );
 
   const registerTrackEndedHandler = useCallback((handler: ((nextPost: QueuePost) => void) | null) => {
@@ -1168,19 +989,22 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, []);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    audio.setAttribute('playsinline', '');
-    audio.setAttribute('webkit-playsinline', 'true');
-    audio.volume = 1;
-    audio.muted = false;
+    for (const audio of audioSlotsRef.current) {
+      if (!audio) continue;
+      audio.setAttribute('playsinline', '');
+      audio.setAttribute('webkit-playsinline', 'true');
+      audio.volume = 1;
+      audio.muted = false;
+    }
   }, []);
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
+    const slots = audioSlotsRef.current.filter((el): el is HTMLAudioElement => !!el);
+    if (slots.length === 0) return;
 
-    const onTimeUpdate = () => {
+    const onTimeUpdate = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
+      const audio = e.target as HTMLAudioElement;
       const limit = streamPreviewLimitRef.current;
       if (limit != null && audio.currentTime >= limit - 0.05) {
         audio.currentTime = limit;
@@ -1192,35 +1016,31 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
       setCurrentTime(audio.currentTime);
     };
-    const onDurationChange = () => {
+    const onDurationChange = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
+      const audio = e.target as HTMLAudioElement;
       if (Number.isFinite(audio.duration) && audio.duration > 0) {
         const limit = streamPreviewLimitRef.current;
         setDuration(limit != null ? Math.min(limit, audio.duration) : audio.duration);
       }
     };
-    const onPlaying = () => {
+    const onPlaying = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
+      userPausedRef.current = false;
       playRequestedRef.current = false;
       autoplayHandoffRef.current = false;
-      blobRecoveringRef.current = false;
-      suppressAudioErrorsRef.current = false;
-      userPausedRef.current = false;
       if (postIdsMatch(autoplayAdvancePostIdRef.current, activePostIdRef.current)) {
         autoplayAdvancePostIdRef.current = null;
       }
       setPlaying(true);
-      updateMediaSessionPlaybackState(true);
-
-      const pendingNav = pendingAutoplayNavigateRef.current;
-      if (pendingNav && postIdsMatch(pendingNav.id, activePostIdRef.current)) {
-        pendingAutoplayNavigateRef.current = null;
-        onTrackEndedRef.current?.(pendingNav);
-      }
     };
-    const onPause = () => {
+    const onPause = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
       syncPlayingState();
-      updateMediaSessionPlaybackState(false);
     };
-    const onEnded = () => {
+    const onEnded = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
+      const audio = e.target as HTMLAudioElement;
       setPlaying(false);
       if (replayModeRef.current === 'one') {
         audio.currentTime = 0;
@@ -1235,78 +1055,65 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       // Advance + play synchronously in this event so mobile browsers keep autoplay.
       autoplayAdvanceNextRef.current();
     };
-    const onError = () => {
-      // Android tokenized-URL failures during autoplay handoff are recovered via blob.
-      if (suppressAudioErrorsRef.current || blobRecoveringRef.current) return;
+    const onError = (e: Event) => {
+      if (e.target !== getActiveAudio()) return;
+      if (suppressAudioErrorsRef.current) return;
+      const audio = e.target as HTMLAudioElement;
       const assigned = assignedSourceRef.current;
       const src = audio.currentSrc || audio.src || '';
       if (!assigned || !src) return;
       if (!audioHasEpisode(audio, assigned.postId, blobUrlRef.current)) return;
-
-      if (shouldTryBlobFallback() && assigned.url) {
-        const existingBlob = blobUrlRef.current || getCachedStreamBlob(assigned.postId);
-        // Tokenized src failed but a warm blob exists — play the blob, don't delete it.
-        if (existingBlob && !audioSrcIsBlobUrl(audio)) {
-          blobUrlRef.current = existingBlob;
-          suppressAudioErrorsRef.current = true;
-          primeAudioSource(true, { keepErrorSuppressed: true });
-          suppressAudioErrorsRef.current = false;
-          if (playRequestedRef.current || autoplayHandoffRef.current) {
-            requestPlayRef.current();
-          }
-          return;
-        }
-        // Blob src itself failed — then refresh.
-        if (existingBlob && audioSrcIsBlobUrl(audio)) {
-          clearStreamBlob(assigned.postId);
-          blobUrlRef.current = null;
-        }
-        const generation = preloadGenerationRef.current;
-        beginAndroidBlobRecovery(assigned.postId, assigned.url, generation);
-        return;
-      }
-
       clearPendingPlay();
       setPlaying(false);
       loadedPostIdRef.current = null;
       setPlaybackError(describeMediaError(audio));
     };
 
-    audio.addEventListener('timeupdate', onTimeUpdate);
-    audio.addEventListener('durationchange', onDurationChange);
-    audio.addEventListener('loadedmetadata', onDurationChange);
-    audio.addEventListener('playing', onPlaying);
-    audio.addEventListener('pause', onPause);
-    audio.addEventListener('ended', onEnded);
-    audio.addEventListener('error', onError);
+    for (const audio of slots) {
+      audio.addEventListener('timeupdate', onTimeUpdate);
+      audio.addEventListener('durationchange', onDurationChange);
+      audio.addEventListener('loadedmetadata', onDurationChange);
+      audio.addEventListener('playing', onPlaying);
+      audio.addEventListener('pause', onPause);
+      audio.addEventListener('ended', onEnded);
+      audio.addEventListener('error', onError);
+    }
 
     return () => {
-      audio.removeEventListener('timeupdate', onTimeUpdate);
-      audio.removeEventListener('durationchange', onDurationChange);
-      audio.removeEventListener('loadedmetadata', onDurationChange);
-      audio.removeEventListener('playing', onPlaying);
-      audio.removeEventListener('pause', onPause);
-      audio.removeEventListener('ended', onEnded);
-      audio.removeEventListener('error', onError);
+      for (const audio of slots) {
+        audio.removeEventListener('timeupdate', onTimeUpdate);
+        audio.removeEventListener('durationchange', onDurationChange);
+        audio.removeEventListener('loadedmetadata', onDurationChange);
+        audio.removeEventListener('playing', onPlaying);
+        audio.removeEventListener('pause', onPause);
+        audio.removeEventListener('ended', onEnded);
+        audio.removeEventListener('error', onError);
+      }
     };
-  }, [beginAndroidBlobRecovery, clearPendingPlay, syncPlayingState]);
+  }, [clearPendingPlay, getActiveAudio, syncPlayingState]);
 
   useEffect(() => {
     if (!playing) return undefined;
 
-    const audio = audioRef.current;
-    if (!audio) return undefined;
-
-    let lastTime = audio.currentTime;
+    let lastAudio: HTMLAudioElement | null = null;
+    let lastTime = 0;
     let stalledChecks = 0;
 
     const intervalId = window.setInterval(() => {
+      const audio = getActiveAudio();
       if (!audio || audio.paused) return;
-      // Lock screen / background: timers are throttled and currentTime polls lie.
-      // Do not treat that as a stall or we stop playback after ~1–2 minutes.
-      if (typeof document !== 'undefined' && document.hidden) {
+
+      if (document.hidden) {
         stalledChecks = 0;
         lastTime = audio.currentTime;
+        lastAudio = audio;
+        return;
+      }
+
+      if (audio !== lastAudio) {
+        lastAudio = audio;
+        lastTime = audio.currentTime;
+        stalledChecks = 0;
         return;
       }
 
@@ -1347,7 +1154,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }, 2000);
 
     return () => window.clearInterval(intervalId);
-  }, [playing]);
+  }, [getActiveAudio, playing]);
 
   const loadFavorites = useCallback(async () => {
     if (!user) {
@@ -1451,24 +1258,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
     const nextPost = queue[nextIndex];
     if (!nextPost || postIdsMatch(nextPost.id, activePostId)) return;
-    if (prefetchedNextPostIdRef.current === nextPost.id) return;
-    if (getCachedStreamBlob(nextPost.id) || getInflightStreamBlob(nextPost.id)) {
-      prefetchedNextPostIdRef.current = nextPost.id;
-      return;
-    }
-
-    // Android: only warm near the end. Full blobs warmed early get GC'd and then
-    // fail at handoff with "Could not load this episode."
-    if (shouldTryBlobFallback()) {
-      const total = duration > 0 ? duration : nextPost.duration_secs || 0;
-      if (total > 0) {
-        const remaining = total - currentTime;
-        if (remaining > ANDROID_AUTOPLAY_WARM_REMAINING_SECS) return;
-      } else if (currentTime < 30) {
-        // Unknown duration: wait briefly so we don't hold a blob for the whole track.
-        return;
-      }
-    }
 
     const streamUrl = resolveStreamUrlForPost(
       nextPost.id,
@@ -1477,18 +1266,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     );
     if (!streamUrl) return;
 
+    armStandbyForNext(nextPost.id, streamUrl);
+
+    if (prefetchedNextPostIdRef.current === nextPost.id) return;
     prefetchedNextPostIdRef.current = nextPost.id;
-    warmEpisodeForAutoplay(nextPost.id, streamUrl, { keepPostId: activePostId }).catch(() => {
-      // Allow another warm attempt after NetworkError / OOM aborts.
-      if (prefetchedNextPostIdRef.current === nextPost.id) {
-        prefetchedNextPostIdRef.current = null;
-      }
-    });
+    prefetchStreamMedia(nextPost.id, streamUrl).catch(() => {});
   }, [
     activePostId,
+    armStandbyForNext,
     currentIndex,
-    currentTime,
-    duration,
     queue,
     replayMode,
     shuffle,
@@ -1502,8 +1288,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   }, [
     activePostId,
     currentIndex,
-    currentTime,
-    duration,
     mediaReady,
     playing,
     prefetchNextInQueue,
@@ -1512,22 +1296,101 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     shuffle
   ]);
 
-  // Safety net: if Android handoff played but navigate never flushed, do it shortly after.
   useEffect(() => {
-    if (!shouldTryBlobFallback()) return undefined;
-    const pending = pendingAutoplayNavigateRef.current;
-    if (!pending || !playing) return undefined;
-    if (!postIdsMatch(pending.id, activePostId)) return undefined;
+    const post = activePostId
+      ? queue.find((p) => postIdsMatch(p.id, activePostId)) ?? null
+      : null;
+    updateMediaSessionMetadata(post);
+  }, [activePostId, queue]);
 
-    const timer = window.setTimeout(() => {
-      const still = pendingAutoplayNavigateRef.current;
-      if (still && postIdsMatch(still.id, activePostIdRef.current)) {
-        pendingAutoplayNavigateRef.current = null;
-        onTrackEndedRef.current?.(still);
+  useEffect(() => {
+    updateMediaSessionPlaybackState(playing);
+  }, [playing]);
+
+  useEffect(() => {
+    if (!playing) return;
+    updateMediaSessionPosition(currentTime, duration);
+  }, [playing, currentTime, duration]);
+
+  useEffect(() => {
+    return bindMediaSessionHandlers({
+      play: () => {
+        userPausedRef.current = false;
+        requestPlay();
+      },
+      pause: () => {
+        const audio = getActiveAudio();
+        if (!audio) return;
+        userPausedRef.current = true;
+        playRequestedRef.current = false;
+        playbackGraceUntilRef.current = 0;
+        clearPendingPlay();
+        audio.pause();
+        setPlaying(false);
+      },
+      seekBy: (delta) => skipBy(delta),
+      seekTo: (time) => seekTo(time),
+      nextTrack: () => {
+        const nextIndex = resolveNextIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+        if (nextIndex == null) return;
+        const nextPost = queue[nextIndex];
+        if (!nextPost) return;
+        const streamUrl = resolveStreamUrlForPost(
+          nextPost.id,
+          assignedSourceRef.current?.url,
+          user?.rss_token
+        );
+        if (!streamUrl) return;
+        advanceToPost(nextPost.id);
+        playEpisode(nextPost.id, streamUrl, nextPost.duration_secs);
+        onTrackEndedRef.current?.(nextPost);
+      },
+      previousTrack: () => {
+        const prevIndex = resolvePrevIndex(currentIndex, queue.length, replayMode, shuffle, shuffleOrder);
+        if (prevIndex == null) return;
+        const prevPost = queue[prevIndex];
+        if (!prevPost) return;
+        const streamUrl = resolveStreamUrlForPost(
+          prevPost.id,
+          assignedSourceRef.current?.url,
+          user?.rss_token
+        );
+        if (!streamUrl) return;
+        advanceToPost(prevPost.id);
+        playEpisode(prevPost.id, streamUrl, prevPost.duration_secs);
+        onTrackEndedRef.current?.(prevPost);
       }
-    }, 750);
-    return () => window.clearTimeout(timer);
-  }, [activePostId, playing]);
+    });
+  }, [
+    advanceToPost,
+    clearPendingPlay,
+    currentIndex,
+    getActiveAudio,
+    playEpisode,
+    queue,
+    replayMode,
+    requestPlay,
+    seekTo,
+    shuffle,
+    shuffleOrder,
+    skipBy,
+    user?.rss_token
+  ]);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) return;
+      if (userPausedRef.current) return;
+      const audio = getActiveAudio();
+      const assigned = assignedSourceRef.current;
+      if (!audio || !assigned) return;
+      if (audio.paused) {
+        requestPlay();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [getActiveAudio, requestPlay]);
 
   const isFavorite = useCallback((postId: string) => favorites.has(postId), [favorites]);
 
@@ -1703,7 +1566,22 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   return (
     <PlayerContext.Provider value={value}>
-      <audio ref={audioRef} className="podcast-audio-element" playsInline preload="auto" />
+      <audio
+        ref={(el) => {
+          audioSlotsRef.current[0] = el;
+        }}
+        className="podcast-audio-element"
+        playsInline
+        preload="auto"
+      />
+      <audio
+        ref={(el) => {
+          audioSlotsRef.current[1] = el;
+        }}
+        className="podcast-audio-element podcast-audio-standby"
+        playsInline
+        preload="auto"
+      />
       {children}
     </PlayerContext.Provider>
   );

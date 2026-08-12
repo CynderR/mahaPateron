@@ -27,10 +27,8 @@ const artworkForPost = (post: QueuePost | null | undefined): MediaImage[] => {
   return images;
 };
 
-/** Keep Android/iOS lock-screen + notification controls bound to the global player. */
 export const updateMediaSessionMetadata = (post: QueuePost | null | undefined): void => {
   if (!hasMediaSession() || typeof MediaMetadata === 'undefined') return;
-
   navigator.mediaSession.metadata = new MediaMetadata({
     title: post?.title || 'Episode',
     artist: post?.artist || PODCAST_AUTHOR,
@@ -51,7 +49,6 @@ export const updateMediaSessionPosition = (
 ): void => {
   if (!hasMediaSession() || typeof navigator.mediaSession.setPositionState !== 'function') return;
   if (!Number.isFinite(duration) || duration <= 0) return;
-
   try {
     navigator.mediaSession.setPositionState({
       duration,
@@ -59,7 +56,7 @@ export const updateMediaSessionPosition = (
       position: Math.max(0, Math.min(currentTime, duration))
     });
   } catch {
-    // Some browsers throw if position is briefly out of range during seeks.
+    // ignore out-of-range during seeks
   }
 };
 
@@ -74,9 +71,7 @@ export const bindMediaSessionHandlers = (handlers: MediaSessionHandlers): (() =>
     [
       'seekto',
       (details) => {
-        if (typeof details.seekTime === 'number') {
-          handlers.seekTo(details.seekTime);
-        }
+        if (typeof details.seekTime === 'number') handlers.seekTo(details.seekTime);
       }
     ],
     ['previoustrack', () => handlers.previousTrack()],
@@ -87,7 +82,7 @@ export const bindMediaSessionHandlers = (handlers: MediaSessionHandlers): (() =>
     try {
       navigator.mediaSession.setActionHandler(action, handler);
     } catch {
-      // Unsupported action on this browser — ignore.
+      // unsupported
     }
   }
 
