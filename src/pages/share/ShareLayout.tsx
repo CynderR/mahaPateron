@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../contexts/AuthContext';
 import { memberHasShareFullAccess } from '../../utils/accessPermissions';
 import { ShareAccess, ShareProvider } from '../../contexts/ShareContext';
+import ShareGuestPreviewDialog, {
+  markShareGuestPreviewDismissed,
+  wasShareGuestPreviewDismissed
+} from '../../components/share/ShareGuestPreviewDialog';
 import ShareFeed from './ShareFeed';
 import ShareLibrary from './ShareLibrary';
 import ShareStream from './ShareStream';
@@ -26,6 +30,7 @@ const ShareLayout: React.FC = () => {
   const [bootstrap, setBootstrap] = useState<ShareBootstrap | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [guestDialogOpen, setGuestDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!token || authLoading) return;
@@ -49,6 +54,22 @@ const ShareLayout: React.FC = () => {
       cancelled = true;
     };
   }, [token, authLoading, user?.id, user?.payment_category, user?.is_paying]);
+
+  useEffect(() => {
+    if (authLoading || loading) return;
+    if (user) {
+      setGuestDialogOpen(false);
+      return;
+    }
+    if (!wasShareGuestPreviewDismissed()) {
+      setGuestDialogOpen(true);
+    }
+  }, [authLoading, loading, user]);
+
+  const continueAsGuest = useCallback(() => {
+    markShareGuestPreviewDismissed();
+    setGuestDialogOpen(false);
+  }, []);
 
   if (!token) {
     return <Navigate to="/" replace />;
@@ -104,6 +125,7 @@ const ShareLayout: React.FC = () => {
       memberAccess={!!bootstrap.member_access}
       anchorPostId={bootstrap.anchor_post_id ?? null}
     >
+      <ShareGuestPreviewDialog open={guestDialogOpen && !user} onContinue={continueAsGuest} />
       <Routes>
         <Route index element={<ShareFeed />} />
         <Route path="library" element={<ShareLibrary />} />
