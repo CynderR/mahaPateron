@@ -1,0 +1,65 @@
+# Staging / dev clone nginx locations for /etc/nginx/snippets/shyam-akaash-dev.conf
+# Include inside each server { } block that serves 4thstate.ca (alongside prod):
+#   include snippets/shyam-akaash.conf;
+#   include snippets/shyam-akaash-dev.conf;
+#
+# Assumes the staging checkout lives at:
+#   /var/www/user-management-app-dev
+# with backend on PORT=5001 and APP_BASE_PATH=/shyam_akaash_dev
+
+location = /shyam_akaash_dev {
+    return 301 /shyam_akaash_dev/;
+}
+
+location ^~ /shyam_akaash_dev/static/ {
+    alias /var/www/user-management-app-dev/build/static/;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+}
+
+location = /shyam_akaash_dev/podcast-cover.jpg {
+    alias /var/www/user-management-app-dev/public/podcast-cover.jpg;
+    expires 7d;
+    add_header Cache-Control "public";
+}
+
+# Share OG previews → staging Node (port 5001)
+location ~ ^/shyam_akaash_dev/share/(?:[^/]+/)?([^/]+)/?$ {
+    rewrite ^/shyam_akaash_dev/share/(?:[^/]+/)?([^/]+)/?$ /shyam_akaash_dev/og/share/$1 break;
+    proxy_pass http://localhost:5001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /shyam_akaash_dev/ {
+    alias /var/www/user-management-app-dev/build/;
+    try_files $uri $uri/ /shyam_akaash_dev/index.html;
+}
+
+location /shyam_akaash_dev/api {
+    proxy_pass http://localhost:5001;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+}
+
+location ~ ^/shyam_akaash_dev/(rss|stream|uploads) {
+    proxy_pass http://localhost:5001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Range $http_range;
+    proxy_set_header If-Range $http_if_range;
+    proxy_buffering off;
+    proxy_request_buffering off;
+}
