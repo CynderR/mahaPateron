@@ -1,18 +1,37 @@
-// Production is served under the /shyam_akaash subpath at 4thstate.ca, so API
-// and media requests are prefixed accordingly. In development the React dev
-// server talks to the Express backend on port 5000 directly.
+// Public URL / API paths. In production builds these come from REACT_APP_BASE_PATH
+// (and PUBLIC_URL for static assets). Local `npm start` talks to the Express
+// backend on localhost unless REACT_APP_API_ORIGIN is set.
 import { slugifyPostTitle } from './utils/shareLinkHelpers';
 
 const isProd = process.env.NODE_ENV === 'production';
 
-// Base path the React app is mounted at (BrowserRouter basename).
-export const ROUTER_BASENAME = isProd ? '/shyam_akaash' : '';
+const normalizeBasePath = (value: string | undefined): string => {
+  const trimmed = String(value || '').trim().replace(/\/$/, '');
+  if (!trimmed || trimmed === '/') return '';
+  return trimmed.startsWith('/') ? trimmed : `/${trimmed}`;
+};
+
+// CRA injects PUBLIC_URL from homepage / PUBLIC_URL env at build time.
+const fromEnv = normalizeBasePath(
+  process.env.REACT_APP_BASE_PATH || process.env.PUBLIC_URL
+);
+
+// Production default keeps current live path when env is unset.
+export const ROUTER_BASENAME = isProd ? fromEnv || '/shyam_akaash' : fromEnv;
+
+const apiOrigin = String(process.env.REACT_APP_API_ORIGIN || '')
+  .trim()
+  .replace(/\/$/, '');
 
 // Axios base URL for the JSON API.
-export const API_BASE_URL = isProd ? '/shyam_akaash/api' : 'http://localhost:5000/api';
+export const API_BASE_URL = isProd
+  ? `${ROUTER_BASENAME}/api`
+  : `${apiOrigin || 'http://localhost:5000'}/api`;
 
 // Origin used to build absolute media URLs (audio streaming).
-export const MEDIA_BASE_URL = isProd ? '/shyam_akaash' : 'http://localhost:5000';
+export const MEDIA_BASE_URL = isProd
+  ? ROUTER_BASENAME
+  : apiOrigin || 'http://localhost:5000';
 
 // Public origin for RSS feed URLs (must match backend BASE_URL in production).
 export const buildRssBaseUrl = (): string => {
@@ -20,9 +39,9 @@ export const buildRssBaseUrl = (): string => {
     if (typeof window !== 'undefined' && window.location?.origin) {
       return `${window.location.origin}${ROUTER_BASENAME}`;
     }
-    return 'https://4thstate.ca/shyam_akaash';
+    return `https://4thstate.ca${ROUTER_BASENAME || '/shyam_akaash'}`;
   }
-  return 'http://localhost:5000';
+  return apiOrigin || 'http://localhost:5000';
 };
 
 export const buildRssUrl = (token: string): string =>
@@ -87,5 +106,5 @@ export const buildSignInUrl = (): string => {
   if (typeof window !== 'undefined' && window.location?.origin) {
     return `${window.location.origin}${path}`;
   }
-  return `https://4thstate.ca${path}`;
+  return `https://4thstate.ca${path || '/signin'}`;
 };

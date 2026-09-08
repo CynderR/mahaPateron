@@ -29,11 +29,16 @@ const requireAdmin = require('./middleware/requireAdmin');
 const authRateLimiter = require('./middleware/authRateLimit');
 const { JWT_SECRET } = authenticateToken;
 const { validatePassword } = require('./utils/passwordPolicy');
-const { ensureDirs, IMAGE_DIR } = require('./config');
+const { ensureDirs, IMAGE_DIR, APP_BASE_PATH } = require('./config');
 const { getPodcastCoverPath } = require('./utils/podcastBranding');
 const { SAFE_IMAGE_EXTS } = require('./utils/audioUpload');
 const { hashToken, signUserToken } = require('./utils/secureTokens');
 
+// Mount under /api (and '' for public routes) plus APP_BASE_PATH so nginx can
+// forward /shyam_akaash or /shyam_akaash_dev without rewriting.
+const APP_PATH_PREFIXES = APP_BASE_PATH ? ['', APP_BASE_PATH] : [''];
+const withAppPrefixes = (suffix) =>
+  APP_PATH_PREFIXES.map((prefix) => `${prefix}${suffix}` || suffix);
 const adminUsersRouter = require('./routes/admin-users');
 const adminPostsRouter = require('./routes/admin-posts');
 const adminLibraryRouter = require('./routes/admin-library');
@@ -83,7 +88,7 @@ const sendPublicImageHeaders = (res, filePath) => {
   res.set('Content-Type', IMAGE_CONTENT_TYPES[ext] || 'application/octet-stream');
 };
 
-['/uploads/images', '/shyam_akaash/uploads/images'].forEach((mountPath) => {
+withAppPrefixes('/uploads/images').forEach((mountPath) => {
   app.use(
     mountPath,
     (req, res, next) => {
@@ -108,7 +113,7 @@ const sendPodcastCover = (req, res) => {
   sendPublicImageHeaders(res, coverPath);
   return res.sendFile(coverPath);
 };
-['/podcast-cover.jpg', '/shyam_akaash/podcast-cover.jpg'].forEach((p) => {
+withAppPrefixes('/podcast-cover.jpg').forEach((p) => {
   app.get(p, sendPodcastCover);
 });
 
@@ -119,7 +124,7 @@ app.use(helmet({
 
 // The Stripe webhook must receive the unparsed body so its signature can be
 // verified, so it is registered before express.json() consumes the body.
-['/api/payments/webhook', '/shyam_akaash/api/payments/webhook'].forEach((p) =>
+withAppPrefixes('/api/payments/webhook').forEach((p) =>
   app.post(p, express.raw({ type: 'application/json' }), webhookHandler)
 );
 
@@ -407,10 +412,10 @@ core.post('/auth/reset-password', authRateLimiter, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Mount routers under both the root and the /shyam_akaash subpath so the app
-// works whether nginx forwards the prefix or not.
+// Mount routers under /api and under APP_BASE_PATH/api so the app works whether
+// nginx forwards the subpath prefix or strips it.
 // ---------------------------------------------------------------------------
-const API_PREFIXES = ['/api', '/shyam_akaash/api'];
+const API_PREFIXES = withAppPrefixes('/api');
 API_PREFIXES.forEach((prefix) => {
   app.use(prefix, core);
   app.use(`${prefix}/share`, optionalAuthenticateToken, shareRouter);
@@ -424,7 +429,7 @@ API_PREFIXES.forEach((prefix) => {
 });
 
 // Public RSS and authenticated streaming endpoints (token validated inside).
-['', '/shyam_akaash'].forEach((prefix) => {
+APP_PATH_PREFIXES.forEach((prefix) => {
   app.use(`${prefix}/rss`, rssRouter);
   app.use(`${prefix}/stream`, streamRouter);
   app.use(`${prefix}/og`, shareOgRouter);
