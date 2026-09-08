@@ -103,11 +103,18 @@ build_frontend() {
     cp -a build "$backup_dir/"
   fi
 
-  print_status "Building React app (homepage /shyam_akaash)..."
+  print_status "Building React app (PUBLIC_URL / REACT_APP_BASE_PATH from env or /shyam_akaash)..."
   # Webhook shells may set CI=1, which turns ESLint warnings into build failures.
+  # Staging clones set APP_BASE_PATH in backend/.env — mirror it into the CRA build.
+  local app_base_path="${PUBLIC_URL:-${REACT_APP_BASE_PATH:-}}"
+  if [ -z "$app_base_path" ] && [ -f backend/.env ]; then
+    app_base_path="$(grep -E '^APP_BASE_PATH=' backend/.env | tail -1 | cut -d= -f2- | tr -d '\r' | tr -d '"' | tr -d "'")"
+  fi
+  app_base_path="${app_base_path:-/shyam_akaash}"
   if ! (
     set -o pipefail
-    CI=false DISABLE_ESLINT_PLUGIN=true npm run build 2>&1 | tee "$build_log"
+    PUBLIC_URL="$app_base_path" REACT_APP_BASE_PATH="$app_base_path" \
+      CI=false DISABLE_ESLINT_PLUGIN=true npm run build 2>&1 | tee "$build_log"
   ); then
     if [ -n "$backup_dir" ] && [ -f "$backup_dir/build/index.html" ]; then
       print_warning "Build failed — restoring previous build so the site stays online"
