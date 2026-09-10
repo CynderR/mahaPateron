@@ -24,24 +24,32 @@ const apiOrigin = String(process.env.REACT_APP_API_ORIGIN || '')
   .replace(/\/$/, '');
 
 // Axios base URL for the JSON API.
-export const API_BASE_URL = isProd
-  ? `${ROUTER_BASENAME}/api`
-  : `${apiOrigin || 'http://localhost:5000'}/api`;
+// When REACT_APP_API_ORIGIN is set (native Capacitor builds), always use it —
+// including production — so the WebView can reach the hosted backend.
+// Website production builds leave REACT_APP_API_ORIGIN unset and keep relative paths.
+export const API_BASE_URL = apiOrigin
+  ? `${apiOrigin}/api`
+  : isProd
+    ? `${ROUTER_BASENAME}/api`
+    : 'http://localhost:5000/api';
 
 // Origin used to build absolute media URLs (audio streaming).
-export const MEDIA_BASE_URL = isProd
-  ? ROUTER_BASENAME
-  : apiOrigin || 'http://localhost:5000';
+export const MEDIA_BASE_URL = apiOrigin
+  ? apiOrigin
+  : isProd
+    ? ROUTER_BASENAME
+    : 'http://localhost:5000';
 
 // Public origin for RSS feed URLs (must match backend BASE_URL in production).
 export const buildRssBaseUrl = (): string => {
+  if (apiOrigin) return apiOrigin;
   if (isProd) {
     if (typeof window !== 'undefined' && window.location?.origin) {
       return `${window.location.origin}${ROUTER_BASENAME}`;
     }
     return `https://4thstate.ca${ROUTER_BASENAME || '/shyam_akaash'}`;
   }
-  return apiOrigin || 'http://localhost:5000';
+  return 'http://localhost:5000';
 };
 
 export const buildRssUrl = (token: string): string =>
@@ -65,6 +73,10 @@ export const buildStreamUrl = (postId: string, rssToken: string): string => {
 
 export const buildDownloadUrl = (postId: string, rssToken: string): string =>
   `${buildStreamUrl(postId, rssToken)}&download=1`;
+
+/** Native app offline download URL (requires app_access; bypasses website download_access). */
+export const buildAppDownloadUrl = (postId: string, rssToken: string): string =>
+  `${buildStreamUrl(postId, rssToken)}&download=1&app=1`;
 
 // Cover art is served publicly from the backend uploads directory.
 export const buildImageUrl = (filename: string): string =>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ThemeToggleFixed } from './ThemeToggle';
 import PasswordInput from './PasswordInput';
+import { isNativeApp } from '../native/platform';
 import './Auth.css';
 
 const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
@@ -10,13 +11,12 @@ const backgroundImages = ['/signal-2026-02-01-105917_002.jpeg'];
 const SignIn: React.FC = () => {
   // Randomly select an image on component mount
   const [selectedImage, setSelectedImage] = useState<string>('');
+  const native = isNativeApp();
 
   useEffect(() => {
     const randomIndex = Math.floor(Math.random() * backgroundImages.length);
     setSelectedImage(backgroundImages[randomIndex]);
   }, []);
-
-
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -35,7 +35,7 @@ const SignIn: React.FC = () => {
     setLoading(true);
 
     try {
-      await login(email, password, rememberMe);
+      await login(email, password, native ? true : rememberMe);
       navigate('/dashboard');
     } catch (err: any) {
       setError(err.message);
@@ -98,16 +98,18 @@ const SignIn: React.FC = () => {
           </div>
 
           <div className="auth-form-options">
-            <label className="auth-remember-label" htmlFor="remember-me">
-              <input
-                type="checkbox"
-                id="remember-me"
-                name="remember"
-                checked={rememberMe}
-                onChange={(e) => setRememberMe(e.target.checked)}
-              />
-              Remember me
-            </label>
+            {!native && (
+              <label className="auth-remember-label" htmlFor="remember-me">
+                <input
+                  type="checkbox"
+                  id="remember-me"
+                  name="remember"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                />
+                Remember me
+              </label>
+            )}
             <Link
               to={
                 email.trim()
@@ -130,17 +132,25 @@ const SignIn: React.FC = () => {
         </form>
 
         <div className="auth-footer">
-          <p>
-            Don't have an account?{' '}
-            <Link to="/signup" className="auth-link">
-              Sign up here
-            </Link>
-          </p>
-          <p>
-            <Link to="/" className="auth-link">
-              ← Back to Home
-            </Link>
-          </p>
+          {!native && (
+            <p>
+              Don't have an account?{' '}
+              <Link to="/signup" className="auth-link">
+                Sign up here
+              </Link>
+            </p>
+          )}
+          {native ? (
+            <p className="auth-link" style={{ color: 'var(--text-secondary)' }}>
+              App access is granted by an admin. Most members use the website.
+            </p>
+          ) : (
+            <p>
+              <Link to="/" className="auth-link">
+                ← Back to Home
+              </Link>
+            </p>
+          )}
         </div>
       </div>
       </div>

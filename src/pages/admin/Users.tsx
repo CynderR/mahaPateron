@@ -18,6 +18,7 @@ import {
   subscriptionFieldsFromStatus
 } from '../../utils/paymentCategories';
 import { ADMIN_ACCESS_TYPE_OPTIONS } from '../../utils/accessPermissions';
+import { serializeOfflineUse } from '../../utils/appAccess';
 import { AdminSortDir, AdminSortField, nextSortState } from '../../utils/adminTableHelpers';
 
 interface NewUserForm {
@@ -30,6 +31,10 @@ interface NewUserForm {
   payment_category: PaymentCategory;
   access_type: string;
   download_access: boolean;
+  app_access: boolean;
+  offline_use_mode: 'false' | 'true' | 'days';
+  offline_use_days: number;
+  episodes_to_keep: string;
   subscription_price: string;
   is_paying: boolean;
   is_admin: boolean;
@@ -52,6 +57,10 @@ const emptyNewUser: NewUserForm = {
   payment_category: NOT_SUBSCRIBED_PAYMENT_CATEGORY,
   access_type: 'streaming',
   download_access: false,
+  app_access: false,
+  offline_use_mode: 'false',
+  offline_use_days: 14,
+  episodes_to_keep: '',
   subscription_price: '',
   is_paying: false,
   is_admin: false
@@ -266,7 +275,16 @@ const Users: React.FC = () => {
       return;
     }
     try {
-      const { subscription_status, paying_tier, confirmPassword, password, ...rest } = newUser;
+      const {
+        subscription_status,
+        paying_tier,
+        confirmPassword,
+        password,
+        offline_use_mode,
+        offline_use_days,
+        episodes_to_keep,
+        ...rest
+      } = newUser;
       const subscriptionFields = subscriptionFieldsFromStatus(
         subscription_status,
         subscription_status === 'subscribed'
@@ -278,7 +296,9 @@ const Users: React.FC = () => {
       await axios.post('/admin/users', {
         ...rest,
         ...payingFields,
-        password
+        password,
+        offline_use: serializeOfflineUse(offline_use_mode, offline_use_days),
+        episodes_to_keep: episodes_to_keep.trim() === '' ? null : parseInt(episodes_to_keep, 10)
       });
       setMessage(
         `User ${newUser.username} created. They can sign in with ${newUser.email.trim()} and the password you set.`
@@ -592,6 +612,71 @@ const Users: React.FC = () => {
                 />{' '}
                 Download access
               </label>
+            </div>
+            <div className="pod-form-group">
+              <label>
+                <input
+                  type="checkbox"
+                  checked={newUser.app_access}
+                  onChange={(e) => setNewUser({ ...newUser, app_access: e.target.checked })}
+                />{' '}
+                App access
+              </label>
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Allow this member to sign in to the native Android app. Website access is unchanged.
+              </p>
+            </div>
+            <div className="pod-form-group">
+              <label>Offline use</label>
+              <select
+                className="pod-select"
+                value={newUser.offline_use_mode}
+                disabled={!newUser.app_access}
+                onChange={(e) =>
+                  setNewUser({
+                    ...newUser,
+                    offline_use_mode: e.target.value as 'false' | 'true' | 'days'
+                  })
+                }
+              >
+                <option value="false">Auth required to download</option>
+                <option value="true">Always offline</option>
+                <option value="days">Days until re-auth</option>
+              </select>
+            </div>
+            {newUser.offline_use_mode === 'days' && (
+              <div className="pod-form-group">
+                <label>Offline days</label>
+                <input
+                  className="pod-input"
+                  type="number"
+                  min={1}
+                  value={newUser.offline_use_days}
+                  disabled={!newUser.app_access}
+                  onChange={(e) =>
+                    setNewUser({
+                      ...newUser,
+                      offline_use_days: Math.max(1, parseInt(e.target.value, 10) || 1)
+                    })
+                  }
+                />
+              </div>
+            )}
+            <div className="pod-form-group">
+              <label>Episodes to keep (app only)</label>
+              <input
+                className="pod-input"
+                type="number"
+                min={1}
+                placeholder="All episodes"
+                value={newUser.episodes_to_keep}
+                disabled={!newUser.app_access}
+                onChange={(e) => setNewUser({ ...newUser, episodes_to_keep: e.target.value })}
+              />
+              <p style={{ margin: '0.35rem 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                When set, the app only shows and downloads this many most recent episodes. Leave empty for no extra
+                limit. Website catalog is unchanged.
+              </p>
             </div>
             <div className="pod-form-group">
               <label>Subscription price (optional; for records only)</label>

@@ -15,6 +15,7 @@ import { buildStreamState } from '../utils/streamNavigation';
 import {
   blurEpisodeTransportFocus
 } from '../hooks/usePlaybackKeyboardShortcuts';
+import { isNativeApp } from '../native/platform';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -289,8 +290,15 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         />
         <FavoriteButton postId={post.id} />
         <PlaylistPicker postId={post.id} />
-        {canDownload && accessible && (
-          <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />
+        {(canDownload || isNativeApp()) && accessible && (
+          <DownloadEpisodeButton
+            postId={post.id}
+            postTitle={post.title}
+            publishedAt={post.published_at}
+            durationSecs={post.duration_secs}
+            imageFilename={post.image_filename}
+            compact
+          />
         )}
       </footer>
 

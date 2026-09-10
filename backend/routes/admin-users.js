@@ -30,6 +30,10 @@ const {
   normalizePaymentCategory,
   isSubscribedCategory
 } = require('../utils/paymentCategories');
+const {
+  normalizeOfflineUse,
+  normalizeEpisodesToKeep
+} = require('../utils/appAccess');
 
 const router = express.Router();
 
@@ -174,7 +178,8 @@ router.post('/', async (req, res) => {
     const {
       username, email, password,
       payment_category, access_type, subscription_price, is_admin, is_paying,
-      back_catalog_access, monthly_payments, download_access
+      back_catalog_access, monthly_payments, download_access,
+      app_access, offline_use, episodes_to_keep
     } = req.body;
 
     if (!username || !email) {
@@ -188,6 +193,15 @@ router.post('/', async (req, res) => {
     }
     if (access_type && !ACCESS_TYPES.includes(access_type)) {
       return res.status(400).json({ error: 'Invalid access_type' });
+    }
+
+    const normalizedOffline = normalizeOfflineUse(offline_use == null ? 'false' : offline_use);
+    if (normalizedOffline === null) {
+      return res.status(400).json({ error: 'Invalid offline_use (use true, false, or a positive number of days)' });
+    }
+    const normalizedKeep = normalizeEpisodesToKeep(episodes_to_keep);
+    if (normalizedKeep === undefined) {
+      return res.status(400).json({ error: 'Invalid episodes_to_keep (use a positive number or leave empty)' });
     }
 
     const existingEmailUser = await getUserByEmail(email);
@@ -227,7 +241,10 @@ router.post('/', async (req, res) => {
       is_paying: !!freeFields.is_paying,
       back_catalog_access: !!back_catalog_access,
       monthly_payments: freeFields.monthly_payments,
-      download_access: !!download_access
+      download_access: !!download_access,
+      app_access: !!app_access,
+      offline_use: normalizedOffline,
+      episodes_to_keep: normalizedKeep
     });
 
     const created = await getUserById(newUser.id);
@@ -273,6 +290,23 @@ router.put('/:id', async (req, res) => {
     }
     if (data.download_access !== undefined) {
       data.download_access = data.download_access ? 1 : 0;
+    }
+    if (data.app_access !== undefined) {
+      data.app_access = data.app_access ? 1 : 0;
+    }
+    if (data.offline_use !== undefined) {
+      const normalizedOffline = normalizeOfflineUse(data.offline_use);
+      if (normalizedOffline === null) {
+        return res.status(400).json({ error: 'Invalid offline_use (use true, false, or a positive number of days)' });
+      }
+      data.offline_use = normalizedOffline;
+    }
+    if (data.episodes_to_keep !== undefined) {
+      const normalizedKeep = normalizeEpisodesToKeep(data.episodes_to_keep);
+      if (normalizedKeep === undefined) {
+        return res.status(400).json({ error: 'Invalid episodes_to_keep (use a positive number or leave empty)' });
+      }
+      data.episodes_to_keep = normalizedKeep;
     }
     if (data.monthly_payments !== undefined) {
       data.monthly_payments = data.monthly_payments ? 1 : 0;

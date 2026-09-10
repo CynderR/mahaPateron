@@ -5,6 +5,7 @@ import {
   ADMIN_ACCESS_TYPE_OPTIONS,
   adminAccessTypeValue
 } from '../utils/accessPermissions';
+import { parseOfflineUse, serializeOfflineUse, OfflineUseMode } from '../utils/appAccess';
 import PayingTierSelect from './admin/PayingTierSelect';
 import SubscriptionToggle from './admin/SubscriptionToggle';
 import SortableTableHeader from './SortableTableHeader';
@@ -24,6 +25,9 @@ export interface AdminUser {
   payment_category: 'full' | 'free' | 'paying_subscriber' | 'non_card';
   access_type: 'rss' | 'streaming' | 'both';
   download_access: boolean | number;
+  app_access?: boolean | number;
+  offline_use?: string | null;
+  episodes_to_keep?: number | null;
   subscription_price: number | null;
   subscribed_at?: string | null;
   deleted_at?: string | null;
@@ -199,6 +203,75 @@ const UserTable: React.FC<UserTableProps> = ({
         />
         <span>Download access</span>
       </label>
+
+      <label className="pod-user-field pod-user-field-inline">
+        <input
+          type="checkbox"
+          checked={!!u.app_access}
+          title="Allow this member to use the native app"
+          disabled={isDeleted}
+          onChange={(e) => onUpdate(u.id, 'app_access', e.target.checked)}
+        />
+        <span>App access</span>
+      </label>
+
+      {(() => {
+        const offline = parseOfflineUse(u.offline_use);
+        return (
+          <>
+            <label className="pod-user-field">
+              <span className="pod-user-field-label">Offline use</span>
+              <select
+                className="pod-select"
+                value={offline.mode}
+                disabled={isDeleted || !u.app_access}
+                onChange={(e) => {
+                  const mode = e.target.value as OfflineUseMode;
+                  onUpdate(u.id, 'offline_use', serializeOfflineUse(mode, offline.days));
+                }}
+              >
+                <option value="false">Auth required to download</option>
+                <option value="true">Always offline</option>
+                <option value="days">Days until re-auth</option>
+              </select>
+            </label>
+            {offline.mode === 'days' && (
+              <label className="pod-user-field">
+                <span className="pod-user-field-label">Offline days</span>
+                <input
+                  className="pod-input"
+                  type="number"
+                  min={1}
+                  value={offline.days}
+                  disabled={isDeleted || !u.app_access}
+                  onChange={(e) => {
+                    const days = Math.max(1, parseInt(e.target.value, 10) || 1);
+                    onUpdate(u.id, 'offline_use', serializeOfflineUse('days', days));
+                  }}
+                />
+              </label>
+            )}
+          </>
+        );
+      })()}
+
+      <label className="pod-user-field">
+        <span className="pod-user-field-label" title="App only: how many recent episodes to show">
+          Episodes to keep
+        </span>
+        <input
+          className="pod-input"
+          type="number"
+          min={1}
+          placeholder="All"
+          value={u.episodes_to_keep != null ? u.episodes_to_keep : ''}
+          disabled={isDeleted || !u.app_access}
+          onChange={(e) => {
+            const raw = e.target.value.trim();
+            onUpdate(u.id, 'episodes_to_keep', raw === '' ? null : Math.max(1, parseInt(raw, 10) || 1));
+          }}
+        />
+      </label>
     </>
   );
 
@@ -321,6 +394,9 @@ const UserTable: React.FC<UserTableProps> = ({
             )}
             <th title="streaming: web player only. rss: web player plus podcast RSS feed.">Access</th>
             <th title="Allow episode downloads for this user">Download</th>
+            <th title="Allow native app access">App</th>
+            <th title="Offline use policy for the native app">Offline</th>
+            <th title="App only: max recent episodes to show">Keep</th>
             <th>RSS</th>
             <th></th>
           </tr>
@@ -412,6 +488,68 @@ const UserTable: React.FC<UserTableProps> = ({
                     title="Episode download access"
                     disabled={isDeleted}
                     onChange={(e) => onUpdate(u.id, 'download_access', e.target.checked)}
+                  />
+                </td>
+                <td>
+                  <input
+                    type="checkbox"
+                    checked={!!u.app_access}
+                    title="Allow native app access"
+                    disabled={isDeleted}
+                    onChange={(e) => onUpdate(u.id, 'app_access', e.target.checked)}
+                  />
+                </td>
+                <td>
+                  {(() => {
+                    const offline = parseOfflineUse(u.offline_use);
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', minWidth: '9rem' }}>
+                        <select
+                          className="pod-select"
+                          value={offline.mode}
+                          disabled={isDeleted || !u.app_access}
+                          title="Offline use policy"
+                          onChange={(e) => {
+                            const mode = e.target.value as OfflineUseMode;
+                            onUpdate(u.id, 'offline_use', serializeOfflineUse(mode, offline.days));
+                          }}
+                        >
+                          <option value="false">Auth to download</option>
+                          <option value="true">Always</option>
+                          <option value="days">Days</option>
+                        </select>
+                        {offline.mode === 'days' && (
+                          <input
+                            className="pod-input"
+                            type="number"
+                            min={1}
+                            value={offline.days}
+                            disabled={isDeleted || !u.app_access}
+                            title="Days until re-authentication is required"
+                            onChange={(e) => {
+                              const days = Math.max(1, parseInt(e.target.value, 10) || 1);
+                              onUpdate(u.id, 'offline_use', serializeOfflineUse('days', days));
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
+                </td>
+                <td>
+                  <input
+                    className="pod-input"
+                    type="number"
+                    min={1}
+                    placeholder="All"
+                    style={{ width: '4.5rem' }}
+                    value={u.episodes_to_keep != null ? u.episodes_to_keep : ''}
+                    disabled={isDeleted || !u.app_access}
+                    title="Episodes to keep in the app (empty = all)"
+                    onChange={(e) => {
+                      const raw = e.target.value.trim();
+                      onUpdate(u.id, 'episodes_to_keep', raw === '' ? null : Math.max(1, parseInt(raw, 10) || 1));
+                    }}
                   />
                 </td>
                 <td>

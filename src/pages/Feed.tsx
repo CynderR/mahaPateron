@@ -42,6 +42,7 @@ import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { useMemberAccess } from '../hooks/useMemberAccess';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
+import { applyAppEpisodesToKeep, appCatalogTotal } from '../utils/appCatalogLimit';
 
 
 
@@ -158,15 +159,19 @@ const Feed: React.FC = () => {
 
         const { posts: pagePosts, page: responsePage, total: responseTotal, ...responseMeta } = res.data;
 
-        setTotal(responseTotal);
+        const limitedTotal = appCatalogTotal(responseTotal, user?.episodes_to_keep);
+        setTotal(limitedTotal);
 
         if (page === 1 && !searchQuery) {
-          setCatalogTotal(responseTotal);
+          setCatalogTotal(limitedTotal);
         }
 
         setMeta(responseMeta);
 
-        setPosts((prev) => (page === 1 ? pagePosts : [...prev, ...pagePosts]));
+        setPosts((prev) => {
+          const merged = page === 1 ? pagePosts : [...prev, ...pagePosts];
+          return applyAppEpisodesToKeep(merged, user?.episodes_to_keep);
+        });
 
 
 
@@ -204,7 +209,7 @@ const Feed: React.FC = () => {
 
     };
 
-  }, [page, searchQuery, pageLimit, listEpoch]);
+  }, [page, searchQuery, pageLimit, listEpoch, user?.episodes_to_keep]);
 
 
 

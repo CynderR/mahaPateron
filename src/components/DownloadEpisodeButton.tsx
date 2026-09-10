@@ -2,10 +2,15 @@ import React, { useState } from 'react';
 import { buildDownloadUrl } from '../config';
 import { useAuth } from '../contexts/AuthContext';
 import { memberHasDownloadAccess } from '../utils/accessPermissions';
+import { isNativeApp } from '../native/platform';
+import AppDownloadButton from './AppDownloadButton';
 
 interface DownloadEpisodeButtonProps {
   postId: string;
   postTitle: string;
+  publishedAt?: string | null;
+  durationSecs?: number | null;
+  imageFilename?: string | null;
   className?: string;
   compact?: boolean;
 }
@@ -13,11 +18,28 @@ interface DownloadEpisodeButtonProps {
 const DownloadEpisodeButton: React.FC<DownloadEpisodeButtonProps> = ({
   postId,
   postTitle,
+  publishedAt,
+  durationSecs,
+  imageFilename,
   className = '',
   compact = false
 }) => {
   const { user } = useAuth();
   const [busy, setBusy] = useState(false);
+
+  if (isNativeApp()) {
+    return (
+      <AppDownloadButton
+        postId={postId}
+        postTitle={postTitle}
+        publishedAt={publishedAt}
+        durationSecs={durationSecs}
+        imageFilename={imageFilename}
+        className={className}
+        compact={compact}
+      />
+    );
+  }
 
   if (!user?.rss_token || !memberHasDownloadAccess(user.is_paying, user.download_access, user.payment_category)) {
     return null;

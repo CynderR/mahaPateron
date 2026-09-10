@@ -1,8 +1,11 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import ThemeToggle from '../ThemeToggle';
+import { isNativeApp } from '../../native/platform';
 
 const PodcastMobileNav: React.FC = () => {
+  const native = isNativeApp();
+
   return (
     <nav className="pod-mobile-nav pod-mobile-only" aria-label="Podcast navigation">
       <NavLink to="/feed" end className="pod-mobile-nav-link">
@@ -13,16 +16,34 @@ const PodcastMobileNav: React.FC = () => {
       </NavLink>
       <NavLink to="/library" className="pod-mobile-nav-link">
         <svg viewBox="0 0 24 24" aria-hidden>
-          <path fill="currentColor" d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12z" />
+          <path
+            fill="currentColor"
+            d="M4 6H2v14a2 2 0 002 2h14v-2H4V6zm16-4H8a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V4a2 2 0 00-2-2zm0 14H8V4h12v12z"
+          />
         </svg>
         <span>Library</span>
       </NavLink>
-      <NavLink to="/playlists" className="pod-mobile-nav-link">
-        <svg viewBox="0 0 24 24" aria-hidden>
-          <path fill="currentColor" d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18A3 3 0 0114.82 17H6v2h8.82A5 5 0 0020 14.18V6h-3z" />
-        </svg>
-        <span>Lists</span>
-      </NavLink>
+      {native ? (
+        <NavLink to="/downloads" className="pod-mobile-nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path
+              fill="currentColor"
+              d="M5 20h14v-2H5v2zM11 4v8.17l-3.59-3.58L6 10l6 6 6-6-1.41-1.41L13 12.17V4h-2z"
+            />
+          </svg>
+          <span>Downloads</span>
+        </NavLink>
+      ) : (
+        <NavLink to="/playlists" className="pod-mobile-nav-link">
+          <svg viewBox="0 0 24 24" aria-hidden>
+            <path
+              fill="currentColor"
+              d="M15 6H3v2h12V6zm0 4H3v2h12v-2zM3 16h8v-2H3v2zM17 6v8.18A3 3 0 0114.82 17H6v2h8.82A5 5 0 0020 14.18V6h-3z"
+            />
+          </svg>
+          <span>Lists</span>
+        </NavLink>
+      )}
       <NavLink to="/account/settings" className="pod-mobile-nav-link">
         <svg viewBox="0 0 24 24" aria-hidden>
           <path

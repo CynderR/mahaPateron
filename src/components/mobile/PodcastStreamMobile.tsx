@@ -5,6 +5,7 @@ import { PODCAST_AUTHOR } from '../../podcastMeta';
 import StreamEpisodeMetadata from '../StreamEpisodeMetadata';
 import PlaylistPicker from '../PlaylistPicker';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
+import { isNativeApp } from '../../native/platform';
 
 interface PodcastStreamMobileProps {
   post: FeedPost;
@@ -157,7 +158,16 @@ const PodcastStreamMobile: React.FC<PodcastStreamMobileProps> = ({
 
       <div className="pod-stream-tools">
         {showMemberTools && <PlaylistPicker postId={post.id} />}
-        {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />}
+        {(canDownload || isNativeApp()) && (
+          <DownloadEpisodeButton
+            postId={post.id}
+            postTitle={post.title}
+            publishedAt={post.published_at}
+            durationSecs={post.duration_secs}
+            imageFilename={post.image_filename}
+            compact
+          />
+        )}
         <Link to={returnPath} className="pod-stream-back-link">
           Back to episodes
         </Link>

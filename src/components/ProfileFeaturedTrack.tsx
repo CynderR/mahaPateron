@@ -7,6 +7,7 @@ import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
+import { isNativeApp } from '../native/platform';
 import { useEpisodePlayback } from '../hooks/useEpisodePlayback';
 import { memberHasStreamAccess } from '../utils/accessPermissions';
 
@@ -104,7 +105,17 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
         <span className="ht-featured-duration">{formatDuration(post.duration_secs)}</span>
         <span className="ht-featured-badge">Members only</span>
         <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-featured-share" />
-        {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="ht-featured-download" />}
+        {(canDownload || isNativeApp()) && (
+          <DownloadEpisodeButton
+            postId={post.id}
+            postTitle={post.title}
+            publishedAt={post.published_at}
+            durationSecs={post.duration_secs}
+            imageFilename={post.image_filename}
+            compact
+            className="ht-featured-download"
+          />
+        )}
       </div>
     </>
   );

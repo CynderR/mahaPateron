@@ -2,8 +2,14 @@ import React, { createContext, useCallback, useContext, useState, useEffect, Rea
 import axios from 'axios';
 import { API_BASE_URL } from '../config';
 import { isIOSDevice } from '../utils/streamLoader';
+import {
+  getStoredToken,
+  getStoredTokenSync,
+  persistToken,
+  clearStoredToken
+} from '../native/tokenStorage';
 
-interface User {
+export interface User {
   id: number;
   username: string;
   email: string;
@@ -13,6 +19,10 @@ interface User {
   is_paying?: boolean | number;
   access_type?: 'rss' | 'streaming' | 'both';
   download_access?: boolean | number;
+  app_access?: boolean | number;
+  offline_use?: string | null;
+  episodes_to_keep?: number | null;
+  app_last_authenticated_at?: string | null;
   subscription_price?: number | null;
   rss_token?: string;
   stripe_customer_id?: string;
@@ -41,57 +51,30 @@ interface RegisterData {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const TOKEN_KEY = 'token';
-const REMEMBER_ME_KEY = 'rememberMe';
-
-const getStoredToken = (): string | null =>
-  localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
-
-const persistToken = (token: string, rememberMe: boolean) => {
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-  if (rememberMe) {
-    localStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(REMEMBER_ME_KEY, 'true');
-  } else {
-    sessionStorage.setItem(TOKEN_KEY, token);
-    localStorage.setItem(REMEMBER_ME_KEY, 'false');
-  }
-};
-
-const clearStoredToken = () => {
-  localStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-};
-
 // Configure axios defaults
 axios.defaults.baseURL = API_BASE_URL;
 axios.defaults.headers.common['Cache-Control'] = 'no-cache';
 axios.defaults.headers.common['Pragma'] = 'no-cache';
 
-const bootstrapAuthToken = (): string | null => {
-  const storedToken = getStoredToken();
-  if (storedToken) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-  }
-  return storedToken;
-};
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(() => bootstrapAuthToken());
+  const [token, setToken] = useState<string | null>(() => {
+    const sync = getStoredTokenSync();
+    if (sync) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${sync}`;
+    }
+    return sync;
+  });
   const [loading, setLoading] = useState(true);
 
-  // Check if user is admin based on is_admin field
   const isAdmin = user?.is_admin || false;
 
   useEffect(() => {
     const requestInterceptor = axios.interceptors.request.use((config) => {
-      const storedToken = getStoredToken();
+      const storedToken = getStoredTokenSync();
       if (storedToken) {
         config.headers.Authorization = `Bearer ${storedToken}`;
       }
-      // iOS Safari can serve stale JSON for catalog endpoints without a cache buster.
       if (isIOSDevice() && (config.method ?? 'get').toLowerCase() === 'get') {
         const params = { ...(config.params as Record<string, unknown> | undefined) };
         params._ = Date.now();
@@ -106,31 +89,38 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, []);
 
   useEffect(() => {
-    const storedToken = getStoredToken();
-    if (storedToken) {
-      setToken(storedToken);
-      axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-      fetchUserProfile();
-    } else {
-      setLoading(false);
-    }
+    let cancelled = false;
+
+    const bootstrap = async () => {
+      try {
+        const storedToken = await getStoredToken();
+        if (cancelled) return;
+        if (storedToken) {
+          setToken(storedToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+          try {
+            const response = await axios.get('/profile');
+            if (!cancelled) setUser(response.data);
+          } catch (error) {
+            console.error('Failed to fetch user profile:', error);
+            await clearStoredToken();
+            if (!cancelled) {
+              setToken(null);
+              delete axios.defaults.headers.common['Authorization'];
+            }
+          }
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    bootstrap();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const fetchUserProfile = async () => {
-    try {
-      const response = await axios.get('/profile');
-      setUser(response.data);
-    } catch (error) {
-      console.error('Failed to fetch user profile:', error);
-      clearStoredToken();
-      setToken(null);
-      delete axios.defaults.headers.common['Authorization'];
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Soft refresh — used after pay/cancel. Does not log the user out on failure.
   const refreshUser = useCallback(async (): Promise<User | null> => {
     try {
       const response = await axios.get<User>('/profile');
@@ -149,7 +139,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
       setUser(userData);
       setToken(userToken);
-      persistToken(userToken, rememberMe);
+      await persistToken(userToken, rememberMe);
       axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed');
@@ -160,10 +150,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await axios.post('/register', userData);
       const { user: newUser, token: userToken } = response.data;
-      
+
       setUser(newUser);
       setToken(userToken);
-      persistToken(userToken, true);
+      await persistToken(userToken, true);
       axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Registration failed');
@@ -173,7 +163,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     setUser(null);
     setToken(null);
-    clearStoredToken();
+    void clearStoredToken();
     delete axios.defaults.headers.common['Authorization'];
   };
 
@@ -188,11 +178,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     isAdmin
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
 export const useAuth = () => {
@@ -202,4 +188,3 @@ export const useAuth = () => {
   }
   return context;
 };
-

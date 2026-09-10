@@ -10,6 +10,7 @@ const { runPayingSubscriberCategoryMigration } = require('./migrations/202607081
 const { runNonCardSubscribedMigration } = require('./migrations/20260708140000_non_card_subscribed');
 const { runUserUnsubscribedAtMigration } = require('./migrations/20260709100000_user_unsubscribed_at');
 const { runUserTokenVersionMigration } = require('./migrations/20260719120000_user_token_version');
+const { runUserAppAccessMigration } = require('./migrations/20260910160000_user_app_access');
 const { userHasFullCatalogAccess, userHasFullStreamAccess, userIsNotSubscribed } = require('./utils/accessPermissions');
 
 // Create database connection
@@ -99,6 +100,7 @@ const initDatabase = () => {
     .then(() => runNonCardSubscribedMigration(db))
     .then(() => runUserUnsubscribedAtMigration(db))
     .then(() => runUserTokenVersionMigration(db))
+    .then(() => runUserAppAccessMigration(db))
     .then(() => ensureEmailVerificationTable())
     .then(() => {
       libraryMetadataReady = true;
@@ -111,7 +113,8 @@ const createUser = (userData) => {
     const {
       username, email, password, is_free, is_admin,
       whatsapp_id, signal_id, payment_category, access_type, subscription_price, is_paying,
-      back_catalog_access, monthly_payments, download_access
+      back_catalog_access, monthly_payments, download_access,
+      app_access, offline_use, episodes_to_keep
     } = userData;
     const rss_token = userData.rss_token || uuidv4();
     const subscribed_at = is_paying ? (userData.subscribed_at || new Date().toISOString()) : null;
@@ -119,8 +122,8 @@ const createUser = (userData) => {
                    username, email, password, is_free, is_admin,
                    whatsapp_id, signal_id, payment_category, access_type, subscription_price,
                    is_paying, rss_token, subscribed_at, back_catalog_access, monthly_payments,
-                   download_access
-                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
+                   download_access, app_access, offline_use, episodes_to_keep
+                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`;
 
     db.run(sql, [
       username, email, password, is_free || false, is_admin || false,
@@ -128,7 +131,10 @@ const createUser = (userData) => {
       subscription_price != null ? subscription_price : null, is_paying ? 1 : 0, rss_token,
       subscribed_at, back_catalog_access ? 1 : 0,
       monthly_payments === false || monthly_payments === 0 ? 0 : 1,
-      download_access ? 1 : 0
+      download_access ? 1 : 0,
+      app_access ? 1 : 0,
+      offline_use != null && offline_use !== '' ? String(offline_use) : 'false',
+      episodes_to_keep != null && episodes_to_keep !== '' ? parseInt(episodes_to_keep, 10) : null
     ], function(err) {
       if (err) {
         reject(err);
@@ -285,7 +291,8 @@ const USER_UPDATABLE_FIELDS = [
   'username', 'email', 'is_free', 'is_admin',
   'whatsapp_id', 'signal_id', 'payment_category', 'is_paying', 'access_type',
   'stripe_customer_id', 'stripe_sub_id', 'subscription_price', 'rss_token', 'deleted_at',
-  'subscribed_at', 'unsubscribed_at', 'back_catalog_access', 'monthly_payments', 'download_access'
+  'subscribed_at', 'unsubscribed_at', 'back_catalog_access', 'monthly_payments', 'download_access',
+  'app_access', 'offline_use', 'episodes_to_keep', 'app_last_authenticated_at'
 ];
 
 // Dynamic update used by the admin and account routes; only whitelisted

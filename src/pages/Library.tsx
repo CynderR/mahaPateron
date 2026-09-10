@@ -21,6 +21,7 @@ import {
   nextSortState
 } from '../utils/adminTableHelpers';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
+import { applyAppEpisodesToKeep, appCatalogTotal } from '../utils/appCatalogLimit';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -84,9 +85,12 @@ const Library: React.FC = () => {
         if (cancelled) return;
 
         const { entries: pageEntries, page: responsePage, ...responseMeta } = res.data;
-        setTotal(res.data.total);
+        setTotal(appCatalogTotal(res.data.total, user?.episodes_to_keep));
         setMeta(responseMeta);
-        setEntries((prev) => (page === 1 ? pageEntries : [...prev, ...pageEntries]));
+        setEntries((prev) => {
+          const merged = page === 1 ? pageEntries : [...prev, ...pageEntries];
+          return applyAppEpisodesToKeep(merged, user?.episodes_to_keep);
+        });
 
         if (pageEntries.length === 0 && responsePage > 1 && res.data.total > 0) {
           setPage(responsePage - 1);
@@ -105,7 +109,7 @@ const Library: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [page, searchQuery, sortField, sortDir, pageLimit, listEpoch]);
+  }, [page, searchQuery, sortField, sortDir, pageLimit, listEpoch, user?.episodes_to_keep]);
 
   const listParams = useMemo(() => {
     const params: Record<string, string | number> = { sort: sortField, dir: sortDir };

@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
 import { prefetchEpisodeStream } from '../utils/streamLoader';
+import { isNativeApp } from '../native/platform';
 
 export interface FeedPost {
   id: string;
@@ -58,6 +59,7 @@ const PostCard: React.FC<PostCardProps> = ({
       prefetchEpisodeStream(post.id, buildStreamUrl(post.id, rssToken));
     }
   };
+  const showDownload = canDownload || isNativeApp();
 
   return (
     <article className="pod-post-card">
@@ -130,10 +132,25 @@ const PostCard: React.FC<PostCardProps> = ({
             >
               Listen
             </Link>
-            {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />}
+            {showDownload && (
+              <DownloadEpisodeButton
+                postId={post.id}
+                postTitle={post.title}
+                publishedAt={post.published_at}
+                durationSecs={post.duration_secs}
+                imageFilename={post.image_filename}
+                compact
+              />
+            )}
           </div>
-        ) : canDownload ? (
-          <DownloadEpisodeButton postId={post.id} postTitle={post.title} />
+        ) : showDownload ? (
+          <DownloadEpisodeButton
+            postId={post.id}
+            postTitle={post.title}
+            publishedAt={post.published_at}
+            durationSecs={post.duration_secs}
+            imageFilename={post.image_filename}
+          />
         ) : (
           <p className="pod-post-meta">Streaming is not included in your plan.</p>
         )}

@@ -9,6 +9,7 @@ import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
 import PlaybackProgressBar from '../PlaybackProgressBar';
 import { useEpisodePlayback } from '../../hooks/useEpisodePlayback';
+import { isNativeApp } from '../../native/platform';
 
 interface PodcastEpisodeCardProps {
   post: FeedPost;
@@ -110,8 +111,16 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
         </div>
         {canStream && (
           <div className="pod-episode-actions">
-            {canDownload && (
-              <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="pod-episode-download" />
+            {(canDownload || isNativeApp()) && (
+              <DownloadEpisodeButton
+                postId={post.id}
+                postTitle={post.title}
+                publishedAt={post.published_at}
+                durationSecs={post.duration_secs}
+                imageFilename={post.image_filename}
+                compact
+                className="pod-episode-download"
+              />
             )}
             <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-episode-share" />
           </div>

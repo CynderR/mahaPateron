@@ -7,6 +7,7 @@ import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
 import ProfileWaveform from './ProfileWaveform';
 import AdminFeedShareAction from './admin/AdminFeedShareAction';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
+import { isNativeApp } from '../native/platform';
 import { useEpisodePlayback } from '../hooks/useEpisodePlayback';
 import { memberHasStreamAccess } from '../utils/accessPermissions';
 
@@ -127,7 +128,17 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
           <span className="ht-track-meta-item">Members only</span>
           {published && <span className="ht-track-meta-item">on {published}</span>}
           <AdminFeedShareAction postId={post.id} postTitle={post.title} className="ht-track-share" />
-          {canDownload && <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact className="ht-track-download" />}
+          {(canDownload || isNativeApp()) && (
+            <DownloadEpisodeButton
+              postId={post.id}
+              postTitle={post.title}
+              publishedAt={post.published_at}
+              durationSecs={post.duration_secs}
+              imageFilename={post.image_filename}
+              compact
+              className="ht-track-download"
+            />
+          )}
         </div>
       </div>
     </article>

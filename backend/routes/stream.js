@@ -5,7 +5,15 @@ const jwt = require('jsonwebtoken');
 
 const { AUDIO_DIR } = require('../config');
 const { JWT_SECRET } = require('../middleware/authenticateToken');
-const { getUserByRssToken, getUserById, getPostById, getPostByShareToken, logStreamEvent, userCanAccessPost } = require('../database');
+const {
+  getUserByRssToken,
+  getUserById,
+  getPostById,
+  getPostByShareToken,
+  logStreamEvent,
+  userCanAccessPost,
+  getPublishedPostsForUser
+} = require('../database');
 const {
   accessFlags,
   previewMaxByte,
@@ -17,8 +25,21 @@ const {
   SHARE_PREVIEW_STREAM_SECONDS
 } = require('../utils/accessPermissions');
 const { tokenVersionMatches } = require('../utils/secureTokens');
+const {
+  memberHasAppAccess,
+  buildOfflineEntitlement,
+  applyEpisodesToKeep
+} = require('../utils/appAccess');
 
 const router = express.Router();
+
+const postAllowedForAppKeep = async (user, post) => {
+  const entitlement = buildOfflineEntitlement(user);
+  if (entitlement.episodes_to_keep == null) return true;
+  const posts = await getPublishedPostsForUser(user);
+  const kept = applyEpisodesToKeep(posts, entitlement.episodes_to_keep);
+  return kept.some((p) => p.id === post.id);
+};
 
 const STREAM_ACCESS_TTL_MS = 5 * 60 * 1000;
 const streamAccessCache = new Map();
@@ -32,6 +53,7 @@ const streamAccessCacheKey = (req) => {
     req.params.postId,
     req.query.share || '',
     req.query.download || '',
+    req.query.app || '',
     auth
   ].join('|');
 };
@@ -178,10 +200,15 @@ router.get('/:postId', async (req, res) => {
 
           const flags = accessFlags(user);
           const wantsDownload = req.query.download === '1';
+          const appDownload = req.query.app === '1';
           const previewUser = userIsNotSubscribed(user);
 
           if (wantsDownload) {
-            if (!flags.canDownload || previewUser) {
+            if (appDownload) {
+              if (!memberHasAppAccess(user) || previewUser) {
+                return res.status(403).json({ error: 'App download access is not available for this account' });
+              }
+            } else if (!flags.canDownload || previewUser) {
               return res.status(403).json({ error: 'Your plan does not include download access' });
             }
           } else if (!flags.canStream) {
@@ -194,6 +221,12 @@ router.get('/:postId', async (req, res) => {
           }
           if (!previewUser && !userCanAccessPost(user, post)) {
             return res.status(403).json({ error: 'This episode is not included in your subscription' });
+          }
+          if (wantsDownload && appDownload) {
+            const allowed = await postAllowedForAppKeep(user, post);
+            if (!allowed) {
+              return res.status(403).json({ error: 'This episode is outside your app episodes-to-keep limit' });
+            }
           }
           streamUserId = user.id;
         }

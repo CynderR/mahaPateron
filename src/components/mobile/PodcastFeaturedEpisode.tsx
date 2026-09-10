@@ -4,6 +4,7 @@ import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
 import DownloadEpisodeButton from '../DownloadEpisodeButton';
+import { isNativeApp } from '../../native/platform';
 import { useEpisodePlayback } from '../../hooks/useEpisodePlayback';
 
 interface PodcastFeaturedEpisodeProps {
@@ -66,13 +67,26 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
             <button type="button" className="pod-btn pod-featured-play" onClick={startPlayback}>
               Play latest episode
             </button>
-          ) : canDownload ? (
-            <DownloadEpisodeButton postId={post.id} postTitle={post.title} />
+          ) : canDownload || isNativeApp() ? (
+            <DownloadEpisodeButton
+              postId={post.id}
+              postTitle={post.title}
+              publishedAt={post.published_at}
+              durationSecs={post.duration_secs}
+              imageFilename={post.image_filename}
+            />
           ) : (
             <span className="pod-featured-locked">Subscribe to listen</span>
           )}
-          {canStream && canDownload && (
-            <DownloadEpisodeButton postId={post.id} postTitle={post.title} compact />
+          {canStream && (canDownload || isNativeApp()) && (
+            <DownloadEpisodeButton
+              postId={post.id}
+              postTitle={post.title}
+              publishedAt={post.published_at}
+              durationSecs={post.duration_secs}
+              imageFilename={post.image_filename}
+              compact
+            />
           )}
           <AdminFeedShareAction postId={post.id} postTitle={post.title} className="pod-featured-share" />
         </div>

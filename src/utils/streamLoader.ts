@@ -122,6 +122,20 @@ const waitForAudioReady = (audio: HTMLAudioElement): Promise<void> => {
 };
 
 export async function resolvePlaybackSource(postId: string, streamUrl: string): Promise<string> {
+  // Prefer durable on-device files in the Capacitor app.
+  if (typeof window !== 'undefined') {
+    try {
+      const { isNativeApp } = await import('../native/platform');
+      if (isNativeApp()) {
+        const { getOfflinePlaybackUrl } = await import('../native/offlineStorage');
+        const local = await getOfflinePlaybackUrl(postId);
+        if (local) return local;
+      }
+    } catch {
+      // Fall through to network stream
+    }
+  }
+
   if (prefersBlobPlayback()) {
     return loadStreamBlob(postId, streamUrl);
   }

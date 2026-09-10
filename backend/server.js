@@ -45,6 +45,7 @@ const adminLibraryRouter = require('./routes/admin-library');
 const accountPlayerRouter = require('./routes/account-player');
 const adminRouter = require('./routes/admin');
 const accountRouter = require('./routes/account');
+const appRouter = require('./routes/app');
 
 const normalizeEmail = (email) => String(email || '').trim().toLowerCase();
 const hashVerificationCode = (code) =>
@@ -62,10 +63,12 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 ensureDirs();
 
-// Middleware
-const corsOrigins = CORS_ORIGIN.includes(',')
-  ? CORS_ORIGIN.split(',').map((origin) => origin.trim())
-  : CORS_ORIGIN;
+// Middleware — Capacitor Android WebView origins must be allowed alongside the website.
+const CAPACITOR_ORIGINS = ['https://localhost', 'http://localhost', 'capacitor://localhost'];
+const configuredOrigins = CORS_ORIGIN.includes(',')
+  ? CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
+  : [CORS_ORIGIN];
+const corsOrigins = Array.from(new Set([...configuredOrigins, ...CAPACITOR_ORIGINS]));
 
 app.use(cors({ origin: corsOrigins, credentials: true }));
 
@@ -425,6 +428,7 @@ API_PREFIXES.forEach((prefix) => {
   app.use(`${prefix}/admin`, authenticateToken, requireAdmin, adminRouter);
   app.use(`${prefix}/account`, authenticateToken, accountRouter);
   app.use(`${prefix}/account/player`, authenticateToken, accountPlayerRouter);
+  app.use(`${prefix}/app`, authenticateToken, appRouter);
   app.use(`${prefix}/payments`, authenticateToken, paymentsRouter);
 });
 
