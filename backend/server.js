@@ -63,14 +63,38 @@ const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:3000';
 
 ensureDirs();
 
-// Middleware — Capacitor Android WebView origins must be allowed alongside the website.
-const CAPACITOR_ORIGINS = ['https://localhost', 'http://localhost', 'capacitor://localhost'];
+// Middleware — Capacitor WebView origins must be reflected back exactly.
+// A single CORS_ORIGIN string (e.g. https://4thstate.ca) would otherwise be
+// sent for every request, which the Android WebView rejects as a CORS failure.
+const CAPACITOR_ORIGINS = [
+  'https://localhost',
+  'http://localhost',
+  'capacitor://localhost',
+  'ionic://localhost'
+];
 const configuredOrigins = CORS_ORIGIN.includes(',')
   ? CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
   : [CORS_ORIGIN];
-const corsOrigins = Array.from(new Set([...configuredOrigins, ...CAPACITOR_ORIGINS]));
 
-app.use(cors({ origin: corsOrigins, credentials: true }));
+const isAllowedCorsOrigin = (origin) => {
+  if (!origin) return true;
+  if (configuredOrigins.includes(origin) || CAPACITOR_ORIGINS.includes(origin)) return true;
+  try {
+    const url = new URL(origin);
+    const capacitorScheme =
+      url.protocol === 'https:' || url.protocol === 'http:' || url.protocol === 'capacitor:' || url.protocol === 'ionic:';
+    return capacitorScheme && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
+  } catch {
+    return false;
+  }
+};
+
+app.use(
+  cors({
+    origin: (origin, callback) => callback(null, isAllowedCorsOrigin(origin)),
+    credentials: true
+  })
+);
 
 // Cover art is public (messengers fetch og:image through privacy proxies).
 // Serve it before helmet so previews are not blocked by CSP/CORP header soup.

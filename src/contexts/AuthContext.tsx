@@ -165,7 +165,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await cacheNativeUser(userData);
       axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
     } catch (error: any) {
-      throw new Error(error.response?.data?.error || 'Login failed');
+      if (error?.response?.data?.error) {
+        throw new Error(error.response.data.error);
+      }
+      if (isNetworkError(error)) {
+        throw new Error('Cannot reach the server. Check your connection and try again.');
+      }
+      throw new Error('Login failed');
     }
   };
 

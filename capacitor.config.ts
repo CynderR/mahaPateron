@@ -11,6 +11,11 @@ const config: CapacitorConfig = {
     allowMixedContent: false
   },
   plugins: {
+    // Native HTTP bypasses WebView CORS. Required while production still echoes
+    // only the website origin (https://4thstate.ca) instead of https://localhost.
+    CapacitorHttp: {
+      enabled: true
+    },
     SystemBars: {
       insetsHandling: 'css',
       style: 'LIGHT',
