@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { useAuth } from '../contexts/AuthContext';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
@@ -17,6 +17,7 @@ interface ProfileFeaturedTrackProps {
   canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
+  unavailable?: boolean;
 }
 
 const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
@@ -24,13 +25,15 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   canStream,
   canDownload = false,
   selected = false,
-  onSelectChange
+  onSelectChange,
+  unavailable = false
 }) => {
   const { user } = useAuth();
   const showPlayControls =
-    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
+    !unavailable &&
+    (canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category));
   const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, showPlayControls);
-  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const coverUrl = resolveEpisodeImageUrl(post.id, post.image_filename);
 
   const primePlay = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -121,7 +124,7 @@ const ProfileFeaturedTrack: React.FC<ProfileFeaturedTrackProps> = ({
   );
 
   return (
-    <article className="ht-featured">
+    <article className={`ht-featured${unavailable ? ' is-offline-unavailable' : ''}`}>
       {onSelectChange && (
         <label className="member-episode-checkbox-wrap ht-featured-select">
           <input

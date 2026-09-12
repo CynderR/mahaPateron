@@ -1,8 +1,12 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import './styles/native-chrome.css';
+import { applyNativeAppClass } from './native/nativeChrome';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+
+applyNativeAppClass();
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement

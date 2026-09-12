@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { usePlayer } from '../contexts/PlayerContext';
 import {
+  AUTOPLAY_EXTEND_MINUTES,
   AUTOPLAY_TIMEOUT_OPTIONS,
   AutoplayTimeoutHours,
   formatAutoplayTimeRemaining
@@ -12,7 +13,8 @@ interface AutoplayTimeoutSelectProps {
 }
 
 const AutoplayTimeoutSelect: React.FC<AutoplayTimeoutSelectProps> = ({ className = '', compact = false }) => {
-  const { autoplayTimeoutHours, autoplayTimeRemainingMs, setAutoplayTimeoutHours } = usePlayer();
+  const { autoplayTimeoutHours, autoplayTimeRemainingMs, setAutoplayTimeoutHours, extendAutoplayTimeout } =
+    usePlayer();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -80,9 +82,18 @@ const AutoplayTimeoutSelect: React.FC<AutoplayTimeoutSelectProps> = ({ className
         )}
       </div>
       {autoplayTimeoutHours > 0 && autoplayTimeRemainingMs != null && (
-        <span className="player-autoplay-timeout-remaining" aria-live="polite">
-          {formatAutoplayTimeRemaining(autoplayTimeRemainingMs)} left
-        </span>
+        <div className="player-autoplay-timeout-remain-row">
+          <span className="player-autoplay-timeout-remaining" aria-live="polite">
+            {formatAutoplayTimeRemaining(autoplayTimeRemainingMs)} left
+          </span>
+          <button
+            type="button"
+            className="player-autoplay-timeout-extend"
+            onClick={() => extendAutoplayTimeout(AUTOPLAY_EXTEND_MINUTES)}
+          >
+            +{AUTOPLAY_EXTEND_MINUTES} min
+          </button>
+        </div>
       )}
     </div>
   );

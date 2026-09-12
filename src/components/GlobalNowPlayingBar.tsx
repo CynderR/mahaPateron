@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { usePlayer } from '../contexts/PlayerContext';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 import PlaybackProgressBar from './PlaybackProgressBar';
@@ -32,7 +32,7 @@ const GlobalNowPlayingBar: React.FC = () => {
   }, [activePostId, currentIndex, queue]);
 
   const visible = !!activePostId && !onStreamPage;
-  const coverUrl = post?.image_filename ? buildImageUrl(post.image_filename) : null;
+  const coverUrl = post ? resolveEpisodeImageUrl(post.id, post.image_filename) : null;
   const canPlay = mediaReady && !mediaLoading;
 
   useEffect(() => {

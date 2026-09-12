@@ -1,4 +1,4 @@
-import { buildImageUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { PODCAST_AUTHOR, PODCAST_AVATAR_URL } from '../podcastMeta';
 import { QueuePost } from './playerQueue';
 
@@ -16,10 +16,12 @@ const hasMediaSession = (): boolean =>
 
 const artworkForPost = (post: QueuePost | null | undefined): MediaImage[] => {
   const images: MediaImage[] = [];
-  if (post?.image_filename) {
-    const src = buildImageUrl(post.image_filename);
-    images.push({ src, sizes: '512x512', type: 'image/jpeg' });
-    images.push({ src, sizes: '256x256', type: 'image/jpeg' });
+  if (post) {
+    const src = resolveEpisodeImageUrl(post.id, post.image_filename);
+    if (src) {
+      images.push({ src, sizes: '512x512', type: 'image/jpeg' });
+      images.push({ src, sizes: '256x256', type: 'image/jpeg' });
+    }
   }
   if (PODCAST_AVATAR_URL) {
     images.push({ src: PODCAST_AVATAR_URL, sizes: '512x512', type: 'image/png' });

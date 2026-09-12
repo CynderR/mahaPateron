@@ -37,9 +37,17 @@ import { postIdsMatch } from '../utils/episodeListHelpers';
 import {
   AutoplayTimeoutHours,
   autoplayTimeoutMs,
+  formatAutoplayTimeRemaining,
+  nextAutoplayDeadline,
   readAutoplayTimeoutHours,
   writeAutoplayTimeoutHours
 } from '../utils/autoplayTimeout';
+import {
+  listenBackgroundPlayback,
+  stopBackgroundPlayback,
+  syncBackgroundPlayback
+} from '../native/backgroundPlayback';
+import { PODCAST_AUTHOR } from '../podcastMeta';
 
 /** Derive the next episode URL from the current stream (member token or share). */
 const resolveStreamUrlForPost = (
@@ -93,6 +101,7 @@ interface PlayerContextType {
   autoplayTimeRemainingMs: number | null;
   streamPreviewSeconds: number | null;
   setAutoplayTimeoutHours: (hours: AutoplayTimeoutHours) => void;
+  extendAutoplayTimeout: (minutes?: number) => void;
   cycleReplay: () => void;
   toggleShuffle: () => void;
   setQueue: (
@@ -317,6 +326,15 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     },
     [armAutoplayDeadline]
   );
+
+  const extendAutoplayTimeout = useCallback((minutes = 15) => {
+    if (autoplayTimeoutHours <= 0 && autoplayDeadlineRef.current == null) return;
+    const next = nextAutoplayDeadline(autoplayDeadlineRef.current, Math.max(1, minutes) * 60 * 1000);
+    autoplayDeadlineRef.current = next;
+    autoplayTimedOutRef.current = false;
+    setAutoplayTimeRemainingMs(next - Date.now());
+    setPlaybackError(null);
+  }, [autoplayTimeoutHours]);
 
   useEffect(() => {
     if (autoplayTimeoutHours <= 0) {
@@ -998,6 +1016,17 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     requestPlay();
   }, [activePostId, mediaLoading, mediaReady, playing, requestPlay]);
 
+  const pausePlayback = useCallback(() => {
+    const audio = getActiveAudio();
+    if (!audio) return;
+    userPausedRef.current = true;
+    playRequestedRef.current = false;
+    playbackGraceUntilRef.current = 0;
+    clearPendingPlay();
+    audio.pause();
+    setPlaying(false);
+  }, [clearPendingPlay, getActiveAudio]);
+
   const togglePlayback = useCallback(() => {
     const audio = getActiveAudio();
     if (!audio || !assignedSourceRef.current) return;
@@ -1010,14 +1039,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
       requestPlay();
     } else {
-      userPausedRef.current = true;
-      playRequestedRef.current = false;
-      playbackGraceUntilRef.current = 0;
-      clearPendingPlay();
-      audio.pause();
-      setPlaying(false);
+      pausePlayback();
     }
-  }, [clearPendingPlay, getActiveAudio, primeAudioSource, requestPlay]);
+  }, [getActiveAudio, pausePlayback, primeAudioSource, requestPlay]);
 
   const seekTo = useCallback(
     (time: number) => {
@@ -1395,16 +1419,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         userPausedRef.current = false;
         requestPlay();
       },
-      pause: () => {
-        const audio = getActiveAudio();
-        if (!audio) return;
-        userPausedRef.current = true;
-        playRequestedRef.current = false;
-        playbackGraceUntilRef.current = 0;
-        clearPendingPlay();
-        audio.pause();
-        setPlaying(false);
-      },
+      pause: () => pausePlayback(),
       seekBy: (delta) => skipBy(delta),
       seekTo: (time) => seekTo(time),
       nextTrack: () => {
@@ -1440,9 +1455,9 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     });
   }, [
     advanceToPost,
-    clearPendingPlay,
     currentIndex,
     getActiveAudio,
+    pausePlayback,
     playEpisode,
     queue,
     replayMode,
@@ -1453,6 +1468,55 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     skipBy,
     user?.rss_token
   ]);
+
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    if (!activePostId) {
+      stopBackgroundPlayback();
+      return undefined;
+    }
+
+    const post = queue.find((entry) => postIdsMatch(entry.id, activePostId)) ?? null;
+    const showExtend = autoplayTimeoutHours > 0;
+    const remainingLabel =
+      showExtend && autoplayTimeRemainingMs != null
+        ? `Stops in ${formatAutoplayTimeRemaining(autoplayTimeRemainingMs)}`
+        : undefined;
+
+    syncBackgroundPlayback({
+      title: post?.title || 'Episode',
+      artist: post?.artist || PODCAST_AUTHOR,
+      playing,
+      remainingLabel,
+      remainingMs: showExtend ? autoplayTimeRemainingMs : null,
+      showExtend
+    });
+
+    return undefined;
+  }, [
+    activePostId,
+    autoplayTimeRemainingMs,
+    autoplayTimeoutHours,
+    playing,
+    queue
+  ]);
+
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    return () => stopBackgroundPlayback();
+  }, []);
+
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+    return listenBackgroundPlayback({
+      play: () => {
+        userPausedRef.current = false;
+        requestPlayRef.current();
+      },
+      pause: () => pausePlayback(),
+      extend: () => extendAutoplayTimeout(15)
+    });
+  }, [extendAutoplayTimeout, pausePlayback]);
 
   useEffect(() => {
     const flushPendingNavigate = () => {
@@ -1622,6 +1686,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       autoplayTimeRemainingMs,
       streamPreviewSeconds,
       setAutoplayTimeoutHours,
+      extendAutoplayTimeout,
       cycleReplay,
       toggleShuffle,
       setQueue,
@@ -1664,6 +1729,7 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       autoplayTimeRemainingMs,
       streamPreviewSeconds,
       setAutoplayTimeoutHours,
+      extendAutoplayTimeout,
       cycleReplay,
       toggleShuffle,
       setQueue,

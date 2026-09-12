@@ -7,6 +7,9 @@ import {
   OfflineEpisodeMeta
 } from './offlineStorage';
 import { isNativeApp } from './platform';
+import { cacheAppCatalog, loadCachedAppCatalog } from './sessionCache';
+import { prefetchCoverImages } from './coverCache';
+import { isNetworkError } from './network';
 
 export interface AppCatalogPost {
   id: string;
@@ -30,8 +33,39 @@ export interface AppCatalogResponse {
 }
 
 export const fetchAppCatalog = async (): Promise<AppCatalogResponse> => {
-  const { data } = await axios.get<AppCatalogResponse>('/app/catalog');
-  return data;
+  try {
+    const { data } = await axios.get<AppCatalogResponse>('/app/catalog');
+    if (isNativeApp()) {
+      await cacheAppCatalog(data);
+      prefetchCoverImages(data.posts);
+    }
+    return data;
+  } catch (error) {
+    if (isNativeApp() && isNetworkError(error)) {
+      const cached = await loadCachedAppCatalog();
+      if (cached) {
+        return {
+          app_access: cached.app_access,
+          offline_use: cached.offline_use,
+          episodes_to_keep: cached.episodes_to_keep ?? null,
+          offline_expires_at: cached.offline_expires_at,
+          offline_days_remaining: cached.offline_days_remaining,
+          offline_expired: cached.offline_expired,
+          app_last_authenticated_at: null,
+          rss_token: cached.rss_token,
+          posts: cached.posts.map((post) => ({
+            id: post.id,
+            title: post.title,
+            description: post.description ?? undefined,
+            duration_secs: post.duration_secs ?? undefined,
+            published_at: post.published_at,
+            image_filename: post.image_filename
+          }))
+        };
+      }
+    }
+    throw error;
+  }
 };
 
 export const refreshAppHeartbeat = async (): Promise<Partial<AppCatalogResponse>> => {

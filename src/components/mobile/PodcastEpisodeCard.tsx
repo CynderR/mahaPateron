@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../../config';
+import { resolveEpisodeImageUrl } from '../../native/coverCache';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../../podcastMeta';
 import { feedDescriptionPreview } from '../../utils/feedDescriptionHelpers';
@@ -17,6 +17,7 @@ interface PodcastEpisodeCardProps {
   canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
+  unavailable?: boolean;
 }
 
 const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
@@ -24,10 +25,12 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   canStream,
   canDownload = false,
   selected = false,
-  onSelectChange
+  onSelectChange,
+  unavailable = false
 }) => {
-  const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, canStream);
-  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const playable = canStream && !unavailable;
+  const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, playable);
+  const coverUrl = resolveEpisodeImageUrl(post.id, post.image_filename);
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
         year: 'numeric',
@@ -91,7 +94,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
   const body = (
     <div className="pod-episode-body">
       <div className="pod-episode-head">
-        {canStream && (
+        {playable && (
           <div className="pod-episode-controls">
             <button type="button" className="pod-episode-play" onClick={handlePlay} aria-label={`Play ${post.title}`}>
               <svg viewBox="0 0 24 24" aria-hidden>
@@ -109,7 +112,7 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
             {post.duration_secs != null && <span>{formatDuration(post.duration_secs)}</span>}
           </div>
         </div>
-        {canStream && (
+        {playable && (
           <div className="pod-episode-actions">
             {(canDownload || isNativeApp()) && (
               <DownloadEpisodeButton
@@ -126,15 +129,16 @@ const PodcastEpisodeCard: React.FC<PodcastEpisodeCardProps> = ({
           </div>
         )}
       </div>
+      {unavailable && <p className="pod-episode-desc">Not downloaded on this device.</p>}
       {displayDescription && <p className="pod-episode-desc">{displayDescription}</p>}
     </div>
   );
 
   return (
-    <article className="pod-episode-card">
+    <article className={`pod-episode-card${unavailable ? ' is-offline-unavailable' : ''}`}>
       <div className="pod-episode-card-row">
         {selectCheckbox}
-        {canStream ? (
+        {playable ? (
           <Link
             to={streamPath}
             state={streamState}

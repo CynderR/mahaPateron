@@ -24,7 +24,15 @@ export const writeAutoplayTimeoutHours = (hours: AutoplayTimeoutHours): void => 
   localStorage.setItem(AUTOPLAY_TIMEOUT_STORAGE_KEY, String(hours));
 };
 
+export const AUTOPLAY_EXTEND_MINUTES = 15;
+export const AUTOPLAY_EXTEND_MS = AUTOPLAY_EXTEND_MINUTES * 60 * 1000;
+
 export const autoplayTimeoutMs = (hours: AutoplayTimeoutHours): number => hours * 60 * 60 * 1000;
+
+export const nextAutoplayDeadline = (currentDeadline: number | null, extendMs = AUTOPLAY_EXTEND_MS): number => {
+  const base = currentDeadline != null && currentDeadline > Date.now() ? currentDeadline : Date.now();
+  return base + extendMs;
+};
 
 export const formatAutoplayTimeRemaining = (ms: number): string => {
   if (ms <= 0) return '0:00';

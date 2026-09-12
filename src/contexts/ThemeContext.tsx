@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { syncNativeStatusBarStyle } from '../native/nativeChrome';
 
 type Theme = 'light' | 'dark';
 
@@ -30,6 +31,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   useEffect(() => {
     localStorage.setItem('theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
+    syncNativeStatusBarStyle(theme);
   }, [theme]);
 
   const toggleTheme = () => {

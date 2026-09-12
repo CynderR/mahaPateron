@@ -8,7 +8,11 @@ import { useAuth } from '../contexts/AuthContext';
 
 import { usePlayer } from '../contexts/PlayerContext';
 
-import { buildImageUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
+import { isNativeApp } from '../native/platform';
+import { getCachedEpisode } from '../native/sessionCache';
+import { getCachedOfflinePlaybackUrl, getOfflineEpisode } from '../native/offlineStorage';
+import { loadNativeOfflineQueue } from '../native/offlineBrowse';
 
 import StreamPlayer from '../components/StreamPlayer';
 
@@ -115,6 +119,44 @@ const Stream: React.FC = () => {
           setData(res.data);
         }
       } catch (e) {
+        if (!cancelled && isNativeApp()) {
+          const local = await getOfflineEpisode(postId);
+          const cached = await getCachedEpisode(postId);
+          const post = cached || (local
+            ? {
+                id: local.postId,
+                title: local.title,
+                description: local.description,
+                duration_secs: local.duration_secs,
+                published_at: local.published_at || undefined,
+                image_filename: local.image_filename
+              }
+            : navPost && postIdsMatch(navPost.id, postId)
+              ? navPost
+              : null);
+          if (post && (local || getCachedOfflinePlaybackUrl(postId))) {
+            setData({
+              is_paying: true,
+              canStream: true,
+              canDownload: false,
+              accessible: true,
+              post
+            });
+            setError('');
+            return;
+          }
+          if (post) {
+            setData({
+              is_paying: true,
+              canStream: false,
+              canDownload: false,
+              accessible: false,
+              post
+            });
+            setError('This episode is not downloaded. Connect to the internet to stream it.');
+            return;
+          }
+        }
         if (!cancelled) {
           setError('Could not load this episode.');
         }
@@ -151,13 +193,17 @@ const Stream: React.FC = () => {
 
       .then((res) => setQueue(res.data.posts, postId, { fromPlaylist: false }))
 
-      .catch(() => {});
+      .catch(async () => {
+        if (!isNativeApp()) return;
+        const posts = await loadNativeOfflineQueue();
+        if (posts.length) setQueue(posts, postId, { fromPlaylist: false });
+      });
 
   }, [postId, user, setQueue]);
 
 
 
-  const coverUrl = playerPost?.image_filename ? buildImageUrl(playerPost.image_filename) : null;
+  const coverUrl = playerPost ? resolveEpisodeImageUrl(playerPost.id, playerPost.image_filename) : null;
 
   const bgStyle = coverUrl
 
@@ -337,7 +383,7 @@ const Stream: React.FC = () => {
 
 
 
-        {user?.rss_token && playerPost && (
+        {(user?.rss_token || (isNativeApp() && playerPost && getCachedOfflinePlaybackUrl(playerPost.id))) && playerPost && (
 
           <article className="stream-card">
 
@@ -379,7 +425,7 @@ const Stream: React.FC = () => {
 
                 post={playerPost}
 
-                rssToken={user.rss_token}
+                rssToken={user?.rss_token || ''}
 
                 coverUrl={coverUrl}
 

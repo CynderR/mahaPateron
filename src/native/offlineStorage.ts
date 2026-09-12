@@ -4,6 +4,8 @@ import { Preferences } from '@capacitor/preferences';
 import { buildAppDownloadUrl } from '../config';
 import { getStoredTokenSync } from './tokenStorage';
 import { isNativeApp } from './platform';
+import { cacheCoverImage } from './coverCache';
+import { mergeCachedEpisodes } from './sessionCache';
 
 const INDEX_KEY = 'offline_episode_index_v1';
 const SETTINGS_KEY = 'offline_download_settings_v1';
@@ -12,6 +14,7 @@ const EPISODE_DIR = 'episodes';
 export interface OfflineEpisodeMeta {
   postId: string;
   title: string;
+  description?: string | null;
   published_at?: string | null;
   duration_secs?: number | null;
   image_filename?: string | null;
@@ -135,6 +138,7 @@ const ensureEpisodeDir = async () => {
 export interface DownloadEpisodeInput {
   postId: string;
   title: string;
+  description?: string | null;
   published_at?: string | null;
   duration_secs?: number | null;
   image_filename?: string | null;
@@ -216,6 +220,7 @@ export const downloadEpisodeToDevice = async (
     const meta: OfflineEpisodeMeta = {
       postId: input.postId,
       title: input.title,
+      description: input.description || null,
       published_at: input.published_at || null,
       duration_secs: input.duration_secs ?? null,
       image_filename: input.image_filename || null,
@@ -228,6 +233,17 @@ export const downloadEpisodeToDevice = async (
     index[input.postId] = meta;
     await saveOfflineIndex(index);
     cachePlaybackUrl(input.postId, uri);
+    await mergeCachedEpisodes([
+      {
+        id: input.postId,
+        title: input.title,
+        description: input.description,
+        duration_secs: input.duration_secs,
+        published_at: input.published_at || undefined,
+        image_filename: input.image_filename
+      }
+    ]);
+    void cacheCoverImage(input.postId, input.image_filename).catch(() => undefined);
     emitProgress(input.postId, 1);
     return meta;
   })().finally(() => {

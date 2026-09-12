@@ -22,6 +22,10 @@ import {
 } from '../utils/adminTableHelpers';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
 import { applyAppEpisodesToKeep, appCatalogTotal } from '../utils/appCatalogLimit';
+import { isNativeApp } from '../native/platform';
+import { mergeCachedEpisodes } from '../native/sessionCache';
+import { prefetchCoverImages } from '../native/coverCache';
+import { loadNativeOfflineBrowse } from '../native/offlineBrowse';
 
 interface LibraryEntry extends FeedPost {
   accessible: boolean;
@@ -49,6 +53,7 @@ const Library: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState('');
+  const [offlineBrowse, setOfflineBrowse] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortField, setSortField] = useState<AdminSortField>('date');
   const [sortDir, setSortDir] = useState<AdminSortDir>('desc');
@@ -85,17 +90,44 @@ const Library: React.FC = () => {
         if (cancelled) return;
 
         const { entries: pageEntries, page: responsePage, ...responseMeta } = res.data;
+        setOfflineBrowse(false);
         setTotal(appCatalogTotal(res.data.total, user?.episodes_to_keep));
         setMeta(responseMeta);
         setEntries((prev) => {
           const merged = page === 1 ? pageEntries : [...prev, ...pageEntries];
           return applyAppEpisodesToKeep(merged, user?.episodes_to_keep);
         });
+        if (isNativeApp() && page === 1) {
+          void mergeCachedEpisodes(pageEntries);
+          prefetchCoverImages(pageEntries);
+        }
 
         if (pageEntries.length === 0 && responsePage > 1 && res.data.total > 0) {
           setPage(responsePage - 1);
         }
       } catch (e) {
+        if (!cancelled && isNativeApp() && page === 1) {
+          const offline = await loadNativeOfflineBrowse(searchQuery);
+          if (offline) {
+            setOfflineBrowse(true);
+            setEntries(offline.posts.map((post) => ({
+              ...post,
+              accessible: offline.downloadedIds.has(post.id)
+            })));
+            setTotal(offline.posts.length);
+            setMeta({
+              is_paying: true,
+              back_catalog_access: true,
+              canStream: true,
+              canDownload: false,
+              catalogTotal: offline.posts.length,
+              accessible: offline.downloadedIds.size,
+              total: offline.posts.length
+            });
+            setError('');
+            return;
+          }
+        }
         if (!cancelled) setError('Could not load the episode library.');
       } finally {
         if (!cancelled) {
@@ -298,8 +330,14 @@ const Library: React.FC = () => {
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
+        {offlineBrowse && (
+          <div className="pod-banner pod-banner-info">
+            You&apos;re offline. Downloaded episodes play; others need a connection.{' '}
+            <Link to="/downloads">Open Downloads</Link>
+          </div>
+        )}
 
-        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
+        {!loading && !offlineBrowse && isNotSubscribed && <SubscribeAccessBanner />}
 
         {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
@@ -322,8 +360,9 @@ const Library: React.FC = () => {
                 <PodcastEpisodeCard
                   key={entry.id}
                   post={entry}
-                  canStream={canStream && (entry.accessible || isNotSubscribed)}
-                  canDownload={canDownload && entry.accessible}
+                  canStream={offlineBrowse ? entry.accessible : canStream && (entry.accessible || isNotSubscribed)}
+                  canDownload={!offlineBrowse && canDownload && entry.accessible}
+                  unavailable={offlineBrowse && !entry.accessible}
                   selected={selectedIds.has(normalizePostId(entry.id))}
                   onSelectChange={selectionProps.onSelectChange}
                 />
@@ -340,8 +379,14 @@ const Library: React.FC = () => {
 
       <main className="podcast-main feed-ht-desktop-only library-main">
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
+        {offlineBrowse && (
+          <div className="pod-banner pod-banner-info">
+            You&apos;re offline. Downloaded episodes play; others need a connection.{' '}
+            <Link to="/downloads">Open Downloads</Link>
+          </div>
+        )}
 
-        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
+        {!loading && !offlineBrowse && isNotSubscribed && <SubscribeAccessBanner />}
 
         {!loading && isInactive && (
           <div className="pod-banner pod-banner-info">
@@ -366,9 +411,10 @@ const Library: React.FC = () => {
                   key={entry.id}
                   post={entry}
                   rssToken={user?.rss_token}
-                  canStream={canStream && (entry.accessible || isNotSubscribed)}
-                  canDownload={canDownload && entry.accessible}
-                  locked={!entry.accessible && !isNotSubscribed}
+                  canStream={offlineBrowse ? entry.accessible : canStream && (entry.accessible || isNotSubscribed)}
+                  canDownload={!offlineBrowse && canDownload && entry.accessible}
+                  locked={!offlineBrowse && !entry.accessible && !isNotSubscribed}
+                  unavailable={offlineBrowse && !entry.accessible}
                   selected={selectedIds.has(normalizePostId(entry.id))}
                   onSelectChange={selectionProps.onSelectChange}
                 />

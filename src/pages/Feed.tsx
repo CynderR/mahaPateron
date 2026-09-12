@@ -43,6 +43,10 @@ import { useMemberAccess } from '../hooks/useMemberAccess';
 import { useEpisodeSelection, EPISODE_PAGE_MAX, fetchAllEpisodeIds, normalizePostId } from '../utils/episodeListHelpers';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 import { applyAppEpisodesToKeep, appCatalogTotal } from '../utils/appCatalogLimit';
+import { isNativeApp } from '../native/platform';
+import { mergeCachedEpisodes } from '../native/sessionCache';
+import { prefetchCoverImages } from '../native/coverCache';
+import { loadNativeOfflineBrowse } from '../native/offlineBrowse';
 
 
 
@@ -96,6 +100,8 @@ const Feed: React.FC = () => {
   const [loadingMore, setLoadingMore] = useState(false);
 
   const [error, setError] = useState('');
+  const [offlineBrowse, setOfflineBrowse] = useState(false);
+  const [downloadedIds, setDownloadedIds] = useState<Set<string>>(new Set());
 
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -167,11 +173,17 @@ const Feed: React.FC = () => {
         }
 
         setMeta(responseMeta);
+        setOfflineBrowse(false);
+        setDownloadedIds(new Set());
 
         setPosts((prev) => {
           const merged = page === 1 ? pagePosts : [...prev, ...pagePosts];
           return applyAppEpisodesToKeep(merged, user?.episodes_to_keep);
         });
+        if (isNativeApp() && page === 1) {
+          void mergeCachedEpisodes(pagePosts);
+          prefetchCoverImages(pagePosts);
+        }
 
 
 
@@ -182,6 +194,24 @@ const Feed: React.FC = () => {
         }
 
       } catch (e) {
+        if (!cancelled && isNativeApp() && page === 1) {
+          const offline = await loadNativeOfflineBrowse(searchQuery);
+          if (offline) {
+            setOfflineBrowse(true);
+            setDownloadedIds(offline.downloadedIds);
+            setPosts(offline.posts);
+            setTotal(offline.posts.length);
+            setCatalogTotal(offline.posts.length);
+            setMeta({
+              is_paying: true,
+              canStream: true,
+              canDownload: false,
+              canRss: false
+            });
+            setError('');
+            return;
+          }
+        }
 
         if (!cancelled) setError('Could not load the feed.');
 
@@ -441,9 +471,11 @@ const Feed: React.FC = () => {
 
             post={post}
 
-            canStream={canStream}
+            canStream={canStream && (!offlineBrowse || downloadedIds.has(post.id))}
 
-            canDownload={canDownload}
+            canDownload={!offlineBrowse && canDownload}
+
+            unavailable={offlineBrowse && !downloadedIds.has(post.id)}
 
             selected={selectedIds.has(normalizePostId(post.id))}
 
@@ -467,9 +499,11 @@ const Feed: React.FC = () => {
 
             rank={index + (featured ? 2 : 1)}
 
-            canStream={canStream}
+            canStream={canStream && (!offlineBrowse || downloadedIds.has(post.id))}
 
-            canDownload={canDownload}
+            canDownload={!offlineBrowse && canDownload}
+
+            unavailable={offlineBrowse && !downloadedIds.has(post.id)}
 
             selected={selectedIds.has(normalizePostId(post.id))}
 
@@ -522,10 +556,16 @@ const Feed: React.FC = () => {
         </div>
 
         {error && <div className="pod-banner pod-banner-error">{error}</div>}
+        {offlineBrowse && (
+          <div className="pod-banner pod-banner-info">
+            You&apos;re offline. Downloaded episodes play; others need a connection.{' '}
+            <Link to="/downloads">Open Downloads</Link>
+          </div>
+        )}
 
 
 
-        {!loading && isNotSubscribed && <SubscribeAccessBanner />}
+        {!loading && !offlineBrowse && isNotSubscribed && <SubscribeAccessBanner />}
 
 
 
@@ -557,9 +597,11 @@ const Feed: React.FC = () => {
 
                 post={featured}
 
-                canStream={canStream}
+                canStream={canStream && (!offlineBrowse || downloadedIds.has(featured.id))}
 
-                canDownload={canDownload}
+                canDownload={!offlineBrowse && canDownload}
+
+                unavailable={offlineBrowse && !downloadedIds.has(featured.id)}
 
                 selected={selectedIds.has(normalizePostId(featured.id))}
 
@@ -667,9 +709,11 @@ const Feed: React.FC = () => {
 
                   post={featured}
 
-                  canStream={canStream}
+                  canStream={canStream && (!offlineBrowse || downloadedIds.has(featured.id))}
 
-                  canDownload={canDownload}
+                  canDownload={!offlineBrowse && canDownload}
+
+                  unavailable={offlineBrowse && !downloadedIds.has(featured.id)}
 
                   selected={selectedIds.has(normalizePostId(featured.id))}
 

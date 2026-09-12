@@ -22,6 +22,8 @@ import {
   fetchAppCatalog,
   runAutoDownloadIfEnabled
 } from '../native/appCatalog';
+import { isDeviceOffline } from '../native/network';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 
 const Downloads: React.FC = () => {
   const { user } = useAuth();
@@ -61,7 +63,7 @@ const Downloads: React.FC = () => {
         await runAutoDownloadIfEnabled(data);
         if (!cancelled) await refresh();
       } catch (err: any) {
-        if (!cancelled) {
+        if (!cancelled && !isDeviceOffline()) {
           setError(err?.response?.data?.error || err?.message || 'Could not refresh catalog');
         }
       }
@@ -132,6 +134,12 @@ const Downloads: React.FC = () => {
       <PodcastMobileHeader title={PODCAST_AUTHOR} subtitle="Downloads" titleTo="/feed" />
       <main className="pod-main" style={{ paddingBottom: '5rem' }}>
         <h2 className="pod-desktop-only">Downloads</h2>
+
+        {isDeviceOffline() && (
+          <div className="pod-banner pod-banner-info" style={{ marginBottom: '1rem' }}>
+            You&apos;re offline. Anything saved on this device will still play.
+          </div>
+        )}
 
         {catalog?.offline_use && offlineInfo.mode === 'days' && (
           <div className="pod-card" style={{ marginBottom: '1rem' }}>
@@ -205,10 +213,20 @@ const Downloads: React.FC = () => {
           <div className="pod-empty">No downloaded episodes yet. Download from the feed or library.</div>
         ) : (
           <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-            {episodes.map((ep) => (
+            {episodes.map((ep) => {
+              const coverUrl = resolveEpisodeImageUrl(ep.postId, ep.image_filename);
+              return (
               <li key={ep.postId} className="pod-card" style={{ marginBottom: '0.75rem' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap' }}>
-                  <div>
+                  <div style={{ display: 'flex', gap: '0.75rem', minWidth: 0 }}>
+                    {coverUrl ? (
+                      <img
+                        src={coverUrl}
+                        alt=""
+                        style={{ width: 56, height: 56, objectFit: 'cover', borderRadius: 8, flexShrink: 0 }}
+                      />
+                    ) : null}
+                    <div>
                     <Link to={`/stream/${encodeURIComponent(ep.postId)}`} style={{ fontWeight: 600 }}>
                       {ep.title}
                     </Link>
@@ -216,6 +234,7 @@ const Downloads: React.FC = () => {
                       {formatBytes(ep.bytes)}
                       {ep.published_at ? ` · ${String(ep.published_at).slice(0, 10)}` : ''}
                       {` · saved ${String(ep.downloaded_at).slice(0, 10)}`}
+                    </div>
                     </div>
                   </div>
                   <button
@@ -228,7 +247,8 @@ const Downloads: React.FC = () => {
                   </button>
                 </div>
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </main>

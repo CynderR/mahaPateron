@@ -28,6 +28,7 @@
     "@types/react-router-dom": "^5.3.3",
     "axios": "^1.12.2",
     "concurrently": "^8.2.2",
+    "cross-env": "^7.0.3",
     "jsmediatags": "^3.9.7",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
@@ -40,8 +41,8 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "build:app": "PUBLIC_URL=/ REACT_APP_BASE_PATH= REACT_APP_API_ORIGIN=https://4thstate.ca/shyam_akaash react-scripts build",
-    "build:app:staging": "PUBLIC_URL=/ REACT_APP_BASE_PATH= REACT_APP_API_ORIGIN=https://4thstate.ca/shyam_akaash_dev react-scripts build",
+    "build:app": "cross-env PUBLIC_URL=/ REACT_APP_BASE_PATH= REACT_APP_API_ORIGIN=https://4thstate.ca/shyam_akaash react-scripts build",
+    "build:app:staging": "cross-env PUBLIC_URL=/ REACT_APP_BASE_PATH= REACT_APP_API_ORIGIN=https://4thstate.ca/shyam_akaash_dev react-scripts build",
     "cap:sync": "npx cap sync android",
     "cap:android": "npx cap open android",
     "cap:copy": "npm run build:app && npx cap sync android",

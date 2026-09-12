@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ROUTER_BASENAME } from './config';
 import { isNativeApp } from './native/platform';
+import { isDeviceOffline } from './native/network';
 import { memberHasAppAccess } from './utils/appAccess';
 import LandingPage from './components/LandingPage';
 import SignIn from './components/SignIn';
@@ -42,6 +43,7 @@ const NativeHomeRedirect: React.FC = () => {
   if (!memberHasAppAccess(user.app_access) && !isAdmin) {
     return <Navigate to="/app-access-denied" replace />;
   }
+  if (isDeviceOffline()) return <Navigate to="/downloads" replace />;
   return <Navigate to="/feed" replace />;
 };
 

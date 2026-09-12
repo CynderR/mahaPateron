@@ -1,0 +1,48 @@
+/*
+  Android status-bar inset. Only applied when <html> has .native-app
+  (set from Capacitor). The website never receives that class.
+*/
+
+html.native-app {
+  --native-status-bar-height: var(--safe-area-inset-top, env(safe-area-inset-top, 0px));
+  --native-status-bar-bg: var(--bg-tertiary, #edf2f7);
+}
+
+html.native-app[data-theme='dark'] {
+  --native-status-bar-bg: var(--bg-tertiary, #4a5568);
+}
+
+html.native-app::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  height: var(--native-status-bar-height);
+  background: var(--native-status-bar-bg);
+  pointer-events: none;
+}
+
+html.native-app body {
+  padding-top: var(--native-status-bar-height);
+}
+
+html.native-app .library-sticky-stack,
+html.native-app .library-sticky-head,
+html.native-app .feed-page .library-sticky-head,
+html.native-app .library-page .library-sticky-head,
+html.native-app .pod-stream-topbar,
+html.native-app .stream-mobile-topbar,
+html.native-app .ht-nav,
+html.native-app .admin-users-sticky-stack {
+  top: var(--native-status-bar-height);
+}
+
+html.native-app .pod-stream-controls-sticky {
+  top: calc(3.25rem + var(--native-status-bar-height));
+}
+
+html.native-app .theme-toggle-corner {
+  top: calc(1rem + var(--native-status-bar-height));
+}

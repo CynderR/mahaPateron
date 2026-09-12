@@ -8,6 +8,11 @@ import {
   persistToken,
   clearStoredToken
 } from '../native/tokenStorage';
+import { isNativeApp } from '../native/platform';
+import { isNetworkError, isUnauthorized } from '../native/network';
+import { cacheNativeUser, clearCachedNativeUser, loadCachedNativeUser } from '../native/sessionCache';
+import { hydrateCoverCache } from '../native/coverCache';
+import { loadOfflineIndex } from '../native/offlineStorage';
 
 export interface User {
   id: number;
@@ -92,6 +97,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     let cancelled = false;
 
     const bootstrap = async () => {
+      if (isNativeApp()) {
+        await Promise.all([loadOfflineIndex(), hydrateCoverCache()]);
+      }
       try {
         const storedToken = await getStoredToken();
         if (cancelled) return;
@@ -101,12 +109,25 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           try {
             const response = await axios.get('/profile');
             if (!cancelled) setUser(response.data);
+            await cacheNativeUser(response.data);
           } catch (error) {
             console.error('Failed to fetch user profile:', error);
-            await clearStoredToken();
-            if (!cancelled) {
-              setToken(null);
-              delete axios.defaults.headers.common['Authorization'];
+            if (isUnauthorized(error)) {
+              await clearStoredToken();
+              await clearCachedNativeUser();
+              if (!cancelled) {
+                setToken(null);
+                delete axios.defaults.headers.common['Authorization'];
+              }
+            } else {
+              const cached = await loadCachedNativeUser();
+              if (!cancelled && cached) {
+                setUser(cached as User);
+              } else if (!cancelled && !isNetworkError(error)) {
+                await clearStoredToken();
+                setToken(null);
+                delete axios.defaults.headers.common['Authorization'];
+              }
             }
           }
         }
@@ -125,6 +146,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const response = await axios.get<User>('/profile');
       setUser(response.data);
+      await cacheNativeUser(response.data);
       return response.data;
     } catch (error) {
       console.error('Failed to refresh user profile:', error);
@@ -140,6 +162,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(userData);
       setToken(userToken);
       await persistToken(userToken, rememberMe);
+      await cacheNativeUser(userData);
       axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Login failed');
@@ -154,6 +177,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       setUser(newUser);
       setToken(userToken);
       await persistToken(userToken, true);
+      await cacheNativeUser(newUser);
       axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || 'Registration failed');
@@ -164,6 +188,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     setToken(null);
     void clearStoredToken();
+    void clearCachedNativeUser();
     delete axios.defaults.headers.common['Authorization'];
   };
 

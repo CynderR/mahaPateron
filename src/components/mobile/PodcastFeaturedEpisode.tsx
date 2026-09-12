@@ -1,5 +1,5 @@
 import React from 'react';
-import { buildImageUrl } from '../../config';
+import { resolveEpisodeImageUrl } from '../../native/coverCache';
 import { FeedPost } from '../PostCard';
 import { formatDuration, PODCAST_AUTHOR, PODCAST_PROFILE_BIO } from '../../podcastMeta';
 import AdminFeedShareAction from '../admin/AdminFeedShareAction';
@@ -13,6 +13,7 @@ interface PodcastFeaturedEpisodeProps {
   canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
+  unavailable?: boolean;
 }
 
 const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
@@ -20,10 +21,12 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
   canStream,
   canDownload = false,
   selected = false,
-  onSelectChange
+  onSelectChange,
+  unavailable = false
 }) => {
-  const { startPlayback } = useEpisodePlayback(post, canStream);
-  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const playable = canStream && !unavailable;
+  const { startPlayback } = useEpisodePlayback(post, playable);
+  const coverUrl = resolveEpisodeImageUrl(post.id, post.image_filename);
 
   return (
     <section className="pod-featured pod-mobile-only">
@@ -31,7 +34,7 @@ const PodcastFeaturedEpisode: React.FC<PodcastFeaturedEpisodeProps> = ({
         <h2>{PODCAST_AUTHOR}</h2>
         <p>{PODCAST_PROFILE_BIO}</p>
       </div>
-      <article className="pod-featured-latest">
+      <article className={`pod-featured-latest${unavailable ? ' is-offline-unavailable' : ''}`}>
         <div className="pod-featured-latest-head">
           <p className="pod-featured-label">Latest episode</p>
           {onSelectChange && (

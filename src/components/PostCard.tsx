@@ -1,6 +1,7 @@
 import { stripFeedMetadataFromDescription } from '../utils/feedDescriptionHelpers';
 import { Link } from 'react-router-dom';
-import { buildImageUrl, buildStreamUrl } from '../config';
+import { buildStreamUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { useAuth } from '../contexts/AuthContext';
 import DownloadEpisodeButton from './DownloadEpisodeButton';
 import { useStreamLinkState } from '../hooks/useStreamLinkState';
@@ -26,6 +27,7 @@ interface PostCardProps {
   canStream: boolean;
   canDownload?: boolean;
   locked?: boolean;
+  unavailable?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
 }
@@ -45,12 +47,13 @@ const PostCard: React.FC<PostCardProps> = ({
   canStream,
   canDownload = false,
   locked = false,
+  unavailable = false,
   selected = false,
   onSelectChange
 }) => {
   const { user } = useAuth();
   const published = post.published_at ? new Date(post.published_at).toLocaleDateString() : '';
-  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const coverUrl = resolveEpisodeImageUrl(post.id, post.image_filename);
   const displayDescription = stripFeedMetadataFromDescription(post.description);
   const streamState = useStreamLinkState(post);
   const rssToken = rssTokenProp ?? user?.rss_token;
@@ -62,7 +65,7 @@ const PostCard: React.FC<PostCardProps> = ({
   const showDownload = canDownload || isNativeApp();
 
   return (
-    <article className="pod-post-card">
+    <article className={`pod-post-card${unavailable ? ' is-offline-unavailable' : ''}`}>
       {onSelectChange && (
         <label className="member-episode-checkbox-wrap pod-post-select">
           <input
@@ -118,7 +121,9 @@ const PostCard: React.FC<PostCardProps> = ({
           {post.duration_secs ? ` · ${formatDuration(post.duration_secs)}` : ''}
         </div>
         {displayDescription && <p className="pod-post-desc">{displayDescription}</p>}
-        {locked ? (
+        {unavailable ? (
+          <p className="pod-post-meta">Not downloaded on this device.</p>
+        ) : locked ? (
           <p className="pod-post-meta">This episode is outside your subscription period.</p>
         ) : canStream ? (
           <div className="pod-inline-actions">

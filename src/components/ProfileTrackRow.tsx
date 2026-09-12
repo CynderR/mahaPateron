@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { buildImageUrl } from '../config';
+import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { useAuth } from '../contexts/AuthContext';
 import { FeedPost } from './PostCard';
 import { formatDuration, PODCAST_AUTHOR } from '../podcastMeta';
@@ -18,6 +18,7 @@ interface ProfileTrackRowProps {
   canDownload?: boolean;
   selected?: boolean;
   onSelectChange?: (postId: string, selected: boolean) => void;
+  unavailable?: boolean;
 }
 
 const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
@@ -26,13 +27,15 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   canStream,
   canDownload = false,
   selected = false,
-  onSelectChange
+  onSelectChange,
+  unavailable = false
 }) => {
   const { user } = useAuth();
   const showPlayControls =
-    canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category);
+    !unavailable &&
+    (canStream || memberHasStreamAccess(user?.is_paying, user?.access_type, user?.payment_category));
   const { streamPath, streamState, startPlayback, prefetchStream } = useEpisodePlayback(post, showPlayControls);
-  const coverUrl = post.image_filename ? buildImageUrl(post.image_filename) : null;
+  const coverUrl = resolveEpisodeImageUrl(post.id, post.image_filename);
   const published = post.published_at
     ? new Date(post.published_at).toLocaleDateString(undefined, {
         day: '2-digit',
@@ -55,7 +58,7 @@ const ProfileTrackRow: React.FC<ProfileTrackRowProps> = ({
   );
 
   return (
-    <article className="ht-track-row">
+    <article className={`ht-track-row${unavailable ? ' is-offline-unavailable' : ''}`}>
       {onSelectChange && (
         <label className="member-episode-checkbox-wrap">
           <input
