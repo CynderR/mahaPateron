@@ -11,7 +11,7 @@ import { usePlayer } from '../contexts/PlayerContext';
 import { resolveEpisodeImageUrl } from '../native/coverCache';
 import { isNativeApp } from '../native/platform';
 import { getCachedEpisode } from '../native/sessionCache';
-import { getCachedOfflinePlaybackUrl, getOfflineEpisode } from '../native/offlineStorage';
+import { getOfflineEpisode, hasOfflineEpisode } from '../native/offlineStorage';
 import { loadNativeOfflineQueue } from '../native/offlineBrowse';
 
 import StreamPlayer from '../components/StreamPlayer';
@@ -134,7 +134,7 @@ const Stream: React.FC = () => {
             : navPost && postIdsMatch(navPost.id, postId)
               ? navPost
               : null);
-          if (post && (local || getCachedOfflinePlaybackUrl(postId))) {
+          if (post && (local || hasOfflineEpisode(postId))) {
             setData({
               is_paying: true,
               canStream: true,
@@ -383,7 +383,7 @@ const Stream: React.FC = () => {
 
 
 
-        {(user?.rss_token || (isNativeApp() && playerPost && getCachedOfflinePlaybackUrl(playerPost.id))) && playerPost && (
+        {(user?.rss_token || (isNativeApp() && playerPost && hasOfflineEpisode(playerPost.id))) && playerPost && (
 
           <article className="stream-card">
 

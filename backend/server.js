@@ -70,7 +70,8 @@ const CAPACITOR_ORIGINS = [
   'https://localhost',
   'http://localhost',
   'capacitor://localhost',
-  'ionic://localhost'
+  'ionic://localhost',
+  'capacitor-electron://localhost'
 ];
 const configuredOrigins = CORS_ORIGIN.includes(',')
   ? CORS_ORIGIN.split(',').map((origin) => origin.trim()).filter(Boolean)
@@ -82,7 +83,11 @@ const isAllowedCorsOrigin = (origin) => {
   try {
     const url = new URL(origin);
     const capacitorScheme =
-      url.protocol === 'https:' || url.protocol === 'http:' || url.protocol === 'capacitor:' || url.protocol === 'ionic:';
+      url.protocol === 'https:' ||
+      url.protocol === 'http:' ||
+      url.protocol === 'capacitor:' ||
+      url.protocol === 'ionic:' ||
+      url.protocol === 'capacitor-electron:';
     return capacitorScheme && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
   } catch {
     return false;

@@ -23,7 +23,12 @@ import {
   prefetchStreamMedia,
   shouldTryBlobFallback
 } from '../utils/streamLoader';
-import { getCachedOfflinePlaybackUrl, loadOfflineIndex } from '../native/offlineStorage';
+import {
+  getCachedOfflinePlaybackUrl,
+  getOfflinePlaybackUrl,
+  hasOfflineEpisode,
+  loadOfflineIndex
+} from '../native/offlineStorage';
 import { isNativeApp } from '../native/platform';
 import { canPlayOffline } from '../native/appCatalog';
 import { parseOfflineUse } from '../utils/appAccess';
@@ -727,9 +732,14 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
-      autoplayHandoffRef.current = false;
-      assignEpisode(postId, streamUrl, durationSecs);
-      preloadEpisodeMedia(postId, streamUrl);
+      void (async () => {
+        if (isNativeApp()) {
+          await getOfflinePlaybackUrl(postId);
+        }
+        autoplayHandoffRef.current = false;
+        assignEpisode(postId, streamUrl, durationSecs);
+        preloadEpisodeMedia(postId, streamUrl);
+      })();
     },
     [assignEpisode, preloadEpisodeMedia]
   );
@@ -741,30 +751,33 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       durationSecs?: number | null,
       options?: { softHandoff?: boolean }
     ) => {
-      if (isNativeApp()) {
-        const offline = parseOfflineUse(user?.offline_use);
-        const localOnly = !!getCachedOfflinePlaybackUrl(postId);
-        const online = typeof navigator === 'undefined' ? true : navigator.onLine;
-        // Days window expired: block all playback until re-auth (online catalog/heartbeat).
-        if (offline.mode === 'days' && user?.app_last_authenticated_at) {
-          const days = offline.days;
-          const last = new Date(user.app_last_authenticated_at).getTime();
-          const expired = Number.isFinite(last) && Date.now() > last + days * 24 * 60 * 60 * 1000;
-          if (expired && !canPlayOffline(user.offline_use, true)) {
-            setPlaybackError('Offline window expired. Connect and sign in again to keep listening.');
+      void (async () => {
+        if (isNativeApp()) {
+          const localUrl = await getOfflinePlaybackUrl(postId);
+          const offline = parseOfflineUse(user?.offline_use);
+          const localOnly = !!localUrl || hasOfflineEpisode(postId);
+          const online = typeof navigator === 'undefined' ? true : navigator.onLine;
+          // Days window expired: block all playback until re-auth (online catalog/heartbeat).
+          if (offline.mode === 'days' && user?.app_last_authenticated_at) {
+            const days = offline.days;
+            const last = new Date(user.app_last_authenticated_at).getTime();
+            const expired = Number.isFinite(last) && Date.now() > last + days * 24 * 60 * 60 * 1000;
+            if (expired && !canPlayOffline(user.offline_use, true)) {
+              setPlaybackError('Offline window expired. Connect and sign in again to keep listening.');
+              return;
+            }
+          }
+          if (!online && !localOnly) {
+            setPlaybackError('This episode is not downloaded. Connect to stream it.');
             return;
           }
         }
-        if (!online && !localOnly) {
-          setPlaybackError('This episode is not downloaded. Connect to stream it.');
-          return;
-        }
-      }
 
-      autoplayHandoffRef.current = options?.softHandoff === true;
-      assignEpisode(postId, streamUrl, durationSecs, options);
-      preloadEpisodeMedia(postId, streamUrl);
-      requestPlay();
+        autoplayHandoffRef.current = options?.softHandoff === true;
+        assignEpisode(postId, streamUrl, durationSecs, options);
+        preloadEpisodeMedia(postId, streamUrl);
+        requestPlay();
+      })();
     },
     [assignEpisode, preloadEpisodeMedia, requestPlay, user?.app_last_authenticated_at, user?.offline_use]
   );

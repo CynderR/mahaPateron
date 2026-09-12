@@ -1280,7 +1280,7 @@
     xcode "^3.0.1"
     xml2js "^0.6.2"
 
-"@capacitor/core@^8.5.0", "@capacitor/core@^8.5.1", "@capacitor/core@>=8.0.0":
+"@capacitor/core@^8.5.0", "@capacitor/core@^8.5.1", "@capacitor/core@>=6.0.0", "@capacitor/core@>=8.0.0":
   version "8.5.1"
   resolved "https://registry.npmjs.org/@capacitor/core/-/core-8.5.1.tgz"
   integrity sha512-IOQ7ynG1qgrJ/RLuCO3WgyRGmkmmG/cdStRR4ftU2dWEN1FdtLrnI/XpZmZuUsOEHEnzBRJY/PmRH8eTLiXfhA==
@@ -1303,6 +1303,11 @@
   version "1.0.4"
   resolved "https://registry.npmjs.org/@capacitor/synapse/-/synapse-1.0.4.tgz"
   integrity sha512-/C1FUo8/OkKuAT4nCIu/34ny9siNHr9qtFezu4kxm6GY1wNFxrCFWjfYx5C1tUhVGz3fxBABegupkpjXvjCHrw==
+
+"@capawesome/capacitor-electron@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.npmjs.org/@capawesome/capacitor-electron/-/capacitor-electron-0.1.1.tgz"
+  integrity sha512-ALzLTcdcWEfYQCQ/hPper2Nwhk9Hes/s9yusKGXggxOzDL0Rt/r1BF6HcQq2CshG1oB5i2UY4CQ/cRS9JdD2PA==
 
 "@csstools/normalize.css@*":
   version "12.1.1"

@@ -1,8 +1,8 @@
-import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { buildImageUrl } from '../config';
 import { isNativeApp } from './platform';
+import { readLocalFileAsObjectUrl, rememberBlobUrl, toWebFileUrl } from './localFileUrl';
 
 const INDEX_KEY = 'offline_cover_index_v1';
 const COVER_DIR = 'covers';
@@ -19,11 +19,21 @@ const coverUrlCache = new Map<string, string>();
 export const getCachedCoverUrl = (postId: string): string | null => coverUrlCache.get(postId) ?? null;
 
 const rememberCoverUrl = (postId: string, uri: string) => {
-  try {
-    coverUrlCache.set(postId, Capacitor.convertFileSrc(uri));
-  } catch {
-    // ignore
-  }
+  const webUrl = toWebFileUrl(uri);
+  if (webUrl) coverUrlCache.set(postId, webUrl);
+};
+
+const rememberCoverFromDisk = async (meta: CoverMeta): Promise<string | null> => {
+  rememberCoverUrl(meta.postId, meta.uri);
+  if (coverUrlCache.has(meta.postId)) return coverUrlCache.get(meta.postId) ?? null;
+  const mime = meta.image_filename.toLowerCase().endsWith('.png')
+    ? 'image/png'
+    : meta.image_filename.toLowerCase().endsWith('.webp')
+      ? 'image/webp'
+      : 'image/jpeg';
+  const blobUrl = await readLocalFileAsObjectUrl(meta.path, mime);
+  if (blobUrl) coverUrlCache.set(meta.postId, blobUrl);
+  return coverUrlCache.get(meta.postId) ?? null;
 };
 
 const blobToBase64 = (blob: Blob): Promise<string> =>
@@ -47,6 +57,10 @@ const loadCoverIndex = async (): Promise<Record<string, CoverMeta>> => {
     Object.values(index).forEach((meta) => {
       if (meta?.uri) rememberCoverUrl(meta.postId, meta.uri);
     });
+    const missing = Object.values(index).filter((meta) => meta?.path && !coverUrlCache.has(meta.postId));
+    if (missing.length > 0) {
+      void Promise.all(missing.map((meta) => rememberCoverFromDisk(meta))).catch(() => undefined);
+    }
     return index;
   } catch {
     return {};
@@ -77,8 +91,7 @@ export const cacheCoverImage = async (
   const index = await loadCoverIndex();
   const existing = index[postId];
   if (existing?.uri) {
-    rememberCoverUrl(postId, existing.uri);
-    return coverUrlCache.get(postId) ?? null;
+    return rememberCoverFromDisk(existing);
   }
 
   const res = await fetch(buildImageUrl(imageFilename), { cache: 'force-cache' });
@@ -98,6 +111,11 @@ export const cacheCoverImage = async (
   index[postId] = { postId, image_filename: imageFilename, path, uri };
   await saveCoverIndex(index);
   rememberCoverUrl(postId, uri);
+  if (!coverUrlCache.has(postId)) {
+    const objectUrl = URL.createObjectURL(blob);
+    rememberBlobUrl(path, objectUrl);
+    coverUrlCache.set(postId, objectUrl);
+  }
   return coverUrlCache.get(postId) ?? null;
 };
 

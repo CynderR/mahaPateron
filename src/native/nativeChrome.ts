@@ -1,13 +1,14 @@
 import { SystemBars, SystemBarsStyle } from '@capacitor/core';
-import { isNativeApp } from './platform';
+import { isAndroidApp, isNativeApp } from './platform';
 
 /**
- * Mark the document as the Capacitor shell. The website never gets this class,
- * so Android status-bar chrome stays out of the browser UI.
+ * Mark the document as the Capacitor shell. The website never gets this class.
+ * Phone status-bar insets are Android-only (`android-app`).
  */
 export const applyNativeAppClass = (): void => {
   if (typeof document === 'undefined') return;
   document.documentElement.classList.toggle('native-app', isNativeApp());
+  document.documentElement.classList.toggle('android-app', isAndroidApp());
 };
 
 /**
@@ -15,7 +16,7 @@ export const applyNativeAppClass = (): void => {
  * Dark style = light icons (dark bar). Light style = dark icons (light bar).
  */
 export const syncNativeStatusBarStyle = (theme: 'light' | 'dark'): void => {
-  if (!isNativeApp()) return;
+  if (!isAndroidApp()) return;
   const style = theme === 'light' ? SystemBarsStyle.Light : SystemBarsStyle.Dark;
   void SystemBars.setStyle({ style }).catch(() => undefined);
 };

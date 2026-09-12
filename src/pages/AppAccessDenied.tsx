@@ -33,10 +33,10 @@ const AppAccessDenied: React.FC = () => {
           {user?.email ? (
             <>
               <strong>{user.email}</strong> can use the website, but this account has not been granted access to the
-              mobile app.
+              app.
             </>
           ) : (
-            <>This account has not been granted access to the mobile app.</>
+            <>This account has not been granted access to the app.</>
           )}
         </p>
         <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5 }}>

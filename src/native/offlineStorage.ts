@@ -1,4 +1,3 @@
-import { Capacitor } from '@capacitor/core';
 import { Directory, Filesystem } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { buildAppDownloadUrl } from '../config';
@@ -6,6 +5,12 @@ import { getStoredTokenSync } from './tokenStorage';
 import { isNativeApp } from './platform';
 import { cacheCoverImage } from './coverCache';
 import { mergeCachedEpisodes } from './sessionCache';
+import {
+  readLocalFileAsObjectUrl,
+  rememberBlobUrl,
+  revokeLocalFileObjectUrl,
+  toWebFileUrl
+} from './localFileUrl';
 
 const INDEX_KEY = 'offline_episode_index_v1';
 const SETTINGS_KEY = 'offline_download_settings_v1';
@@ -38,18 +43,19 @@ type ProgressListener = (postId: string, progress: number | null) => void;
 
 const progressListeners = new Set<ProgressListener>();
 const downloadInflight = new Map<string, Promise<OfflineEpisodeMeta>>();
-/** Sync cache of Capacitor.convertFileSrc URLs for the player. */
+/** Sync cache of playable local URLs for the player. */
 const offlinePlaybackUrlCache = new Map<string, string>();
+const offlinePostIds = new Set<string>();
 
 export const getCachedOfflinePlaybackUrl = (postId: string): string | null =>
   offlinePlaybackUrlCache.get(postId) ?? null;
 
+export const hasOfflineEpisode = (postId: string): boolean =>
+  offlinePostIds.has(postId) || offlinePlaybackUrlCache.has(postId);
+
 const cachePlaybackUrl = (postId: string, uri: string) => {
-  try {
-    offlinePlaybackUrlCache.set(postId, Capacitor.convertFileSrc(uri));
-  } catch {
-    // ignore
-  }
+  const webUrl = toWebFileUrl(uri);
+  if (webUrl) offlinePlaybackUrlCache.set(postId, webUrl);
 };
 
 export const subscribeDownloadProgress = (listener: ProgressListener): (() => void) => {
@@ -80,7 +86,9 @@ export const loadOfflineIndex = async (): Promise<Record<string, OfflineEpisodeM
   try {
     const index = JSON.parse(value) as Record<string, OfflineEpisodeMeta>;
     Object.values(index).forEach((meta) => {
-      if (meta?.uri) cachePlaybackUrl(meta.postId, meta.uri);
+      if (!meta?.postId) return;
+      offlinePostIds.add(meta.postId);
+      if (meta.uri) cachePlaybackUrl(meta.postId, meta.uri);
     });
     return index;
   } catch {
@@ -120,6 +128,12 @@ export const getOfflinePlaybackUrl = async (postId: string): Promise<string | nu
   const meta = await getOfflineEpisode(postId);
   if (!meta) return null;
   cachePlaybackUrl(postId, meta.uri);
+  if (offlinePlaybackUrlCache.has(postId)) return offlinePlaybackUrlCache.get(postId) ?? null;
+  const blobUrl = await readLocalFileAsObjectUrl(meta.path, 'audio/mpeg');
+  if (blobUrl) {
+    offlinePlaybackUrlCache.set(postId, blobUrl);
+    offlinePostIds.add(postId);
+  }
   return offlinePlaybackUrlCache.get(postId) ?? null;
 };
 
@@ -149,7 +163,7 @@ export const downloadEpisodeToDevice = async (
   input: DownloadEpisodeInput
 ): Promise<OfflineEpisodeMeta> => {
   if (!isNativeApp()) {
-    throw new Error('Downloads are only available in the mobile app');
+    throw new Error('Downloads are only available in the app');
   }
 
   const existing = downloadInflight.get(input.postId);
@@ -232,7 +246,13 @@ export const downloadEpisodeToDevice = async (
 
     index[input.postId] = meta;
     await saveOfflineIndex(index);
+    offlinePostIds.add(input.postId);
     cachePlaybackUrl(input.postId, uri);
+    if (!offlinePlaybackUrlCache.has(input.postId)) {
+      const objectUrl = URL.createObjectURL(blob);
+      rememberBlobUrl(path, objectUrl);
+      offlinePlaybackUrlCache.set(input.postId, objectUrl);
+    }
     await mergeCachedEpisodes([
       {
         id: input.postId,
@@ -267,6 +287,8 @@ export const removeOfflineEpisode = async (postId: string): Promise<void> => {
     }
     delete index[postId];
     offlinePlaybackUrlCache.delete(postId);
+    offlinePostIds.delete(postId);
+    revokeLocalFileObjectUrl(meta.path);
     await saveOfflineIndex(index);
   }
 };
