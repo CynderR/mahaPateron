@@ -5,6 +5,7 @@ import FavoriteButton from '../components/FavoriteButton';
 import PodcastMobileNav, { PodcastMobileHeader } from '../components/mobile/PodcastMobileNav';
 import { PlaylistSummary, usePlayer } from '../contexts/PlayerContext';
 import { FeedPost } from '../components/PostCard';
+import PlaylistDownloadAllButton from '../components/PlaylistDownloadAllButton';
 import { buildStreamState, currentPathWithSearch } from '../utils/streamNavigation';
 
 const Playlists: React.FC = () => {
@@ -79,6 +80,7 @@ const Playlists: React.FC = () => {
               >
                 Play all
               </button>
+              <PlaylistDownloadAllButton items={pl.items} />
               <button
                 type="button"
                 className="pod-btn pod-btn-danger pod-btn-sm"

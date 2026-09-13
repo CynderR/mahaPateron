@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { PODCAST_AUTHOR } from '../podcastMeta';
 import { memberCanRss } from '../utils/accessPermissions';
 import { isNativeApp } from '../native/platform';
+import AppInstallerLinks from './AppInstallerLinks';
 import ThemeToggle from './ThemeToggle';
 
 // Shared top navigation for the member and admin areas.
@@ -38,6 +39,7 @@ const PodcastNav: React.FC = () => {
           <NavLink to="/account/settings">Settings</NavLink>
           {!native && isAdmin && <NavLink to="/admin">Admin</NavLink>}
           {!native && isAdmin && <NavLink to="/admin/bulk-upload">Bulk Upload</NavLink>}
+          <AppInstallerLinks />
           <ThemeToggle />
           <button type="button" className="pod-btn pod-btn-secondary pod-btn-sm" onClick={handleLogout}>
             Log out

@@ -20,6 +20,7 @@ import AdminFeedShareAction from '../components/admin/AdminFeedShareAction';
 
 import SubscribeAccessBanner from '../components/SubscribeAccessBanner';
 
+import AppInstallerLinks from '../components/AppInstallerLinks';
 import ThemeToggle from '../components/ThemeToggle';
 
 import { FeedPost } from '../components/PostCard';
@@ -260,9 +261,8 @@ const Stream: React.FC = () => {
 
 
       <div className="stream-theme-btn stream-desktop-only">
-
+        <AppInstallerLinks />
         <ThemeToggle />
-
       </div>
 
 
@@ -282,7 +282,7 @@ const Stream: React.FC = () => {
         <span className="pod-stream-topbar-title">Now playing</span>
 
         <div className="theme-toggle-row">
-
+          <AppInstallerLinks />
           <ThemeToggle />
 
           <Link to={returnPath} className="pod-stream-topbar-btn" aria-label="Back to list">
@@ -310,7 +310,7 @@ const Stream: React.FC = () => {
         </Link>
 
         <div className="stream-mobile-topbar-actions">
-
+          <AppInstallerLinks />
           <ThemeToggle />
 
           <Link to="/account/settings" className="stream-mobile-icon-btn" aria-label="Account">

@@ -120,3 +120,17 @@ export const buildSignInUrl = (): string => {
   }
   return `https://4thstate.ca${path || '/signin'}`;
 };
+
+const installerPublicBase = (): string => {
+  const base = ROUTER_BASENAME || '/shyam_akaash';
+  if (typeof window !== 'undefined' && window.location?.origin && isProd) {
+    return `${window.location.origin}${base}`;
+  }
+  return `https://4thstate.ca${base}`;
+};
+
+/** Signed Android APK hosted outside the React build (survives deploys). */
+export const ANDROID_APP_DOWNLOAD_URL = `${installerPublicBase()}/downloads/shyam-akaash.apk`;
+
+/** Windows installer hosted outside the React build (survives deploys). */
+export const DESKTOP_APP_DOWNLOAD_URL = `${installerPublicBase()}/downloads/shyam-akaash-setup.exe`;

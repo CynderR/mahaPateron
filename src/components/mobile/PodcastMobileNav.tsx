@@ -1,5 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import AppInstallerLinks from '../AppInstallerLinks';
 import ThemeToggle from '../ThemeToggle';
 import { isNativeApp } from '../../native/platform';
 
@@ -76,6 +77,7 @@ export const PodcastMobileHeader: React.FC<{
       {subtitle && <p className="pod-mobile-header-subtitle">{subtitle}</p>}
     </div>
     <div className="theme-toggle-row">
+      <AppInstallerLinks />
       <ThemeToggle />
     </div>
   </header>

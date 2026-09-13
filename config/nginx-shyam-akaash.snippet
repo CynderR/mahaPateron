@@ -41,6 +41,17 @@ location ~ ^/shyam_akaash/share/(?:[^/]+/)?([^/]+)/?$ {
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 
+# Signed APK / desktop installer. Keep files in downloads/ (not React build/).
+location ^~ /shyam_akaash/downloads/ {
+    alias /var/www/user-management-app/downloads/;
+    add_header Content-Disposition "attachment";
+    types {
+        application/vnd.android.package-archive apk;
+        application/octet-stream exe;
+    }
+    default_type application/octet-stream;
+}
+
 # React SPA — serve directly from build/ (no shyam_akaash symlink required)
 location /shyam_akaash/ {
     alias /var/www/user-management-app/build/;
