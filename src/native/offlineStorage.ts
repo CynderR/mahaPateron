@@ -1,7 +1,8 @@
-import { Directory, Filesystem } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { buildAppDownloadUrl } from '../config';
-import { getStoredTokenSync } from './tokenStorage';
+import { getStoredToken, getStoredTokenSync } from './tokenStorage';
 import { isNativeApp } from './platform';
 import { cacheCoverImage } from './coverCache';
 import { mergeCachedEpisodes } from './sessionCache';
@@ -78,6 +79,174 @@ const blobToBase64 = (blob: Blob): Promise<string> =>
     };
     reader.readAsDataURL(blob);
   });
+
+const WRITE_CHUNK_BYTES = 256 * 1024;
+
+/** Android IPC and Electron memory both choke on a whole-episode base64 write. */
+const writeAudioBlob = async (path: string, blob: Blob): Promise<void> => {
+  const platform = Capacitor.getPlatform();
+  if (platform === 'electron' || platform === 'web') {
+    await Filesystem.writeFile({
+      path,
+      data: blob as unknown as string,
+      directory: Directory.Data,
+      recursive: true
+    });
+    return;
+  }
+
+  let offset = 0;
+  let first = true;
+  while (offset < blob.size) {
+    const chunk = await blobToBase64(blob.slice(offset, offset + WRITE_CHUNK_BYTES));
+    if (first) {
+      await Filesystem.writeFile({
+        path,
+        data: chunk,
+        directory: Directory.Data,
+        recursive: true
+      });
+      first = false;
+    } else {
+      await Filesystem.appendFile({
+        path,
+        data: chunk,
+        directory: Directory.Data
+      });
+    }
+    offset += WRITE_CHUNK_BYTES;
+  }
+};
+
+const episodeFilePath = (postId: string): string =>
+  `${EPISODE_DIR}/${String(postId).replace(/[^a-zA-Z0-9._-]/g, '_')}.mp3`;
+
+const parseErrorPayload = async (res: Response): Promise<string> => {
+  let detail = `HTTP ${res.status}`;
+  try {
+    const data = (await res.json()) as { error?: string };
+    if (data?.error) detail = data.error;
+  } catch {
+    // not JSON
+  }
+  return detail;
+};
+
+/** CapacitorHttp cannot return a large MP3 through the bridge; ask the server for a tiny range instead. */
+const explainDownloadFailure = async (
+  url: string,
+  headers: Record<string, string>,
+  fallback: string
+): Promise<string> => {
+  try {
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { ...headers, Range: 'bytes=0-0' },
+      cache: 'no-store'
+    });
+    if (!res.ok) return parseErrorPayload(res);
+  } catch {
+    // keep fallback
+  }
+  return fallback;
+};
+
+const readTinyFileError = async (path: string): Promise<string | null> => {
+  try {
+    const { data } = await Filesystem.readFile({
+      path,
+      directory: Directory.Data,
+      encoding: Encoding.UTF8
+    });
+    const parsed = JSON.parse(String(data || '')) as { error?: string };
+    return parsed?.error || null;
+  } catch {
+    return null;
+  }
+};
+
+const downloadAudioToDisk = async (
+  url: string,
+  path: string,
+  headers: Record<string, string>,
+  postId: string
+): Promise<{ bytes: number; blob: Blob | null }> => {
+  const platform = Capacitor.getPlatform();
+
+  if (platform === 'android') {
+    const progressHandle = await Filesystem.addListener('progress', (status) => {
+      if (status.url !== url || !(status.contentLength > 0)) return;
+      emitProgress(postId, Math.min(0.99, status.bytes / status.contentLength));
+    });
+    try {
+      await Filesystem.downloadFile({
+        url,
+        path,
+        directory: Directory.Data,
+        recursive: true,
+        headers,
+        progress: true
+      });
+    } catch (err: any) {
+      try {
+        await Filesystem.deleteFile({ path, directory: Directory.Data });
+      } catch {
+        // leftover error body
+      }
+      throw new Error(await explainDownloadFailure(url, headers, err?.message || 'Download failed'));
+    } finally {
+      await progressHandle.remove();
+    }
+
+    const info = await Filesystem.stat({ path, directory: Directory.Data });
+    const bytes = Number(info.size || 0);
+    if (bytes < 1024) {
+      const detail = await readTinyFileError(path);
+      try {
+        await Filesystem.deleteFile({ path, directory: Directory.Data });
+      } catch {
+        // ignore
+      }
+      throw new Error(detail || 'Downloaded file was empty or invalid');
+    }
+    return { bytes, blob: null };
+  }
+
+  const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
+  if (!res.ok) {
+    throw new Error(await parseErrorPayload(res));
+  }
+
+  const contentLength = Number(res.headers.get('Content-Length') || 0);
+  const reader = res.body?.getReader();
+  let blob: Blob;
+
+  if (reader) {
+    const chunks: Uint8Array[] = [];
+    let received = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value) {
+        chunks.push(value);
+        received += value.length;
+        if (contentLength > 0) {
+          emitProgress(postId, Math.min(0.99, received / contentLength));
+        }
+      }
+    }
+    blob = new Blob(chunks as BlobPart[], { type: 'audio/mpeg' });
+  } else {
+    blob = await res.blob();
+  }
+
+  if (blob.size < 1024) {
+    throw new Error('Downloaded file was empty or invalid');
+  }
+
+  await writeAudioBlob(path, blob);
+  return { bytes: blob.size, blob };
+};
 
 export const loadOfflineIndex = async (): Promise<Record<string, OfflineEpisodeMeta>> => {
   if (!isNativeApp()) return {};
@@ -179,56 +348,12 @@ export const downloadEpisodeToDevice = async (
     emitProgress(input.postId, 0);
 
     const url = buildAppDownloadUrl(input.postId, input.rssToken);
-    const token = getStoredTokenSync();
+    const token = (await getStoredToken()) || getStoredTokenSync();
     const headers: Record<string, string> = {};
     if (token) headers.Authorization = `Bearer ${token}`;
 
-    const res = await fetch(url, { method: 'GET', headers, cache: 'no-store' });
-    if (!res.ok) {
-      let detail = `HTTP ${res.status}`;
-      try {
-        const data = (await res.json()) as { error?: string };
-        if (data?.error) detail = data.error;
-      } catch {
-        // not JSON
-      }
-      throw new Error(detail);
-    }
-
-    const contentLength = Number(res.headers.get('Content-Length') || 0);
-    const reader = res.body?.getReader();
-    let blob: Blob;
-
-    if (reader) {
-      const chunks: Uint8Array[] = [];
-      let received = 0;
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        if (value) {
-          chunks.push(value);
-          received += value.length;
-          if (contentLength > 0) {
-            emitProgress(input.postId, Math.min(0.99, received / contentLength));
-          }
-        }
-      }
-      blob = new Blob(chunks as BlobPart[], { type: 'audio/mpeg' });
-    } else {
-      blob = await res.blob();
-    }
-
-    if (blob.size < 1024) {
-      throw new Error('Downloaded file was empty or invalid');
-    }
-
-    const path = `${EPISODE_DIR}/${input.postId}.mp3`;
-    const base64 = await blobToBase64(blob);
-    await Filesystem.writeFile({
-      path,
-      data: base64,
-      directory: Directory.Data
-    });
+    const path = episodeFilePath(input.postId);
+    const { bytes, blob } = await downloadAudioToDisk(url, path, headers, input.postId);
     const { uri } = await Filesystem.getUri({ path, directory: Directory.Data });
 
     const meta: OfflineEpisodeMeta = {
@@ -238,7 +363,7 @@ export const downloadEpisodeToDevice = async (
       published_at: input.published_at || null,
       duration_secs: input.duration_secs ?? null,
       image_filename: input.image_filename || null,
-      bytes: blob.size,
+      bytes,
       downloaded_at: new Date().toISOString(),
       uri,
       path
@@ -248,7 +373,7 @@ export const downloadEpisodeToDevice = async (
     await saveOfflineIndex(index);
     offlinePostIds.add(input.postId);
     cachePlaybackUrl(input.postId, uri);
-    if (!offlinePlaybackUrlCache.has(input.postId)) {
+    if (!offlinePlaybackUrlCache.has(input.postId) && blob) {
       const objectUrl = URL.createObjectURL(blob);
       rememberBlobUrl(path, objectUrl);
       offlinePlaybackUrlCache.set(input.postId, objectUrl);

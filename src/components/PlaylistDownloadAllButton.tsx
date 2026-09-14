@@ -49,6 +49,7 @@ const PlaylistDownloadAllButton: React.FC<PlaylistDownloadAllButtonProps> = ({ i
     setBusy(true);
     setDone(0);
     let failed = 0;
+    let firstError = '';
     try {
       const index = await loadOfflineIndex();
       let processed = 0;
@@ -64,8 +65,20 @@ const PlaylistDownloadAllButton: React.FC<PlaylistDownloadAllButtonProps> = ({ i
               rssToken: user.rss_token
             });
             index[item.post_id] = meta;
-          } catch {
+          } catch (err: any) {
             failed += 1;
+            if (!firstError) {
+              firstError = err?.message || 'Download failed';
+              console.error('Playlist download failed', item.post_id, err);
+            }
+            const sharedFailure =
+              /download access|Authentication required|Subscription inactive|Failed to fetch|Cannot reach|only available in the app/i.test(
+                firstError
+              );
+            if (sharedFailure) {
+              failed += items.length - processed - 1;
+              break;
+            }
           }
         }
         processed += 1;
@@ -73,7 +86,11 @@ const PlaylistDownloadAllButton: React.FC<PlaylistDownloadAllButtonProps> = ({ i
         setDone(processed);
       }
       if (failed > 0) {
-        setError(`Saved ${total - failed} of ${total}. ${failed} failed.`);
+        setError(
+          firstError
+            ? `Saved ${total - failed} of ${total}. ${failed} failed. ${firstError}`
+            : `Saved ${total - failed} of ${total}. ${failed} failed.`
+        );
       }
     } catch (err: any) {
       setError(err?.message || 'Download failed');

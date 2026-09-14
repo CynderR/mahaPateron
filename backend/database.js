@@ -433,6 +433,7 @@ const USER_PUBLIC_COLUMNS = `id, username, email, is_free, is_admin,
   whatsapp_id, signal_id, payment_category, is_paying, access_type,
   stripe_customer_id, stripe_sub_id, subscription_price,
   subscribed_at, back_catalog_access, monthly_payments, download_access,
+  app_access, offline_use, episodes_to_keep, app_last_authenticated_at,
   deleted_at, created_at, updated_at`;
 
 const getUsersFiltered = (filters = {}) => {

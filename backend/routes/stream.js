@@ -205,7 +205,7 @@ router.get('/:postId', async (req, res) => {
 
           if (wantsDownload) {
             if (appDownload) {
-              if (!memberHasAppAccess(user) || previewUser) {
+              if ((!memberHasAppAccess(user) && !user.is_admin) || previewUser) {
                 return res.status(403).json({ error: 'App download access is not available for this account' });
               }
             } else if (!flags.canDownload || previewUser) {
