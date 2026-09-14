@@ -96,7 +96,7 @@ const ShareStreamPlayer: React.FC<ShareStreamPlayerProps> = ({
       : duration || post.duration_secs || 0;
   const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
   const playable = accessible && canStream;
-  const canPlay = playable && mediaReady && !mediaLoading;
+  const canPlay = playable || playing;
 
   const nextId = getNextPostId();
   const prevId = getPrevPostId();

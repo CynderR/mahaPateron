@@ -56,7 +56,10 @@ export const hasOfflineEpisode = (postId: string): boolean =>
 
 const cachePlaybackUrl = (postId: string, uri: string) => {
   const webUrl = toWebFileUrl(uri);
-  if (webUrl) offlinePlaybackUrlCache.set(postId, webUrl);
+  // Electron convertFileSrc is often not playable; prefer a blob URL instead.
+  if (webUrl && Capacitor.getPlatform() !== 'electron') {
+    offlinePlaybackUrlCache.set(postId, webUrl);
+  }
 };
 
 export const subscribeDownloadProgress = (listener: ProgressListener): (() => void) => {

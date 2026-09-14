@@ -16,6 +16,7 @@ import {
   blurEpisodeTransportFocus
 } from '../hooks/usePlaybackKeyboardShortcuts';
 import { isNativeApp } from '../native/platform';
+import { hasOfflineEpisode } from '../native/offlineStorage';
 
 const PODCAST_AUTHOR = 'Shyam Akaash';
 
@@ -99,8 +100,9 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
       ? streamPreviewSeconds
       : duration || post.duration_secs || 0;
   const progress = effectiveDuration > 0 ? Math.min(100, (currentTime / effectiveDuration) * 100) : 0;
-  const playable = accessible && canStream;
-  const canPlay = playable && mediaReady && !mediaLoading;
+  const playable =
+    (accessible && canStream) || (isNativeApp() && hasOfflineEpisode(post.id));
+  const canToggle = playable || playing;
 
   const nextId = getNextPostId();
   const prevId = getPrevPostId();
@@ -203,7 +205,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
           type="button"
           className="stream-play-btn stream-play-btn-header"
           onClick={() => togglePlayback()}
-          disabled={!canPlay}
+          disabled={!canToggle}
           aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           <PlayIcon large />
@@ -309,7 +311,7 @@ const StreamPlayer: React.FC<StreamPlayerProps> = ({
         currentTime={currentTime}
         duration={effectiveDuration}
         playable={playable}
-        canPlay={canPlay}
+        canPlay={canToggle}
         playbackError={playbackError}
         mediaLoading={mediaLoading}
         onTogglePlay={() => togglePlayback()}

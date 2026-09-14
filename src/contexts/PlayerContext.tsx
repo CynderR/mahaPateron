@@ -30,6 +30,7 @@ import {
   loadOfflineIndex
 } from '../native/offlineStorage';
 import { isNativeApp } from '../native/platform';
+import { isDeviceOffline } from '../native/network';
 import { canPlayOffline } from '../native/appCatalog';
 import { parseOfflineUse } from '../utils/appAccess';
 import {
@@ -154,7 +155,10 @@ const SEEK_PLAYBACK_GRACE_MS = 15000;
 
 const audioHasEpisode = (audio: HTMLAudioElement, postId: string, blobUrl: string | null): boolean => {
   const src = audio.currentSrc || audio.src || '';
+  if (!src) return false;
   if (blobUrl && src === blobUrl) return true;
+  const offline = getCachedOfflinePlaybackUrl(postId);
+  if (offline && src === offline) return true;
   return src.includes(postId);
 };
 
@@ -644,7 +648,12 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       preloadCleanupRef.current = null;
       const generation = ++preloadGenerationRef.current;
 
-      prefetchStreamMedia(postId, streamUrl).catch(() => {});
+      const localUrl = getCachedOfflinePlaybackUrl(postId);
+      if (localUrl) {
+        blobUrlRef.current = localUrl;
+      } else if (!isDeviceOffline()) {
+        prefetchStreamMedia(postId, streamUrl).catch(() => {});
+      }
 
       const cached = getCachedStreamBlob(postId);
       if (cached) {
@@ -696,31 +705,48 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         cleanupListeners();
         if (generation !== preloadGenerationRef.current) return;
         if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
-        if (!shouldTryBlobFallback() || blobUrlRef.current) {
-          setMediaLoading(false);
-          setMediaReady(false);
-          setPlaybackError('Could not load this episode.');
-          return;
-        }
 
-        loadStreamBlob(postId, streamUrl)
-          .then((blobUrl) => {
+        const tryLocalThenRemote = async () => {
+          if (isNativeApp()) {
+            const local = await getOfflinePlaybackUrl(postId);
+            if (local && generation === preloadGenerationRef.current) {
+              blobUrlRef.current = local;
+              primeAudioSource(true);
+              markReady();
+              if (playRequestedRef.current) requestPlayRef.current();
+              return;
+            }
+          }
+
+          if (!shouldTryBlobFallback() || blobUrlRef.current || isDeviceOffline()) {
+            setMediaLoading(false);
+            setMediaReady(false);
+            setPlaybackError(
+              isDeviceOffline()
+                ? 'This episode is not downloaded. Connect to stream it.'
+                : 'Could not load this episode.'
+            );
+            return;
+          }
+
+          try {
+            const blobUrl = await loadStreamBlob(postId, streamUrl);
             if (generation !== preloadGenerationRef.current) return;
             if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
             blobUrlRef.current = blobUrl;
             primeAudioSource(true);
             markReady();
-            if (playRequestedRef.current) {
-              requestPlayRef.current();
-            }
-          })
-          .catch((err: Error) => {
+            if (playRequestedRef.current) requestPlayRef.current();
+          } catch (err: any) {
             if (generation !== preloadGenerationRef.current) return;
             if (!postIdsMatch(assignedSourceRef.current?.postId, postId)) return;
             setMediaLoading(false);
             setMediaReady(false);
-            setPlaybackError(err.message || 'Could not load this episode.');
-          });
+            setPlaybackError(err?.message || 'Could not load this episode.');
+          }
+        };
+
+        void tryLocalThenRemote();
       };
 
       media.addEventListener('canplay', onCanPlay);
@@ -733,11 +759,13 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const prepareEpisode = useCallback(
     (postId: string, streamUrl: string, durationSecs?: number | null) => {
       void (async () => {
+        let localUrl: string | null = null;
         if (isNativeApp()) {
-          await getOfflinePlaybackUrl(postId);
+          localUrl = await getOfflinePlaybackUrl(postId);
         }
         autoplayHandoffRef.current = false;
         assignEpisode(postId, streamUrl, durationSecs);
+        if (localUrl) blobUrlRef.current = localUrl;
         preloadEpisodeMedia(postId, streamUrl);
       })();
     },
@@ -775,6 +803,10 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
         autoplayHandoffRef.current = options?.softHandoff === true;
         assignEpisode(postId, streamUrl, durationSecs, options);
+        if (isNativeApp()) {
+          const localUrl = getCachedOfflinePlaybackUrl(postId);
+          if (localUrl) blobUrlRef.current = localUrl;
+        }
         preloadEpisodeMedia(postId, streamUrl);
         requestPlay();
       })();
@@ -1205,6 +1237,36 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
     };
   }, [clearPendingPlay, getActiveAudio, syncPlayingState]);
+
+  useEffect(() => {
+    if (!isNativeApp()) return undefined;
+
+    const switchToLocalFile = () => {
+      const assigned = assignedSourceRef.current;
+      if (!assigned || !hasOfflineEpisode(assigned.postId)) return;
+      void getOfflinePlaybackUrl(assigned.postId).then((local) => {
+        if (!local || assignedSourceRef.current?.postId !== assigned.postId) return;
+        const audio = getActiveAudio();
+        const time = audio?.currentTime ?? 0;
+        const shouldResume = !!audio && !audio.paused;
+        blobUrlRef.current = local;
+        primeAudioSource(true);
+        if (audio && Number.isFinite(time) && time > 0) {
+          try {
+            audio.currentTime = time;
+          } catch {
+            // some local sources reject seek until metadata loads
+          }
+        }
+        setMediaReady(true);
+        setMediaLoading(false);
+        if (shouldResume) requestPlayRef.current();
+      });
+    };
+
+    window.addEventListener('offline', switchToLocalFile);
+    return () => window.removeEventListener('offline', switchToLocalFile);
+  }, [getActiveAudio, primeAudioSource]);
 
   useEffect(() => {
     if (!playing) return undefined;

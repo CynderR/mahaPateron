@@ -97,7 +97,11 @@ const Stream: React.FC = () => {
 
   const { isNotSubscribed, isInactive, canStream, canDownload } = useMemberAccess(episodeData);
 
-  const episodePlayable = episodeData
+  const localEpisode = !!(postId && isNativeApp() && hasOfflineEpisode(postId));
+
+  const episodePlayable = localEpisode
+    ? true
+    : episodeData
     ? memberCanPlayEpisode(
         user?.is_paying ?? episodeData.is_paying,
         user?.access_type,
@@ -431,7 +435,7 @@ const Stream: React.FC = () => {
 
                 accessible={episodePlayable}
 
-                canStream={canStream}
+                canStream={canStream || localEpisode}
 
                 canDownload={canDownload}
 

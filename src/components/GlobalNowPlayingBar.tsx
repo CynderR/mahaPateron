@@ -33,7 +33,7 @@ const GlobalNowPlayingBar: React.FC = () => {
 
   const visible = !!activePostId && !onStreamPage;
   const coverUrl = post ? resolveEpisodeImageUrl(post.id, post.image_filename) : null;
-  const canPlay = mediaReady && !mediaLoading;
+  const canToggle = playing || mediaReady || mediaLoading;
 
   useEffect(() => {
     document.body.classList.toggle('global-now-playing-active', visible);
@@ -70,7 +70,7 @@ const GlobalNowPlayingBar: React.FC = () => {
           type="button"
           className="global-now-playing-play"
           onClick={() => togglePlayback()}
-          disabled={!canPlay}
+          disabled={!canToggle}
           aria-label={mediaLoading ? 'Loading audio' : playing ? 'Pause' : 'Play'}
         >
           {playing ? (
